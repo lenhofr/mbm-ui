@@ -1,8 +1,8 @@
-provider "aws" {
-  region = var.region
+locals {
+    bucket_name = "mqm-ui-infra-217354297026"
 }
 
 module "site" {
   source      = "./modules/s3-static-site"
-  bucket_name = var.bucket_name
+  bucket_name = local.bucket_name
 }
