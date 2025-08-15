@@ -28,7 +28,7 @@ output "bucket_name" {
 }
 
 output "website_endpoint" {
-  value = aws_s3_bucket.site.website_endpoint
+  value       = aws_s3_bucket.site.website_endpoint
   description = "S3 website endpoint (if website hosting enabled)"
-  depends_on = [aws_s3_bucket.site]
+  depends_on  = [aws_s3_bucket.site]
 }
