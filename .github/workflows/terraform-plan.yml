@@ -1,5 +1,8 @@
 name: Terraform Plan (PR)
 
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -24,11 +27,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Fail if AWS secrets are missing (runtime check)
+        run: |
+          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ] || [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ] || [ -z "${{ env.AWS_REGION }}" ]; then
+            echo "Required AWS config (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION) are not set in this repository or environment."
+            echo "Please add them in Settings → Secrets (for keys) and Variables (for AWS_REGION) or via 'gh secret set' / 'gh variable set'."
+            exit 1
+          fi
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: "${{ secrets.AWS_ROLE_TO_ASSUME }}"
-          aws-region: us-east-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -168,7 +180,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
