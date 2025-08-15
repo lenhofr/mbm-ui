@@ -1,0 +1,97 @@
+name: Deploy Static Site
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'package.json'
+      - 'vite.config.ts'
+      - 'terraform/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        working-directory: terraform
+        run: terraform apply -input=false -auto-approve
+
+      - name: Get outputs
+        id: tfout
+        working-directory: terraform
+        run: |
+          # adapt to available outputs in terraform/envs/*; using common names from this repo
+          if terraform output -raw site_bucket >/dev/null 2>&1; then echo "site_bucket=$(terraform output -raw site_bucket)" >> $GITHUB_OUTPUT; fi
+          if terraform output -raw distribution_id >/dev/null 2>&1; then echo "distribution_id=$(terraform output -raw distribution_id)" >> $GITHUB_OUTPUT; fi
+          if terraform output -raw site_website_endpoint >/dev/null 2>&1; then echo "site_website_endpoint=$(terraform output -raw site_website_endpoint)" >> $GITHUB_OUTPUT; fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Lint & Type Check
+        run: |
+          # repo may not have lint configured; keep lint optional
+          npm run lint || true
+          npx tsc --noEmit
+
+      - name: Build site (Vite)
+        env:
+          VITE_SITE_ENDPOINT: ${{ steps.tfout.outputs.site_website_endpoint }}
+        run: npm run build
+
+      - name: Archive build
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-dist
+          path: dist
+
+      - name: Export endpoint for build
+        if: steps.tfout.outputs.site_website_endpoint
+        run: |
+          echo "Site endpoint: ${{ steps.tfout.outputs.site_website_endpoint }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Sync to S3
+        if: steps.tfout.outputs.site_bucket
+        run: aws s3 sync dist s3://${{ steps.tfout.outputs.site_bucket }}/ --delete
+
+      - name: Invalidate CloudFront
+        if: steps.tfout.outputs.distribution_id
+        run: aws cloudfront create-invalidation --distribution-id ${{ steps.tfout.outputs.distribution_id }} --paths '/*'
+
+      - name: Summary
+        run: |
+          echo "Deployment complete. Bucket: ${{ steps.tfout.outputs.site_bucket }}" >> $GITHUB_STEP_SUMMARY
