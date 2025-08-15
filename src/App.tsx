@@ -5,6 +5,7 @@ import DetailsModal from './components/DetailsModal'
 import ConfirmDialog from './components/ConfirmDialog'
 import CookModal from './components/CookModal'
 import Fuse from 'fuse.js'
+import { storage } from './lib/storage'
 
 export type Recipe = {
   id: string
@@ -18,58 +19,41 @@ export type Recipe = {
 }
 
 export default function App() {
-  const [recipes, setRecipes] = useState<Recipe[]>([
-    {
-      id: '1',
-      title: 'Spaghetti Bolognese',
-      description: 'Classic Italian pasta.',
-      servings: '4',
-      tags: ['pasta', 'dinner'],
-      ingredients: [
-        { amount: '400g', name: 'spaghetti' },
-        { amount: '500g', name: 'minced beef' },
-        { amount: '1', name: 'onion, diced' },
-      ],
-      instructions: ['Heat oil and sauté onion', 'Add beef and brown', 'Add tomato sauce and simmer 20 minutes', 'Serve over spaghetti']
-    },
-    {
-      id: '2',
-      title: 'Roast Chicken',
-      description: 'Crispy skin, juicy meat.',
-      servings: '6',
-      tags: ['roast', 'poultry'],
-      ingredients: [
-        { amount: '1 whole', name: 'chicken (approx 1.5kg)' },
-        { amount: '2 tbsp', name: 'olive oil' },
-        { amount: '1 tsp', name: 'salt' },
-      ],
-      instructions: ['Preheat oven to 200°C', 'Rub chicken with oil and season', 'Roast for 1h 15m until juices run clear']
-    },
-    {
-      id: '3',
-      title: 'Lemon Garlic Salmon',
-      description: 'Quick pan-seared salmon with lemon and garlic.',
-      servings: '2',
-      tags: ['fish', 'quick'],
-      ingredients: [
-        { amount: '2 fillets', name: 'salmon' },
-        { amount: '1 tbsp', name: 'butter' },
-        { amount: '1', name: 'lemon, zested and juiced' },
-      ],
-      instructions: ['Season salmon with salt and pepper', 'Pan-sear skin-side down 4-5 minutes', 'Flip and cook 2 more minutes', 'Finish with lemon juice and zest']
-    },
-  ])
+  const [recipes, setRecipes] = useState<Recipe[]>([])
 
-  function addRecipe(r: Omit<Recipe, 'id'>) {
-    setRecipes(s => [{ id: String(Date.now()), ...r }, ...s])
+  // Load initial recipes from storage on mount
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        const items = await storage.listRecipes()
+        if (mounted && items && items.length) setRecipes(items)
+        // If storage is empty, we could seed with defaults; keep empty for now
+      } catch (e) {
+        // ignore and leave recipes empty
+      }
+    })()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  async function addRecipe(r: Omit<Recipe, 'id'>) {
+    const created = await storage.createRecipe(r)
+    setRecipes(s => [created, ...s])
   }
 
   const [editing, setEditing] = useState<Recipe | null>(null)
 
-  function updateRecipe(r: Omit<Recipe, 'id'>, id?: string) {
+  async function updateRecipe(r: Omit<Recipe, 'id'>, id?: string) {
     if (!id) return
-    setRecipes(s => s.map(item => (item.id === id ? { ...item, ...r } : item)))
-    setEditing(null)
+    try {
+      const updated = await storage.updateRecipe(id, r)
+      setRecipes(s => s.map(item => (item.id === id ? updated : item)))
+      setEditing(null)
+    } catch (e) {
+      // handle error (e.g., show toast). For now, ignore
+    }
   }
 
   function startEdit(recipe: Recipe) {
@@ -88,10 +72,15 @@ export default function App() {
     setDeleting(recipe)
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleting) return
-    setRecipes(s => s.filter(r => r.id !== deleting.id))
-    setDeleting(null)
+    try {
+      await storage.deleteRecipe(deleting.id)
+      setRecipes(s => s.filter(r => r.id !== deleting.id))
+      setDeleting(null)
+    } catch (e) {
+      // ignore for now
+    }
   }
 
   const [query, setQuery] = useState('')

@@ -3,3 +3,4 @@ dist
 .vscode
 .env
 .DS_Store
+terraform/terraform.tfvars

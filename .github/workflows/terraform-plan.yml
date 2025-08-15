@@ -1,0 +1,108 @@
+name: Terraform Plan (PR Only)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main ]
+    paths:
+      - 'terraform/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Terraform Format Check
+        working-directory: terraform
+        run: |
+          echo 'Running terraform fmt check...'
+          if ! terraform fmt -check -recursive; then
+            echo ''
+            echo '❌ terraform fmt found unformatted files. Run: terraform fmt -recursive'
+            exit 1
+          fi
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: |
+          set -o pipefail
+          terraform init -input=false 2>&1 | tee init.log
+          echo "INIT_EXIT_CODE=${PIPESTATUS[0]}" >> $GITHUB_ENV
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi
+
+      - name: Terraform Validate
+        working-directory: terraform
+        run: |
+          set -o pipefail
+          terraform validate 2>&1 | tee validate.log
+          echo "VALIDATE_EXIT_CODE=${PIPESTATUS[0]}" >> $GITHUB_ENV
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: terraform
+        run: |
+          set -o pipefail
+          terraform plan -input=false -no-color -out=tfplan 2>&1 | tee plan_raw.log
+          PLAN_EXIT=${PIPESTATUS[0]}
+          if [ $PLAN_EXIT -eq 0 ]; then
+            terraform show -no-color tfplan > plan.txt
+            terraform show -json tfplan > plan.json
+          fi
+          echo "PLAN_EXIT_CODE=$PLAN_EXIT" >> $GITHUB_ENV
+          exit $PLAN_EXIT
+
+      - name: Comment Plan or Error on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const readIfExists = p => fs.existsSync(p) ? fs.readFileSync(p,'utf8') : null;
+            const planTxt = readIfExists('terraform/plan.txt');
+            const planRaw = readIfExists('terraform/plan_raw.log');
+            const initLog = readIfExists('terraform/init.log');
+            const validateLog = readIfExists('terraform/validate.log');
+            const planExit = process.env.PLAN_EXIT_CODE;
+            const initExit = process.env.INIT_EXIT_CODE;
+            const validateExit = process.env.VALIDATE_EXIT_CODE;
+            let body;
+            if (planExit && parseInt(planExit) !== 0) {
+              body = 'Terraform Plan Failed ❌' + '\n' + '```\n' + (planRaw ? planRaw.slice(0,60000) : 'Plan error (log missing)') + '\n```';
+            } else if (initExit && parseInt(initExit) !== 0) {
+              body = 'Terraform Init Failed ❌' + '\n```\n' + (initLog || '').slice(0,60000) + '\n```';
+            } else if (validateExit && parseInt(validateExit) !== 0) {
+              body = 'Terraform Validate Failed ❌' + '\n```\n' + (validateLog || '').slice(0,60000) + '\n```';
+            } else if (planTxt) {
+              const noChanges = /No changes\. Infrastructure is up-to-date\./.test(planTxt);
+              const truncated = planTxt.length > 60000 ? planTxt.substring(0,60000) + '\n... (truncated)' : planTxt;
+              body = (noChanges ? 'Terraform Plan: No changes ✅' : 'Terraform Plan (preview)') + '\n```\n' + truncated + '\n```';
+            } else {
+              body = 'Terraform plan did not produce a plan.txt and no explicit error logs were captured.';
+            }
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
