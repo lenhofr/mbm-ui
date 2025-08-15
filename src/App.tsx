@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import RecipeList from './components/RecipeList'
 import RecipeForm from './components/RecipeForm'
 import DetailsModal from './components/DetailsModal'
 import ConfirmDialog from './components/ConfirmDialog'
 import CookModal from './components/CookModal'
+import Fuse from 'fuse.js'
 
 export type Recipe = {
   id: string
@@ -18,8 +19,45 @@ export type Recipe = {
 
 export default function App() {
   const [recipes, setRecipes] = useState<Recipe[]>([
-    { id: '1', title: 'Spaghetti Bolognese', description: 'Classic Italian pasta.' },
-    { id: '2', title: 'Roast Chicken', description: 'Crispy skin, juicy meat.' },
+    {
+      id: '1',
+      title: 'Spaghetti Bolognese',
+      description: 'Classic Italian pasta.',
+      servings: '4',
+      tags: ['pasta', 'dinner'],
+      ingredients: [
+        { amount: '400g', name: 'spaghetti' },
+        { amount: '500g', name: 'minced beef' },
+        { amount: '1', name: 'onion, diced' },
+      ],
+      instructions: ['Heat oil and sauté onion', 'Add beef and brown', 'Add tomato sauce and simmer 20 minutes', 'Serve over spaghetti']
+    },
+    {
+      id: '2',
+      title: 'Roast Chicken',
+      description: 'Crispy skin, juicy meat.',
+      servings: '6',
+      tags: ['roast', 'poultry'],
+      ingredients: [
+        { amount: '1 whole', name: 'chicken (approx 1.5kg)' },
+        { amount: '2 tbsp', name: 'olive oil' },
+        { amount: '1 tsp', name: 'salt' },
+      ],
+      instructions: ['Preheat oven to 200°C', 'Rub chicken with oil and season', 'Roast for 1h 15m until juices run clear']
+    },
+    {
+      id: '3',
+      title: 'Lemon Garlic Salmon',
+      description: 'Quick pan-seared salmon with lemon and garlic.',
+      servings: '2',
+      tags: ['fish', 'quick'],
+      ingredients: [
+        { amount: '2 fillets', name: 'salmon' },
+        { amount: '1 tbsp', name: 'butter' },
+        { amount: '1', name: 'lemon, zested and juiced' },
+      ],
+      instructions: ['Season salmon with salt and pepper', 'Pan-sear skin-side down 4-5 minutes', 'Flip and cook 2 more minutes', 'Finish with lemon juice and zest']
+    },
   ])
 
   function addRecipe(r: Omit<Recipe, 'id'>) {
@@ -56,6 +94,104 @@ export default function App() {
     setDeleting(null)
   }
 
+  const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false)
+  const [tagSuggestionIndex, setTagSuggestionIndex] = useState(0)
+
+  // debounce the query for performance (200ms)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query.trim().toLowerCase()), 200)
+    return () => clearTimeout(t)
+  }, [query])
+
+  // all unique tags
+  const allTags = useMemo(() => Array.from(new Set(recipes.flatMap(r => r.tags || []))), [recipes])
+
+  // focus shortcut: Ctrl/Cmd+K to focus search
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const meta = e.ctrlKey || e.metaKey
+      if (meta && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        const el = document.getElementById('recipe-search') as HTMLInputElement | null
+        el?.focus()
+        el?.select()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
+  const filtered = useMemo(() => {
+    const q = debouncedQuery
+    // If no query and no tag filters, short-circuit
+    if (!q && selectedTags.length === 0) return recipes
+
+    type Rec = Recipe & { ingredientsText: string; instructionsText: string }
+    const records: Rec[] = recipes.map(r => ({
+      ...r,
+      ingredientsText: (r.ingredients || []).map(i => `${i.amount ?? ''} ${i.name}`).join('\n'),
+      instructionsText: (r.instructions || []).join('\n'),
+    }))
+
+    // Build a small Fuse index
+    const fuse = new Fuse<Rec>(records, {
+      keys: [
+        'title',
+        'description',
+        'tags',
+        'ingredientsText',
+        'instructionsText',
+      ],
+      includeMatches: true,
+      threshold: 0.4,
+      ignoreLocation: true,
+    })
+
+    // parse tokens (support tag: and ing:)
+  const tokens = (q || '').match(/(-?\w+:"[^"]+"|-?\w+:\S+|"[^"]+"|\S+)/g)?.map(t => t.replace(/^"|"$/g, '')) || []
+
+    // For each token, run Fuse scoped appropriately and collect ids
+    let resultSets: Array<Set<string>> = []
+    if (tokens.length === 0) {
+      // if only tag filters
+      resultSets = [new Set(records.map(r => r.id))]
+    } else {
+      tokens.forEach(token => {
+        const m = token.match(/^(\w+):(.*)$/)
+        let res: any[] = []
+        if (m) {
+          const field = m[1].toLowerCase()
+          const val = m[2]
+          if (field === 'tag' || field === 't') {
+            res = records.filter(r => (r.tags || []).some((tg: string) => tg.toLowerCase().includes(val.toLowerCase())))
+          } else if (field === 'ing' || field === 'ingredient') {
+            res = records.filter(r => r.ingredientsText.toLowerCase().includes(val.toLowerCase()))
+          } else {
+            // fallback to global
+            res = fuse.search(token).map(x => x.item)
+          }
+        } else {
+          res = fuse.search(token).map(x => x.item)
+        }
+        resultSets.push(new Set(res.map((r: any) => r.id)))
+      })
+    }
+
+    // intersect result sets
+    const intersection = resultSets.reduce((acc, s) => new Set([...acc].filter(x => s.has(x))), resultSets[0] || new Set())
+    let result = recipes.filter(r => intersection.has(r.id))
+
+    // apply selected tag filters (AND semantics)
+    if (selectedTags.length) {
+      result = result.filter(r => selectedTags.every(t => (r.tags || []).includes(t)))
+    }
+
+    return result
+  }, [recipes, debouncedQuery, selectedTags])
+
   return (
     <div className="app">
       <header className="app-header">
@@ -63,17 +199,82 @@ export default function App() {
         <p className="subtitle">A cozy place to collect your favorite recipes</p>
       </header>
 
-      <main>
+      {/* Search bar placed under the tagline */}
+  <div style={{maxWidth:1040, margin:'0 auto 16px', padding:'0 20px'}}>
+        <label style={{display:'block', marginBottom:8, color:'var(--muted)'}} htmlFor="recipe-search">Search recipes</label>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <div style={{position:'relative',flex:1}}>
+            <input
+              id="recipe-search"
+              className="search-input"
+              placeholder="Search by title, tag, ingredient or instruction... (Ctrl/Cmd+K to focus)"
+              value={query}
+              onChange={(e) => {
+                const v = e.target.value
+                setQuery(v)
+                // show tag suggestions if user typed tag:<partial>
+                const m = v.match(/tag:(\S*)$/)
+                if (m) {
+                  setShowTagSuggestions(true)
+                  setTagSuggestionIndex(0)
+                } else {
+                  setShowTagSuggestions(false)
+                }
+              }}
+              onKeyDown={(e) => {
+                if (!showTagSuggestions) return
+                if (e.key === 'ArrowDown') { e.preventDefault(); setTagSuggestionIndex(i => Math.min(i+1, Math.max(0, allTags.length-1))) }
+                if (e.key === 'ArrowUp') { e.preventDefault(); setTagSuggestionIndex(i => Math.max(i-1, 0)) }
+                if (e.key === 'Enter') {
+                  const matches = query.match(/tag:(\S*)$/)
+                  if (matches) {
+                    const partial = matches[1]
+                    const candidate = allTags.filter(t => t.toLowerCase().includes(partial.toLowerCase()))[tagSuggestionIndex]
+                    if (candidate) {
+                      setQuery(q => q.replace(/tag:\S*$/, `tag:${candidate} `))
+                    }
+                    setShowTagSuggestions(false)
+                    e.preventDefault()
+                  }
+                }
+                if (e.key === 'Escape') setShowTagSuggestions(false)
+              }}
+              aria-label="Search recipes"
+            />
+            {query && (
+              <button aria-label="Clear search" className="search-clear" onClick={() => setQuery('')}>×</button>
+            )}
+
+            {showTagSuggestions && (
+              <div className="tag-suggestions" role="listbox">
+                {allTags.filter(t => {
+                  const m = query.match(/tag:(\S*)$/)
+                  if (!m) return true
+                  const partial = m[1].toLowerCase()
+                  return t.toLowerCase().includes(partial)
+                }).map((t, idx) => (
+                  <div key={t} role="option" aria-selected={idx === tagSuggestionIndex} className={`tag-suggestion ${idx === tagSuggestionIndex ? 'active' : ''}`} onMouseDown={() => {
+                    setQuery(q => q.replace(/tag:\S*$/, `tag:${t} `))
+                    setShowTagSuggestions(false)
+                  }}>{t}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+  </div>
+
+  <main>
         <section className="left">
           <RecipeForm onAdd={addRecipe} />
         </section>
         <section className="right">
-          <RecipeList recipes={recipes} onEdit={startEdit} onDelete={requestDelete} onView={startView} />
+          <RecipeList recipes={filtered} onEdit={startEdit} onDelete={requestDelete} onView={startView} query={debouncedQuery} />
         </section>
       </main>
 
       {editing && (
-        <DetailsModal visible={true} onClose={() => setEditing(null)} onSave={updateRecipe} initialRecipe={editing} />
+  <DetailsModal visible={true} onClose={() => setEditing(null)} onSave={updateRecipe} initialRecipe={editing} onCook={startView} />
       )}
 
       <ConfirmDialog visible={!!deleting} title="Delete recipe" message={`Delete "${deleting?.title}"?`} onCancel={() => setDeleting(null)} onConfirm={confirmDelete} />

@@ -7,11 +7,13 @@ export default function DetailsModal({
   onClose,
   onSave,
   initialRecipe,
+  onCook,
 }: {
   visible: boolean
   onClose: () => void
   onSave: (r: Omit<Recipe, 'id'>, id?: string) => void
   initialRecipe?: Partial<Recipe> | null
+  onCook?: (r: Recipe) => void
 }) {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(initialRecipe?.image ?? null)
@@ -135,6 +137,20 @@ export default function DetailsModal({
     onClose()
   }
 
+  function handleCookPreview() {
+    const recipePreview: Recipe = {
+      id: (initialRecipe as any)?.id ?? String(Date.now()),
+      title: initialRecipe?.title ?? '',
+      description: initialRecipe?.description ?? '',
+      image: imagePreview || undefined,
+      tags: tags.length ? tags : undefined,
+      ingredients: parseIngredients(ingredientsText),
+      instructions: parseInstructions(instructionsText),
+      servings: servings || undefined,
+    }
+    onCook?.(recipePreview)
+  }
+
   if (!visible || !modalRoot) return null
 
   return createPortal(
@@ -189,6 +205,7 @@ export default function DetailsModal({
 
         <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
           <button type="button" className="secondary" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn-ghost" onClick={handleCookPreview}>Cook</button>
           <button type="button" className="primary" onClick={save}>Save recipe</button>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import type { Recipe } from '../App'
 
-function CardMenu({ recipe, onEdit, onDelete }: { recipe: Recipe; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void }) {
+function CardMenu({ recipe, onEdit, onDelete, onView }: { recipe: Recipe; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void; onView?: (r: Recipe) => void }) {
   const [open, setOpen] = useState(false)
   const rootRef = React.useRef<HTMLDivElement | null>(null)
 
@@ -19,6 +19,7 @@ function CardMenu({ recipe, onEdit, onDelete }: { recipe: Recipe; onEdit?: (r: R
       <button className="btn-ghost" aria-haspopup="menu" aria-expanded={open} aria-label="More options" onClick={() => setOpen(s => !s)}>⋯</button>
       {open && (
         <div style={{position:'absolute',right:0,top:28,background:'white',boxShadow:'0 6px 18px rgba(0,0,0,0.08)',borderRadius:8,padding:8,zIndex:30}}>
+          {onView && <div><button className="btn-ghost" onClick={() => { onView(recipe); setOpen(false)} }>Cook</button></div>}
           {onEdit && <div><button className="btn-ghost" onClick={() => { onEdit(recipe); setOpen(false)} }>Edit</button></div>}
           {onDelete && <div><button className="btn-ghost" onClick={() => { onDelete(recipe); setOpen(false)} }>Delete</button></div>}
         </div>
@@ -27,7 +28,15 @@ function CardMenu({ recipe, onEdit, onDelete }: { recipe: Recipe; onEdit?: (r: R
   )
 }
 
-export default function RecipeList({ recipes, onEdit, onDelete, onView }: { recipes: Recipe[]; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void; onView?: (r: Recipe) => void }) {
+function highlight(text: string | undefined, q: string | undefined) {
+  if (!text) return null
+  if (!q) return text
+  const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig')
+  const parts = text.split(re)
+  return parts.map((p, i) => (re.test(p) ? <mark key={i} className="search-highlight">{p}</mark> : <span key={i}>{p}</span>))
+}
+
+export default function RecipeList({ recipes, onEdit, onDelete, onView, query }: { recipes: Recipe[]; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void; onView?: (r: Recipe) => void; query?: string }) {
   if (recipes.length === 0) return <div>No recipes yet — add one!</div>
 
   return (
@@ -40,15 +49,15 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView }: { reci
           onView && onView(r)
         }}>
           <div className="recipe-image">{r.image ? <img src={r.image} alt={r.title} /> : <div className="placeholder">No Image</div>}</div>
-          <div className="recipe-body">
+            <div className="recipe-body">
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
-              <h3>{r.title}</h3>
+              <h3>{highlight(r.title, query)}</h3>
               <div style={{display:'flex',gap:8,alignItems:'center'}}>
                 <small style={{color:'#d36b96',fontWeight:600}}>{r.servings ? `${r.servings} ppl` : ''}</small>
-                {(onEdit || onDelete) && <CardMenu recipe={r} onEdit={onEdit} onDelete={onDelete} />}
+                {(onEdit || onDelete || onView) && <CardMenu recipe={r} onEdit={onEdit} onDelete={onDelete} onView={onView} />}
               </div>
             </div>
-            <p>{r.description}</p>
+            <p>{highlight(r.description, query) || r.description}</p>
             {r.tags?.length ? (
               <div className="tag-list">
                 {r.tags.map(t => (
