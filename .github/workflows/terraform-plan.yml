@@ -1,0 +1,186 @@
+name: Terraform Plan (PR)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main ]
+    paths:
+      - 'terraform/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'terraform/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    env:
+      INFRACOST_API_KEY: "${{ secrets.INFRACOST_API_KEY }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: "${{ secrets.AWS_ROLE_TO_ASSUME }}"
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Format Check
+        working-directory: terraform/envs/staging
+        run: |
+          echo 'Running terraform fmt check...'
+          if ! terraform fmt -check -recursive; then
+            echo ''
+            echo '❌ terraform fmt found unformatted files. Run: terraform fmt -recursive'
+            exit 1
+          fi
+
+      - name: Terraform Init
+        working-directory: terraform/envs/staging
+        run: |
+          set -o pipefail
+          terraform init -input=false 2>&1 | tee init.log
+          echo "INIT_EXIT_CODE=${PIPESTATUS[0]}" >> $GITHUB_ENV
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi
+
+      - name: Terraform Validate
+        working-directory: terraform/envs/staging
+        run: |
+          set -o pipefail
+          terraform validate 2>&1 | tee validate.log
+          echo "VALIDATE_EXIT_CODE=${PIPESTATUS[0]}" >> $GITHUB_ENV
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: terraform/envs/staging
+        run: |
+          set -o pipefail
+          terraform plan -input=false -no-color -out=tfplan 2>&1 | tee plan_raw.log
+          PLAN_EXIT=${PIPESTATUS[0]}
+          if [ $PLAN_EXIT -eq 0 ]; then
+            terraform show -no-color tfplan > plan.txt
+            terraform show -json tfplan > plan.json
+          fi
+          echo "PLAN_EXIT_CODE=$PLAN_EXIT" >> $GITHUB_ENV
+          exit $PLAN_EXIT
+
+      - name: Upload Plan Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ github.run_id }}
+          path: |
+            terraform/envs/staging/plan.txt
+            terraform/envs/staging/plan_raw.log
+            terraform/envs/staging/plan.json
+
+      - name: Setup Infracost
+        if: env.INFRACOST_API_KEY != ''
+        uses: infracost/actions/setup@v2
+        with:
+          api-key: "${{ secrets.INFRACOST_API_KEY }}"
+
+      - name: Infracost Diff
+        if: env.INFRACOST_API_KEY != ''
+        working-directory: terraform/envs/staging
+        run: |
+          infracost diff --path .. --terraform-plan-file plan.json --format json --out-file infracost.json
+          infracost output --path infracost.json --format markdown > infracost.md
+
+      - name: Comment Plan or Error on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const readIfExists = p => fs.existsSync(p) ? fs.readFileSync(p,'utf8') : null;
+            const planTxt = readIfExists('terraform/envs/staging/plan.txt');
+            const planRaw = readIfExists('terraform/envs/staging/plan_raw.log');
+            const initLog = readIfExists('terraform/envs/staging/init.log');
+            const validateLog = readIfExists('terraform/envs/staging/validate.log');
+            const planExit = process.env.PLAN_EXIT_CODE;
+            const initExit = process.env.INIT_EXIT_CODE;
+            const validateExit = process.env.VALIDATE_EXIT_CODE;
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            let body;
+            const truncate = (s, n=60000) => s && s.length > n ? s.substring(0,n) + '\n... (truncated)' : s;
+            if (planExit && parseInt(planExit) !== 0) {
+              const snippet = truncate(planRaw || initLog || validateLog || 'Plan failed, logs missing');
+              body = `Terraform Plan Failed ❌\n\n<details><summary>View error snippet</summary>\n<pre>${snippet}</pre>\n</details>\n\nArtifacts: ${runUrl}`;
+            } else if (initExit && parseInt(initExit) !== 0) {
+              const snippet = truncate(initLog || 'init failed');
+              body = `Terraform Init Failed ❌\n\n<details><summary>Init log (truncated)</summary>\n<pre>${snippet}</pre>\n</details>\n\nArtifacts: ${runUrl}`;
+            } else if (validateExit && parseInt(validateExit) !== 0) {
+              const snippet = truncate(validateLog || 'validate failed');
+              body = `Terraform Validate Failed ❌\n\n<details><summary>Validate log (truncated)</summary>\n<pre>${snippet}</pre>\n</details>\n\nArtifacts: ${runUrl}`;
+            } else if (planTxt) {
+              const noChanges = /No changes\. Infrastructure is up-to-date\./.test(planTxt);
+              const snippet = truncate(planTxt);
+              let cost = '';
+              const costMd = readIfExists('terraform/envs/staging/infracost.md');
+              if (costMd) cost = '\n\n### Cost Estimate (Infracost)\n' + costMd;
+              body = (noChanges ? 'Terraform Plan: No changes ✅' : 'Terraform Plan (preview)') + `\n\n<details><summary>Show plan (truncated)</summary>\n<pre>${snippet}</pre>\n</details>\n\nArtifacts: ${runUrl}` + cost;
+            } else {
+              body = 'Terraform plan did not produce a plan.txt and no explicit error logs were captured.';
+            }
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+      - name: Add Plan to Summary
+        if: always()
+        run: |
+          echo '### Terraform Plan Summary' >> $GITHUB_STEP_SUMMARY
+          if [ -f terraform/envs/staging/plan.txt ]; then
+            head -n 400 terraform/envs/staging/plan.txt >> $GITHUB_STEP_SUMMARY || true
+            line_count=$(wc -l < terraform/envs/staging/plan.txt || echo 0)
+            if [ "$line_count" -gt 400 ]; then printf '\n... (truncated)\n' >> "$GITHUB_STEP_SUMMARY"; fi
+          else
+            echo '_No plan.txt generated (plan step may have failed before file creation)._' >> $GITHUB_STEP_SUMMARY
+            if [ -f terraform/envs/staging/plan_raw.log ]; then echo '\n#### Raw Plan Output (error snippet)' >> $GITHUB_STEP_SUMMARY; head -n 60 terraform/envs/staging/plan_raw.log >> $GITHUB_STEP_SUMMARY; fi
+          fi
+          if [ -f terraform/envs/staging/infracost.md ]; then printf '\n### Cost Estimate (Infracost)\n' >> $GITHUB_STEP_SUMMARY; cat terraform/envs/staging/infracost.md >> $GITHUB_STEP_SUMMARY; fi
+
+  apply:
+    needs: plan
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (secrets)
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Init
+        working-directory: terraform/envs/staging
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        working-directory: terraform/envs/staging
+        run: |
+          set -o pipefail
+          terraform apply -auto-approve -input=false
