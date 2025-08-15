@@ -21,10 +21,12 @@ permissions:
 jobs:
   plan:
     runs-on: ubuntu-latest
+  environment: rjl-network-dev
     env:
       INFRACOST_API_KEY: "${{ secrets.INFRACOST_API_KEY }}"
     steps:
       - name: Checkout
+    environment: rjl-network-dev
         uses: actions/checkout@v4
 
       - name: Fail if AWS secrets are missing (runtime check)
@@ -175,6 +177,8 @@ jobs:
     needs: plan
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+  environment: rjl-network-dev
+    environment: rjl-network-dev
     steps:
       - name: Checkout
         uses: actions/checkout@v4
