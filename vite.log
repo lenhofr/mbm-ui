@@ -1,0 +1,10 @@
+
+> mbm-ui@0.1.0 dev
+> vite --port 5173
+
+
+  VITE v4.5.14  ready in 106 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+  ➜  press h to show help
