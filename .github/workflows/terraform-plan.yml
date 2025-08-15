@@ -87,15 +87,19 @@ jobs:
           echo "PLAN_EXIT_CODE=$PLAN_EXIT" >> $GITHUB_ENV
           exit $PLAN_EXIT
 
+      - name: List terraform/envs/staging for debugging
+        if: always()
+        run: |
+          echo 'Listing terraform/envs/staging for debugging artifacts:'
+          ls -la terraform/envs/staging || true
+
       - name: Upload Plan Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan-${{ github.run_id }}
           path: |
-            terraform/envs/staging/plan.txt
-            terraform/envs/staging/plan_raw.log
-            terraform/envs/staging/plan.json
+            terraform/envs/staging/**
 
       - name: Setup Infracost
         if: env.INFRACOST_API_KEY != ''
