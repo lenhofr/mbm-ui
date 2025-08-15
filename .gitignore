@@ -4,3 +4,4 @@ dist
 .env
 .DS_Store
 terraform/terraform.tfvars
+/ai_inspiration
