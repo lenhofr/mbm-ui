@@ -1,5 +1,5 @@
 locals {
-    bucket_name = "mqm-ui-infra-217354297026"
+  bucket_name = "mqm-ui-infra-217354297026"
 }
 
 module "site" {
