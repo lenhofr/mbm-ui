@@ -48,7 +48,13 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query }:
           if (target.closest('button') || target.closest('a')) return
           onView && onView(r)
         }}>
-          <div className="recipe-image">{r.image ? <img src={r.image} alt={r.title} /> : <div className="placeholder">No Image</div>}</div>
+          <div className="recipe-image">{
+            r.image ? <img src={(
+              // if image looks like a key (no scheme) and API base is configured, use API proxy
+              (!/^https?:\/\//i.test(r.image || '') && process.env.REACT_APP_API_BASE)
+                ? `${process.env.REACT_APP_API_BASE}/images/${encodeURIComponent(r.image)}`
+                : r.image
+            ) as string} alt={r.title} /> : <div className="placeholder">No Image</div>}</div>
             <div className="recipe-body">
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
               <h3>{highlight(r.title, query)}</h3>

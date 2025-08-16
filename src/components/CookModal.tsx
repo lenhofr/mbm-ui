@@ -99,7 +99,10 @@ export default function CookModal({ visible, onClose, recipe }: { visible: boole
 
           {showImages && recipe.image && (
             <div style={{marginBottom:12}}>
-              <img src={recipe.image} alt={recipe.title} style={{width:'100%',borderRadius:8,maxHeight:'40vh',objectFit:'cover'}}/>
+              <img src={(!/^https?:\/\//i.test(recipe.image || '') && process.env.REACT_APP_API_BASE)
+                ? `${process.env.REACT_APP_API_BASE}/images/${encodeURIComponent(recipe.image)}`
+                : recipe.image
+              } alt={recipe.title} style={{width:'100%',borderRadius:8,maxHeight:'40vh',objectFit:'cover'}}/>
             </div>
           )}
 

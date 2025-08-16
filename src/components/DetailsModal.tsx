@@ -121,20 +121,44 @@ export default function DetailsModal({
     if (!validate()) return
     const ingredients = parseIngredients(ingredientsText)
   const instructions = parseInstructions(instructionsText)
-    onSave(
-      {
-        title: initialRecipe?.title ?? '',
-        description: initialRecipe?.description ?? '',
-        image: imagePreview || undefined,
-        tags: tags.length ? tags : undefined,
-        ingredients: ingredients.length ? ingredients : undefined,
-    instructions: instructions.length ? instructions : undefined,
-        servings: servings || undefined,
-      },
-      // pass id through if editing
-      (initialRecipe as any)?.id
-    )
-    onClose()
+    ;(async () => {
+      let imageUrl = imagePreview
+      // If a file was selected and an API base is configured, upload via presigned URL flow
+      const apiBase = (process.env.REACT_APP_API_BASE || '').trim()
+      if (imageFile && apiBase) {
+        try {
+          // Request presigned URL
+          const resp = await fetch(`${apiBase}/images`, { method: 'POST', body: JSON.stringify({ filename: imageFile.name }), headers: { 'Content-Type': 'application/json' } })
+          if (resp.ok) {
+            const data = await resp.json()
+            const uploadUrl = data.uploadUrl
+            const key = data.key
+            // upload file directly to S3
+            await fetch(uploadUrl, { method: 'PUT', body: imageFile })
+            // use returned URL if present, otherwise construct a route to GET via API
+            imageUrl = data.url || `${apiBase}/images/${encodeURIComponent(key)}`
+          }
+        } catch (e) {
+          // ignore upload error for now; fallback to data URL preview
+          console.warn('image upload failed', e)
+        }
+      }
+
+      onSave(
+        {
+          title: initialRecipe?.title ?? '',
+          description: initialRecipe?.description ?? '',
+          image: imageUrl || undefined,
+          tags: tags.length ? tags : undefined,
+          ingredients: ingredients.length ? ingredients : undefined,
+      instructions: instructions.length ? instructions : undefined,
+          servings: servings || undefined,
+        },
+        // pass id through if editing
+        (initialRecipe as any)?.id
+      )
+      onClose()
+    })()
   }
 
   function handleCookPreview() {
