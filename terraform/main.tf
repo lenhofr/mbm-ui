@@ -102,6 +102,21 @@ resource "aws_s3_bucket" "cf_logs" {
   tags = {
     Name = "mbm-site-cf-logs"
   }
+
+  # Lifecycle rule: expire CloudFront access logs under the configured prefix to control costs.
+  lifecycle_rule {
+    id      = "expire-cloudfront-logs"
+    enabled = true
+    prefix  = "cloudfront/"
+
+    expiration {
+      days = 90
+    }
+
+    noncurrent_version_expiration {
+      days = 90
+    }
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "cf_logs" {
