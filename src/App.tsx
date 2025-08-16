@@ -196,7 +196,7 @@ export default function App() {
             <input
               id="recipe-search"
               className="search-input"
-              placeholder="Search by title, tag, ingredient or instruction... (Ctrl/Cmd+K to focus)"
+              placeholder="Search by title, tag, ingredient or instruction..."
               value={query}
               onChange={(e) => {
                 const v = e.target.value
