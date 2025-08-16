@@ -32,3 +32,80 @@ resource "aws_acm_certificate_validation" "site_cert_validation" {
 
   validation_record_fqdns = [for r in aws_route53_record.cert_validation : r.fqdn]
 }
+
+# CloudFront Function to redirect www -> root (301)
+resource "aws_cloudfront_function" "redirect_www" {
+  name    = "redirect-www-to-apex"
+  runtime = "cloudfront-js-1.0"
+
+  comment = "Redirect www.mealsbymaggie.com to mealsbymaggie.com"
+
+  publish = true
+
+  code = <<EOF
+function handler(event) {
+  var request = event.request;
+  var host = request.headers['host'] && request.headers['host'].value;
+  if (host && host.toLowerCase().startsWith('www.')) {
+    var uri = request.uri || '/';
+    return {
+      statusCode: 301,
+      statusDescription: 'Moved Permanently',
+      headers: {
+        'location': { value: 'https://' + host.replace(/^www\./i, '') + uri }
+      }
+    };
+  }
+  return request;
+}
+EOF
+}
+
+# Route53 alias records pointing to CloudFront distribution
+resource "aws_route53_record" "apex_alias_a" {
+  zone_id = data.aws_route53_zone.site.zone_id
+  name    = "mealsbymaggie.com"
+  type    = "A"
+
+  alias {
+    name                   = aws_cloudfront_distribution.cdn.domain_name
+    zone_id                = aws_cloudfront_distribution.cdn.hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "apex_alias_aaaa" {
+  zone_id = data.aws_route53_zone.site.zone_id
+  name    = "mealsbymaggie.com"
+  type    = "AAAA"
+
+  alias {
+    name                   = aws_cloudfront_distribution.cdn.domain_name
+    zone_id                = aws_cloudfront_distribution.cdn.hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "www_alias_a" {
+  zone_id = data.aws_route53_zone.site.zone_id
+  name    = "www.mealsbymaggie.com"
+  type    = "A"
+
+  alias {
+    name                   = aws_cloudfront_distribution.cdn.domain_name
+    zone_id                = aws_cloudfront_distribution.cdn.hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "www_alias_aaaa" {
+  zone_id = data.aws_route53_zone.site.zone_id
+  name    = "www.mealsbymaggie.com"
+  type    = "AAAA"
+
+  alias {
+    name                   = aws_cloudfront_distribution.cdn.domain_name
+    zone_id                = aws_cloudfront_distribution.cdn.hosted_zone_id
+    evaluate_target_health = false
+  }
+}

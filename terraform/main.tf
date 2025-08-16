@@ -15,9 +15,16 @@ resource "aws_cloudfront_origin_access_control" "oac" {
   signing_behavior                  = "always"
 }
 
+# Current AWS caller identity (used for policy conditions)
+data "aws_caller_identity" "current" {}
+
 # Minimal CloudFront distribution. Customize viewer_certificate, logging, and behaviors as needed.
 resource "aws_cloudfront_distribution" "cdn" {
   enabled = true
+
+  aliases = ["mealsbymaggie.com", "www.mealsbymaggie.com"]
+
+  default_root_object = "index.html"
 
   origin {
     domain_name = module.site.bucket_regional_domain_name
@@ -39,6 +46,26 @@ resource "aws_cloudfront_distribution" "cdn" {
         forward = "none"
       }
     }
+
+    # CloudFront Function association to redirect www -> root
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.redirect_www.arn
+    }
+  }
+
+  custom_error_response {
+    error_code            = 403
+    response_code         = 200
+    response_page_path    = "/index.html"
+    error_caching_min_ttl = 0
+  }
+
+  custom_error_response {
+    error_code            = 404
+    response_code         = 200
+    response_page_path    = "/index.html"
+    error_caching_min_ttl = 0
   }
 
   restrictions {
@@ -48,13 +75,10 @@ resource "aws_cloudfront_distribution" "cdn" {
   }
 
   viewer_certificate {
-    # Use the ACM certificate issued in us-east-1 for the custom domain
     acm_certificate_arn      = aws_acm_certificate.site_cert.arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
   }
-  # add domain aliases for the distribution
-  aliases = ["mealsbymaggie.com", "www.mealsbymaggie.com"]
 
   # minimal price class
   price_class = "PriceClass_100"
@@ -82,6 +106,33 @@ data "aws_iam_policy_document" "allow_cloudfront_get" {
       test     = "StringEquals"
       variable = "AWS:SourceArn"
       values   = [aws_cloudfront_distribution.cdn.arn]
+    }
+
+    # Also require the CloudFront request to originate from this AWS account
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
+
+  # Also allow requests signed by the CloudFront Origin Access Control (OAC)
+  statement {
+    sid    = "AllowCloudFrontOAC"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
+    actions = ["s3:GetObject"]
+    resources = ["${module.site.bucket_arn}/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = ["arn:aws:cloudfront::${data.aws_caller_identity.current.account_id}:origin-access-control/${aws_cloudfront_origin_access_control.oac.id}"]
     }
   }
 }
