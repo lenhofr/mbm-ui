@@ -7,5 +7,6 @@ output "site_bucket_arn" {
 }
 
 output "site_website_endpoint" {
-  value = module.site.website_endpoint
+  # module.site no longer exposes `website_endpoint`; use the regional domain name (CloudFront origin)
+  value = module.site.bucket_regional_domain_name
 }

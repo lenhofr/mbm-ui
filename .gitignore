@@ -5,3 +5,5 @@ dist
 .DS_Store
 terraform/terraform.tfvars
 /ai_inspiration
+.terraform.lock.hcl
+.terraform/
