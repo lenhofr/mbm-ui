@@ -33,6 +33,14 @@ def handler(event, context):
     raw_path = event.get('rawPath', '')
     query = event.get('queryStringParameters') or {}
 
+    # Quick auth: require shared secret in header to reduce public abuse.
+    # TODO: Replace with proper JWT/Cognito/Lambda authorizer in medium-term plan.
+    headers = {k.lower(): v for k, v in (event.get('headers') or {}).items()}
+    secret = os.environ.get('API_SHARED_SECRET')
+    if secret:
+        if headers.get('x-api-key') != secret:
+            return response(401, {'message': 'unauthorized'})
+
     # Recipes routes
     if raw_path.startswith('/recipes'):
         table = _get_table(RECIPES_TABLE, get_dynamodb())

@@ -104,3 +104,93 @@ Notes & assumptions
 - Lambda tests rely on `moto` and a Python virtualenv.
 
 If you'd like, I can: add a minimal unit test for `DetailsModal` now, or implement a `HELP.md` with more developer-oriented troubleshooting commands (CloudWatch queries, AWS CLI snippets). Say which and I'll implement it.
+
+Quick-mitigations: TODOs & rollback (important)
+------------------------------------------------
+We applied short-term mitigations (shared-secret header and shorter S3 presign TTL) to reduce public abuse. These are temporary and must be rolled back when you implement the proper long-term solution (Cognito/JWT authorizer + WAF). Below are exact files and Terraform resources touched and step-by-step rollback instructions.
+
+What we changed (temporary)
+- Code (repo):
+	- `terraform/lambda/recipes/app.py` — added a quick check for header `x-api-key` against `API_SHARED_SECRET` (TODO: remove when proper auth added).
+	- `terraform/lambda/images/app.py` — added same header check and reduced presign `ExpiresIn` from 3600 -> 300 seconds.
+- Terraform (infra):
+	- `terraform/backend_api.tf` — injected `API_SHARED_SECRET = random_password.api_secret.result` into Lambda environment variables and added creation of `random_password.api_secret`.
+	- Terraform was applied, which created `random_password.api_secret` and updated both Lambdas in-place to use the new env var and new code bundles.
+
+Why this is temporary
+- The shared-secret header is a stopgap (security-by-obscurity) and should never replace proper auth. Presign TTLs were shortened to limit exposure, but attackers still can get upload URLs while the secret is compromised.
+
+Rollback checklist (what to revert)
+1) Code changes to remove quick auth and restore original presign TTLs:
+	 - `terraform/lambda/recipes/app.py` — remove the `x-api-key` header check block and its TODO comment.
+	 - `terraform/lambda/images/app.py` — remove `x-api-key` header check block, restore `ExpiresIn` values to 3600 (or desired original), and remove TODO.
+2) Terraform changes to remove the random secret and env var injection:
+	 - `terraform/backend_api.tf` — remove the `random_password "api_secret"` resource and remove `API_SHARED_SECRET = random_password.api_secret.result` from the Lambda `environment.variables` blocks.
+
+Safe rollback steps (recommended sequence)
+1) Create a local branch for the rollback work and commit any current local changes:
+
+```bash
+cd /Users/robl/dev/static/mbm-ui
+git checkout -b rollback-quick-auth
+git add -A
+git commit -m "wip: checkpoint before rollback" || true
+```
+
+2) Revert the handler code changes (two options):
+- If you have the previous commit that contained the original handler files, revert that commit (recommended):
+
+```bash
+# find the commit hash where those files were changed, then:
+git revert <commit-hash> -n   # revert but do not commit yet
+git add terraform/lambda/recipes/app.py terraform/lambda/images/app.py
+git commit -m "revert: remove quick header-check and restore presign TTLs"
+```
+
+- If you don't have a revertable commit, manually edit the two files and remove the header-check blocks and restore `ExpiresIn` to 3600, then commit.
+
+3) Revert the terraform changes to remove the `random_password` and env var references:
+
+```bash
+# edit terraform/backend_api.tf to remove the random_password resource and the API_SHARED_SECRET lines
+git add terraform/backend_api.tf
+git commit -m "revert: remove temporary API_SHARED_SECRET random resource and env var"
+
+cd terraform
+terraform init
+terraform plan   # review the plan carefully
+terraform apply  # this will update Lambdas in-place and remove the random_password resource
+```
+
+Alternative (targeted destroy):
+- If you want to delete only the generated random secret resource first without changing files, you can run (from `terraform` folder):
+
+```bash
+terraform destroy -target=random_password.api_secret
+```
+
+but you'll still need to remove the env var references in `backend_api.tf` and update the Lambda handlers' code to remove checks; otherwise the lambdas will expect a secret and reject requests.
+
+4) Confirm changes and re-deploy code bundles if needed
+- After the terraform apply completes, verify lambdas are updated and accept unauthenticated requests only if you intend that (or better, that the proper authorizer is in place).
+
+Verification and cleanup
+- Check Terraform state & outputs:
+
+```bash
+terraform output
+```
+
+- Confirm Lambda behavior with curl (once secret removed):
+
+```bash
+curl -i https://<http_api>/recipes
+```
+
+Notes / TODO (for the long-term auth work)
+- TODO: Replace shared-secret + manual IP blocks with Cognito (or OIDC) and attach a JWT authorizer to HTTP API routes.
+- TODO: Add AWS WAF with rate-based rules in front of the HTTP API to throttle high request rates and block suspicious sources.
+- TODO: Add request schema validation and size limits in Lambda code to reject oversized payloads.
+- TODO: Add CloudWatch Alarms and Billing budgets for DynamoDB write spikes and S3 PutObject spikes.
+
+Keep this section until proper auth and WAF are implemented; remove it only after long-term mitigations are in place and tested.

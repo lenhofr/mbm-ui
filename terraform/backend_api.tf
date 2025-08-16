@@ -155,6 +155,7 @@ resource "aws_lambda_function" "recipes_fn" {
       RECIPES_TABLE = aws_dynamodb_table.recipes.name
       RATINGS_TABLE = aws_dynamodb_table.ratings.name
       IMAGES_BUCKET = aws_s3_bucket.images.id
+  API_SHARED_SECRET = random_password.api_secret.result
     }
   }
 }
@@ -170,14 +171,24 @@ resource "aws_lambda_function" "images_fn" {
   environment {
     variables = {
       IMAGES_BUCKET = aws_s3_bucket.images.id
+      API_SHARED_SECRET = random_password.api_secret.result
     }
   }
 }
 
+# Quick safeguard: require a shared secret header if provided.
+# TODO: replace with proper authorizer (Cognito / JWT / WAF) in medium-term plan.
+resource "random_password" "api_secret" {
+  length           = 32
+  override_special = "_-"
+}
 # API Gateway (HTTP API) wiring
 resource "aws_apigatewayv2_api" "http_api" {
   name          = "mbm-http-api"
   protocol_type = "HTTP"
+  # NOTE: HTTP APIs don't accept an inline 'policy' argument here. For
+  # quick IP-based restrictions you'd need to use AWS WAF or a REST API
+  # resource policy. TODO: apply proper authorizer (Cognito/JWT) or WAF.
 }
 
 # Integrations
