@@ -86,6 +86,49 @@ resource "aws_cloudfront_distribution" "cdn" {
   tags = {
     Name = "mbm-site-cdn"
   }
+
+  logging_config {
+    bucket          = aws_s3_bucket.cf_logs.bucket_regional_domain_name
+    include_cookies = false
+    prefix          = "cloudfront/"
+  }
+}
+
+# Bucket for CloudFront access logs
+resource "aws_s3_bucket" "cf_logs" {
+  bucket        = "${local.bucket_name}-cf-logs"
+  force_destroy = false
+
+  tags = {
+    Name = "mbm-site-cf-logs"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "cf_logs" {
+  bucket = aws_s3_bucket.cf_logs.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "cf_logs" {
+  bucket = aws_s3_bucket.cf_logs.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_ownership_controls" "cf_logs" {
+  bucket = aws_s3_bucket.cf_logs.id
+
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
 }
 
 # Allow CloudFront OAC to GetObject from the bucket
@@ -126,7 +169,7 @@ data "aws_iam_policy_document" "allow_cloudfront_get" {
       identifiers = ["cloudfront.amazonaws.com"]
     }
 
-    actions = ["s3:GetObject"]
+    actions   = ["s3:GetObject"]
     resources = ["${module.site.bucket_arn}/*"]
 
     condition {
