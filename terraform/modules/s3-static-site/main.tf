@@ -64,5 +64,5 @@ output "website_endpoint_deprecated" {
   value       = aws_s3_bucket.site.website_endpoint
   description = "(Deprecated) S3 website endpoint — use only for direct S3 website hosting tests"
   depends_on  = [aws_s3_bucket.site]
-  sensitive    = true
+  sensitive   = true
 }

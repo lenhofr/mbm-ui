@@ -49,9 +49,9 @@ resource "aws_cloudfront_distribution" "cdn" {
 
   viewer_certificate {
     # Use the ACM certificate issued in us-east-1 for the custom domain
-    acm_certificate_arn            = aws_acm_certificate.site_cert.arn
-    ssl_support_method             = "sni-only"
-    minimum_protocol_version       = "TLSv1.2_2021"
+    acm_certificate_arn      = aws_acm_certificate.site_cert.arn
+    ssl_support_method       = "sni-only"
+    minimum_protocol_version = "TLSv1.2_2021"
   }
   # add domain aliases for the distribution
   aliases = ["mealsbymaggie.com", "www.mealsbymaggie.com"]
@@ -75,7 +75,7 @@ data "aws_iam_policy_document" "allow_cloudfront_get" {
       identifiers = ["cloudfront.amazonaws.com"]
     }
 
-    actions = ["s3:GetObject"]
+    actions   = ["s3:GetObject"]
     resources = ["${module.site.bucket_arn}/*"]
 
     condition {
