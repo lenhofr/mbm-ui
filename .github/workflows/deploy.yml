@@ -9,8 +9,6 @@ on:
       - 'package.json'
       - 'vite.config.ts'
       - 'terraform/**'
-  pull_request:
-    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
@@ -21,7 +19,10 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
 
 jobs:
+  # Note: PR planning is handled by .github/workflows/terraform-plan.yml (PR-only workflow)
+
   build-deploy:
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -42,19 +43,7 @@ jobs:
         working-directory: terraform
         run: terraform init -input=false
 
-      - name: Terraform Plan (on PRs)
-        if: github.event_name == 'pull_request'
-        working-directory: terraform
-        id: tfplan
-        run: |
-          set -o pipefail
-          terraform plan -no-color -input=false 2>&1 | tee tfplan.log || true
-          echo "plan_summary<<EOF" >> $GITHUB_OUTPUT
-          tail -n 200 tfplan.log >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'
         working-directory: terraform
         id: tfapply
         run: |
@@ -122,23 +111,7 @@ jobs:
         run: |
           echo "Deployment complete. Bucket: ${{ steps.tfout.outputs.site_bucket }}" >> $GITHUB_STEP_SUMMARY
 
-      - name: Comment on PR with Plan (PR events)
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const pr = context.payload.pull_request.number;
-            const plan = `## Terraform Plan Summary\n\n\`\`\`\n${{ steps.tfplan.outputs.plan_summary }}\n\`\`\``;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pr,
-              body: plan
-            });
-
       - name: Comment on PR(s) with Apply result (push to main)
-        if: github.ref == 'refs/heads/main'
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}

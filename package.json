@@ -6,7 +6,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --port 4173",
-    "test": "vitest --run"
+  "test": "vitest --run",
+  "tf:fmt": "terraform fmt -recursive",
+  "tf:fmt:check": "terraform fmt -recursive -check",
+  "install-hooks": "mkdir -p .githooks && cp scripts/pre-commit.sh .githooks/pre-commit && chmod +x .githooks/pre-commit && git config core.hooksPath .githooks"
   },
   "dependencies": {
     "fuse.js": "^6.6.2",

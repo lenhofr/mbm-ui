@@ -1,10 +1,10 @@
 provider "aws" {
   region = var.aws_region
 
-  # Recommended modern defaults
   default_tags {
     tags = {
       ManagedBy = "terraform"
+      site      = "mbm"
     }
   }
 }
