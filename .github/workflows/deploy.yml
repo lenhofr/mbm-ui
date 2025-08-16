@@ -9,10 +9,13 @@ on:
       - 'package.json'
       - 'vite.config.ts'
       - 'terraform/**'
+  pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: write
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
@@ -39,10 +42,33 @@ jobs:
         working-directory: terraform
         run: terraform init -input=false
 
+      - name: Terraform Plan (on PRs)
+        if: github.event_name == 'pull_request'
+        working-directory: terraform
+        id: tfplan
+        run: |
+          set -o pipefail
+          terraform plan -no-color -input=false 2>&1 | tee tfplan.log || true
+          echo "plan_summary<<EOF" >> $GITHUB_OUTPUT
+          tail -n 200 tfplan.log >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main'
         working-directory: terraform
-        run: terraform apply -input=false -auto-approve
+        id: tfapply
+        run: |
+          set -o pipefail
+          terraform apply -input=false -auto-approve 2>&1 | tee tfapply.log
+          exit_code=${PIPESTATUS[0]}
+          if [ "$exit_code" -eq 0 ]; then
+            echo "apply_status=success" >> $GITHUB_OUTPUT
+          else
+            echo "apply_status=failure" >> $GITHUB_OUTPUT
+          fi
+          echo "tf_summary<<EOF" >> $GITHUB_OUTPUT
+          tail -n 200 tfapply.log >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Get outputs
         id: tfout
@@ -95,3 +121,40 @@ jobs:
       - name: Summary
         run: |
           echo "Deployment complete. Bucket: ${{ steps.tfout.outputs.site_bucket }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR with Plan (PR events)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request.number;
+            const plan = `## Terraform Plan Summary\n\n\`\`\`\n${{ steps.tfplan.outputs.plan_summary }}\n\`\`\``;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+              body: plan
+            });
+
+      - name: Comment on PR(s) with Apply result (push to main)
+        if: github.ref == 'refs/heads/main'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const sha = context.sha;
+            const res = await github.rest.repos.listPullRequestsAssociatedWithCommit({ owner, repo, commit_sha: sha });
+            const prs = res.data.map(p => p.number);
+            if (prs.length === 0) {
+              console.log('No PRs associated with this deploy commit.');
+              return;
+            }
+            const status = '${{ steps.tfapply.outputs.apply_status }}';
+            const summary = `\n\`\`\`\n${{ steps.tfapply.outputs.tf_summary }}\n\`\`\``;
+            const body = `## Terraform Apply Result\n\n- Status: **${status}**\n\n### Output summary\n${summary}`;
+            for (const pr of prs) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: pr, body });
+            }
