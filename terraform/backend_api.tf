@@ -152,10 +152,10 @@ resource "aws_lambda_function" "recipes_fn" {
 
   environment {
     variables = {
-      RECIPES_TABLE = aws_dynamodb_table.recipes.name
-      RATINGS_TABLE = aws_dynamodb_table.ratings.name
-      IMAGES_BUCKET = aws_s3_bucket.images.id
-  API_SHARED_SECRET = random_password.api_secret.result
+      RECIPES_TABLE     = aws_dynamodb_table.recipes.name
+      RATINGS_TABLE     = aws_dynamodb_table.ratings.name
+      IMAGES_BUCKET     = aws_s3_bucket.images.id
+      API_SHARED_SECRET = random_password.api_secret.result
     }
   }
 }
@@ -170,7 +170,7 @@ resource "aws_lambda_function" "images_fn" {
 
   environment {
     variables = {
-      IMAGES_BUCKET = aws_s3_bucket.images.id
+      IMAGES_BUCKET     = aws_s3_bucket.images.id
       API_SHARED_SECRET = random_password.api_secret.result
     }
   }
