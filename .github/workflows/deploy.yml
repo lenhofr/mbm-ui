@@ -18,6 +18,10 @@ permissions:
 env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
 
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   # Note: PR planning is handled by .github/workflows/terraform-plan.yml (PR-only workflow)
 

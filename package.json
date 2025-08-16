@@ -9,7 +9,8 @@
   "test": "vitest --run",
   "tf:fmt": "terraform fmt -recursive",
   "tf:fmt:check": "terraform fmt -recursive -check",
-  "install-hooks": "mkdir -p .githooks && cp scripts/pre-commit.sh .githooks/pre-commit && chmod +x .githooks/pre-commit && git config core.hooksPath .githooks"
+  "install-hooks": "mkdir -p .githooks && cp scripts/pre-commit.sh .githooks/pre-commit && chmod +x .githooks/pre-commit && git config core.hooksPath .githooks",
+  "scaffold:spa": "node scripts/scaffold-spa.mjs"
   },
   "dependencies": {
     "fuse.js": "^6.6.2",
