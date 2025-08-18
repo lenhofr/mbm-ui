@@ -66,7 +66,7 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query }:
               const apiBase = (viteBase || legacyBase || '').trim()
               const img = r.image as string
               // If stored value is a key (no scheme), proxy through API to get a fresh redirect
-              if (!/^https?:\/\//i.test(img || '') && apiBase) {
+              if (!/^(https?:|data:|blob:)/i.test(img || '') && apiBase) {
                 return `${apiBase}/images/${encodeURIComponent(img)}`
               }
               // If it's a presigned S3 URL, try to extract the key and use API route
