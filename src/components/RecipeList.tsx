@@ -64,11 +64,28 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query }:
               const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
               const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
               const apiBase = (viteBase || legacyBase || '').trim()
-              // if image looks like a key (no scheme) and API base is configured, use API proxy
-              if (!/^https?:\/\//i.test(r.image || '') && apiBase) {
-                return `${apiBase}/images/${encodeURIComponent(r.image as string)}`
+              const img = r.image as string
+              // If stored value is a key (no scheme), proxy through API to get a fresh redirect
+              if (!/^https?:\/\//i.test(img || '') && apiBase) {
+                return `${apiBase}/images/${encodeURIComponent(img)}`
               }
-              return r.image as string
+              // If it's a presigned S3 URL, try to extract the key and use API route
+              try {
+                const u = new URL(img)
+                const host = u.hostname
+                const isAws = /amazonaws\.com$/i.test(host)
+                const hasSig = u.search.includes('X-Amz-')
+                if (apiBase && isAws && hasSig) {
+                  let key = u.pathname.replace(/^\//, '')
+                  // path-style: s3.amazonaws.com/bucket/key -> drop first segment
+                  if (/^s3[.-]([^/]+\.)?amazonaws\.com$/i.test(host)) {
+                    const firstSlash = key.indexOf('/')
+                    if (firstSlash > 0) key = key.slice(firstSlash + 1)
+                  }
+                  return `${apiBase}/images/${encodeURIComponent(key)}`
+                }
+              } catch {}
+              return img
             })()} alt={r.title} /> : <div className="placeholder">No Image</div>}</div>
             <div className="recipe-body">
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>

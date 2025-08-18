@@ -15,6 +15,18 @@ def response(status_code, body):
     }
 
 
+def redirect(location: str, status: int = 302):
+    return {
+        'statusCode': status,
+        'headers': {
+            'Location': location,
+            # Avoid default JSON header on redirects
+            'Cache-Control': 'private, max-age=300'
+        },
+        'body': ''
+    }
+
+
 def handler(event, context):
     # Support two operations:
     # POST /images -> returns { uploadUrl, key }
@@ -57,7 +69,8 @@ def handler(event, context):
                 Params={'Bucket': IMAGES_BUCKET, 'Key': key},
                 ExpiresIn=3600
             )
-            return response(200, {'url': url})
+            # Redirect to the signed URL so <img src> works directly
+            return redirect(url, 302)
 
         return response(400, {'message': 'Unsupported operation'})
     except ClientError as e:
