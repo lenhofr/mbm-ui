@@ -391,6 +391,11 @@ output "cognito_issuer" {
   value = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.mbm.id}"
 }
 
+# Convenience: expose the images bucket name
+output "images_bucket_name" {
+  value = aws_s3_bucket.images.bucket
+}
+
 # CloudWatch Log Groups for Lambdas
 resource "aws_cloudwatch_log_group" "recipes_lambda_logs" {
   name              = "/aws/lambda/${aws_lambda_function.recipes_fn.function_name}"
