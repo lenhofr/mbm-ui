@@ -223,7 +223,7 @@ export default function DetailsModal({
                 const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
                 const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
                 const apiBase = (viteBase || legacyBase || '').trim()
-                if (!/^https?:\/\//i.test(imagePreview || '') && apiBase) {
+                if (!/^(https?:|data:|blob:)/i.test(imagePreview || '') && apiBase) {
                   return `${apiBase}/images/${encodeURIComponent(imagePreview)}`
                 }
                 return imagePreview

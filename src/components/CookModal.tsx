@@ -103,7 +103,7 @@ export default function CookModal({ visible, onClose, recipe }: { visible: boole
                 const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
                 const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
                 const apiBase = (viteBase || legacyBase || '').trim()
-                if (!/^https?:\/\//i.test(recipe.image || '') && apiBase) {
+                if (!/^(https?:|data:|blob:)/i.test(recipe.image || '') && apiBase) {
                   return `${apiBase}/images/${encodeURIComponent(recipe.image)}`
                 }
                 return recipe.image
