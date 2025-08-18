@@ -6,6 +6,7 @@ import ConfirmDialog from './components/ConfirmDialog'
 import CookModal from './components/CookModal'
 import Fuse from 'fuse.js'
 import { storage } from './lib/storage'
+import { isAuthenticated, login, logout } from './lib/auth'
 
 export type Recipe = {
   id: string
@@ -186,6 +187,13 @@ export default function App() {
       <header className="app-header">
         <h1>Meals by Maggie</h1>
         <p className="subtitle">A cozy place to collect your favorite recipes</p>
+        <div style={{ position: 'absolute', right: 20, top: 20 }}>
+          {isAuthenticated() ? (
+            <button className="btn-ghost" onClick={() => logout()}>Log out</button>
+          ) : (
+            <button className="btn-ghost" onClick={() => login()}>Log in</button>
+          )}
+        </div>
       </header>
 
       {/* Search bar placed under the tagline */}
@@ -258,7 +266,13 @@ export default function App() {
           <RecipeForm onAdd={addRecipe} />
         </section>
         <section className="right">
-          <RecipeList recipes={filtered} onEdit={startEdit} onDelete={requestDelete} onView={startView} query={debouncedQuery} />
+          <RecipeList
+            recipes={filtered}
+            onEdit={isAuthenticated() ? startEdit : undefined}
+            onDelete={isAuthenticated() ? requestDelete : undefined}
+            onView={startView}
+            query={debouncedQuery}
+          />
         </section>
       </main>
 

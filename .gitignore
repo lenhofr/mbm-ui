@@ -1,4 +1,54 @@
-node_modules
+# --- OS / Editor ---
+.DS_Store
+.idea/
+.history/
+.swp
+.swo
+.vscode/
+
+# --- Node / Vite SPA ---
+node_modules/
+dist/
+.vite/
+vite.log
+vite.pid
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.tsbuildinfo
+
+# --- Env files (keep examples committed) ---
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# --- Python / Lambda ---
+.venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.tox/
+**/.hypothesis/
+**/.coverage
+**/htmlcov/
+
+# --- Terraform ---
+terraform/.terraform/
+terraform/terraform.tfstate
+terraform/terraform.tfstate.*
+terraform/crash.log
+terraform/*.tfplan
+terraform/tfplan
+*.tfplan
+# Zipped Lambda artifacts created by archive_file
+terraform/dist/
+
+# --- Misc ---
+coverage/
+*.lognode_modules
 dist
 .vscode
 .env
@@ -7,3 +57,4 @@ terraform/terraform.tfvars
 /ai_inspiration
 .terraform.lock.hcl
 .terraform/
+.env.local

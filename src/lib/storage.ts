@@ -2,6 +2,7 @@
 // and a RemoteAdapter stub for future HTTP-backed storage.
 
 import type { Recipe } from '../App'
+import { authHeader } from './auth'
 
 export type Storage = {
   listRecipes: () => Promise<Recipe[]>
@@ -90,27 +91,41 @@ class RemoteAdapter implements Storage {
   }
 
   async createRecipe(r: Omit<Recipe, 'id'>) {
-    const res = await fetch(`${this.base}/recipes`, { method: 'POST', body: JSON.stringify(r), headers: { 'Content-Type': 'application/json' } })
-    if (!res.ok) throw new Error('network')
+    const res = await fetch(`${this.base}/recipes`, { method: 'POST', body: JSON.stringify(r), headers: { 'Content-Type': 'application/json', ...authHeader() } })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      console.error('POST /recipes failed', res.status, text)
+      throw new Error(`network`)
+    }
     return res.json()
   }
 
   async updateRecipe(id: string, r: Omit<Recipe, 'id'>) {
-    const res = await fetch(`${this.base}/recipes/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(r), headers: { 'Content-Type': 'application/json' } })
-    if (!res.ok) throw new Error('network')
+    const res = await fetch(`${this.base}/recipes/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(r), headers: { 'Content-Type': 'application/json', ...authHeader() } })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      console.error('PUT /recipes/{id} failed', res.status, text)
+      throw new Error('network')
+    }
     return res.json()
   }
 
   async deleteRecipe(id: string) {
-    const res = await fetch(`${this.base}/recipes/${encodeURIComponent(id)}`, { method: 'DELETE' })
-    if (!res.ok) throw new Error('network')
+    const res = await fetch(`${this.base}/recipes/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { ...authHeader() } })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      console.error('DELETE /recipes/{id} failed', res.status, text)
+      throw new Error('network')
+    }
   }
 }
 
 // Factory: pick adapter based on environment
 export function createStorage(): Storage {
-  // Use REACT_APP_API_BASE to indicate remote adapter
-  const base = (process.env.REACT_APP_API_BASE || '').trim()
+  // Prefer Vite env, fall back to REACT_APP if present in non-browser contexts
+  const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
+  const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
+  const base = (viteBase || legacyBase || '').trim()
   if (base) return new RemoteAdapter(base)
   return new LocalAdapter()
 }

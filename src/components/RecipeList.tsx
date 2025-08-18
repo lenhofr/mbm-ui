@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import type { Recipe } from '../App'
+import { isAuthenticated, login } from '../lib/auth'
 
 function CardMenu({ recipe, onEdit, onDelete, onView }: { recipe: Recipe; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void; onView?: (r: Recipe) => void }) {
   const [open, setOpen] = useState(false)
@@ -37,7 +38,17 @@ function highlight(text: string | undefined, q: string | undefined) {
 }
 
 export default function RecipeList({ recipes, onEdit, onDelete, onView, query }: { recipes: Recipe[]; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void; onView?: (r: Recipe) => void; query?: string }) {
-  if (recipes.length === 0) return <div>No recipes yet — add one!</div>
+  const authed = isAuthenticated()
+  if (recipes.length === 0) return (
+    <div>
+      No recipes yet — add one!
+      {!authed && (
+        <div style={{marginTop:8}}>
+          <button className="btn-ghost" onClick={() => login()}>Log in to add</button>
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <div className="recipe-list">
@@ -48,13 +59,25 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query }:
           if (target.closest('button') || target.closest('a')) return
           onView && onView(r)
         }}>
-          <div className="recipe-image">{r.image ? <img src={r.image} alt={r.title} /> : <div className="placeholder">No Image</div>}</div>
+          <div className="recipe-image">{
+              r.image ? <img src={(() => {
+              const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
+              const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
+              const apiBase = (viteBase || legacyBase || '').trim()
+              // if image looks like a key (no scheme) and API base is configured, use API proxy
+              if (!/^https?:\/\//i.test(r.image || '') && apiBase) {
+                return `${apiBase}/images/${encodeURIComponent(r.image as string)}`
+              }
+              return r.image as string
+            })()} alt={r.title} /> : <div className="placeholder">No Image</div>}</div>
             <div className="recipe-body">
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
               <h3>{highlight(r.title, query)}</h3>
               <div style={{display:'flex',gap:8,alignItems:'center'}}>
                 <small style={{color:'#d36b96',fontWeight:600}}>{r.servings ? `${r.servings} ppl` : ''}</small>
-                {(onEdit || onDelete || onView) && <CardMenu recipe={r} onEdit={onEdit} onDelete={onDelete} onView={onView} />}
+                {(onEdit || onDelete || onView) && authed && (
+                  <CardMenu recipe={r} onEdit={onEdit} onDelete={onDelete} onView={onView} />
+                )}
               </div>
             </div>
             <p>{highlight(r.description, query) || r.description}</p>

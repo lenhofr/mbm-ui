@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import DetailsModal from './DetailsModal'
 import type { Recipe } from '../App'
+import { isAuthenticated, login } from '../lib/auth'
 
 export default function RecipeForm({ onAdd }: { onAdd: (r: Omit<Recipe, 'id'>) => void }) {
   const [title, setTitle] = useState('')
@@ -20,29 +21,40 @@ export default function RecipeForm({ onAdd }: { onAdd: (r: Omit<Recipe, 'id'>) =
     setDescription('')
   }
 
+  const authed = isAuthenticated()
   return (
     <>
-      <form className="recipe-form" onSubmit={quickAdd}>
-        <h2>✨ Add Recipe</h2>
-        <label>
-          Title
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g., Chocolate Cake" />
-        </label>
-        <label>
-          Description
-          <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Short description" />
-        </label>
-        <div style={{display:'flex',justifyContent:'flex-end'}}>
-          <button type="submit" className="primary">Add</button>
-        </div>
-      </form>
+      {authed ? (
+        <>
+          <form className="recipe-form" onSubmit={quickAdd}>
+            <h2>✨ Add Recipe</h2>
+            <label>
+              Title
+              <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g., Chocolate Cake" />
+            </label>
+            <label>
+              Description
+              <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Short description" />
+            </label>
+            <div style={{display:'flex',justifyContent:'flex-end'}}>
+              <button type="submit" className="primary">Add</button>
+            </div>
+          </form>
 
-      <DetailsModal
-        visible={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSave={(r) => onSave(r)}
-  initialRecipe={{ title, description }}
-      />
+          <DetailsModal
+            visible={modalOpen}
+            onClose={() => setModalOpen(false)}
+            onSave={(r) => onSave(r)}
+            initialRecipe={{ title, description }}
+          />
+        </>
+      ) : (
+        <div className="recipe-form" style={{opacity:0.9}}>
+          <h2>✨ Add Recipe</h2>
+          <p style={{color:'var(--muted)', marginBottom:12}}>Log in to add, edit, or delete recipes.</p>
+          <button type="button" className="primary" onClick={() => login()}>Log in</button>
+        </div>
+      )}
     </>
   )
 }
