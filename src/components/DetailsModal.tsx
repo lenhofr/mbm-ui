@@ -144,13 +144,26 @@ export default function DetailsModal({
             const key = data.key
             // upload file directly to S3
             await fetch(uploadUrl, { method: 'PUT', body: imageFile })
-            // use returned URL if present, otherwise construct a route to GET via API
-            imageUrl = data.url || `${apiBase}/images/${encodeURIComponent(key)}`
+            // Store the durable key rather than a short-lived presigned URL
+            imageUrl = key
           }
         } catch (e) {
           // ignore upload error for now; fallback to data URL preview
           console.warn('image upload failed', e)
         }
+      }
+
+      // If no new upload occurred, but the image is an API URL like `${apiBase}/images/{key}`
+      // normalize it back to just the key so renders stay fresh via redirect.
+      if (!imageFile && apiBase && imageUrl && /^https?:\/\//i.test(imageUrl)) {
+        try {
+          const base = apiBase.replace(/\/$/, '')
+          const prefix = `${base}/images/`
+          if (imageUrl.startsWith(prefix)) {
+            const raw = imageUrl.slice(prefix.length)
+            imageUrl = decodeURIComponent(raw)
+          }
+        } catch {}
       }
 
       onSave(
@@ -203,7 +216,23 @@ export default function DetailsModal({
           Image (upload)
           <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] ?? null)} />
         </label>
-        {imagePreview && <div style={{marginBottom:8}}><img src={imagePreview} alt="preview" className="modal-image-preview"/></div>}
+        {imagePreview && (
+          <div style={{marginBottom:8}}>
+            <img
+              src={(() => {
+                const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
+                const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
+                const apiBase = (viteBase || legacyBase || '').trim()
+                if (!/^https?:\/\//i.test(imagePreview || '') && apiBase) {
+                  return `${apiBase}/images/${encodeURIComponent(imagePreview)}`
+                }
+                return imagePreview
+              })()}
+              alt="preview"
+              className="modal-image-preview"
+            />
+          </div>
+        )}
         <label>
           Servings
           <input value={servings} onChange={e => setServings(e.target.value)} placeholder="e.g., 4" />
