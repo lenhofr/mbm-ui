@@ -71,6 +71,10 @@ jobs:
           if terraform output -raw site_bucket >/dev/null 2>&1; then echo "site_bucket=$(terraform output -raw site_bucket)" >> $GITHUB_OUTPUT; fi
           if terraform output -raw distribution_id >/dev/null 2>&1; then echo "distribution_id=$(terraform output -raw distribution_id)" >> $GITHUB_OUTPUT; fi
           if terraform output -raw site_website_endpoint >/dev/null 2>&1; then echo "site_website_endpoint=$(terraform output -raw site_website_endpoint)" >> $GITHUB_OUTPUT; fi
+          # Backend/API + Cognito
+          if terraform output -raw http_api_invoke_url >/dev/null 2>&1; then echo "api_base=$(terraform output -raw http_api_invoke_url)" >> $GITHUB_OUTPUT; fi
+          if terraform output -raw cognito_oauth_base >/dev/null 2>&1; then echo "cognito_domain=$(terraform output -raw cognito_oauth_base)" >> $GITHUB_OUTPUT; fi
+          if terraform output -raw cognito_user_pool_client_id >/dev/null 2>&1; then echo "cognito_client_id=$(terraform output -raw cognito_user_pool_client_id)" >> $GITHUB_OUTPUT; fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -89,7 +93,12 @@ jobs:
 
       - name: Build site (Vite)
         env:
-          VITE_SITE_ENDPOINT: ${{ steps.tfout.outputs.site_website_endpoint }}
+          # Values from Terraform outputs
+          VITE_API_BASE: ${{ steps.tfout.outputs.api_base }}
+          VITE_COGNITO_DOMAIN: ${{ steps.tfout.outputs.cognito_domain }}
+          VITE_COGNITO_CLIENT_ID: ${{ steps.tfout.outputs.cognito_client_id }}
+          # Set to your production callback URL that exists in Cognito callback URLs
+          VITE_COGNITO_REDIRECT_URI: https://www.mealsbymaggie.com/
         run: npm run build
 
       - name: Archive build
@@ -99,9 +108,18 @@ jobs:
           path: dist
 
       - name: Export endpoint for build
-        if: steps.tfout.outputs.site_website_endpoint
+        if: always()
         run: |
-          echo "Site endpoint: ${{ steps.tfout.outputs.site_website_endpoint }}" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### Build-time environment"
+            echo "- VITE_API_BASE: ${{ steps.tfout.outputs.api_base }}"
+            echo "- VITE_COGNITO_DOMAIN: ${{ steps.tfout.outputs.cognito_domain }}"
+            echo "- VITE_COGNITO_CLIENT_ID: ${{ steps.tfout.outputs.cognito_client_id }}"
+            echo "- VITE_COGNITO_REDIRECT_URI: https://www.mealsbymaggie.com/"
+            if [ -n "${{ steps.tfout.outputs.site_website_endpoint }}" ]; then
+              echo "\nSite endpoint: ${{ steps.tfout.outputs.site_website_endpoint }}"
+            fi
+          } >> $GITHUB_STEP_SUMMARY
 
       - name: Sync to S3
         if: steps.tfout.outputs.site_bucket
