@@ -97,8 +97,8 @@ jobs:
           VITE_API_BASE: ${{ steps.tfout.outputs.api_base }}
           VITE_COGNITO_DOMAIN: ${{ steps.tfout.outputs.cognito_domain }}
           VITE_COGNITO_CLIENT_ID: ${{ steps.tfout.outputs.cognito_client_id }}
-          # Set to your production callback URL that exists in Cognito callback URLs
-          VITE_COGNITO_REDIRECT_URI: https://www.mealsbymaggie.com/
+          # Use apex domain to avoid www->apex redirect breaking PKCE sessionStorage
+          VITE_COGNITO_REDIRECT_URI: https://mealsbymaggie.com/
         run: npm run build
 
       - name: Archive build
@@ -115,7 +115,7 @@ jobs:
             echo "- VITE_API_BASE: ${{ steps.tfout.outputs.api_base }}"
             echo "- VITE_COGNITO_DOMAIN: ${{ steps.tfout.outputs.cognito_domain }}"
             echo "- VITE_COGNITO_CLIENT_ID: ${{ steps.tfout.outputs.cognito_client_id }}"
-            echo "- VITE_COGNITO_REDIRECT_URI: https://www.mealsbymaggie.com/"
+            echo "- VITE_COGNITO_REDIRECT_URI: https://mealsbymaggie.com/"
             if [ -n "${{ steps.tfout.outputs.site_website_endpoint }}" ]; then
               echo "\nSite endpoint: ${{ steps.tfout.outputs.site_website_endpoint }}"
             fi
