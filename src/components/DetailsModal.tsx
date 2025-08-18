@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { Recipe } from '../App'
+import { authHeader, isAuthenticated, login } from '../lib/auth'
 
 export default function DetailsModal({
   visible,
@@ -118,17 +119,25 @@ export default function DetailsModal({
   }
 
   function save() {
+    // Guard: writes require auth
+    if (!isAuthenticated()) {
+      // Optionally take user to login
+      login()
+      return
+    }
     if (!validate()) return
     const ingredients = parseIngredients(ingredientsText)
   const instructions = parseInstructions(instructionsText)
     ;(async () => {
       let imageUrl = imagePreview
       // If a file was selected and an API base is configured, upload via presigned URL flow
-      const apiBase = (process.env.REACT_APP_API_BASE || '').trim()
+  const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
+  const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
+  const apiBase = (viteBase || legacyBase || '').trim()
       if (imageFile && apiBase) {
         try {
           // Request presigned URL
-          const resp = await fetch(`${apiBase}/images`, { method: 'POST', body: JSON.stringify({ filename: imageFile.name }), headers: { 'Content-Type': 'application/json' } })
+          const resp = await fetch(`${apiBase}/images`, { method: 'POST', body: JSON.stringify({ filename: imageFile.name }), headers: { 'Content-Type': 'application/json', ...authHeader() } })
           if (resp.ok) {
             const data = await resp.json()
             const uploadUrl = data.uploadUrl
@@ -230,7 +239,7 @@ export default function DetailsModal({
         <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
           <button type="button" className="secondary" onClick={onClose}>Cancel</button>
           <button type="button" className="btn-ghost" onClick={handleCookPreview}>Cook</button>
-          <button type="button" className="primary" onClick={save}>Save recipe</button>
+          <button type="button" className="primary" onClick={save} disabled={!isAuthenticated()} title={!isAuthenticated() ? 'Log in to save' : undefined}>Save recipe</button>
         </div>
       </div>
     </div>,

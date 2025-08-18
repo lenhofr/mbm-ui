@@ -9,3 +9,15 @@ variable "aws_region" {
   type        = string
   default     = "us-east-1"
 }
+
+variable "cognito_callback_urls" {
+  description = "Allowed OAuth callback URLs"
+  type        = list(string)
+  default     = ["http://localhost:5173/", "https://mealsbymaggie.com/", "https://www.mealsbymaggie.com/"]
+}
+
+variable "cognito_logout_urls" {
+  description = "Allowed OAuth logout URLs"
+  type        = list(string)
+  default     = ["http://localhost:5173/", "https://mealsbymaggie.com/", "https://www.mealsbymaggie.com/"]
+}

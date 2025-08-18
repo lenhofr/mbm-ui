@@ -60,6 +60,19 @@ npm run install-hooks
 npm run scaffold:spa -- --help
 ```
 
+## Configuring remote API and Cognito auth
+
+To connect the SPA to your API Gateway and enable login via Cognito Hosted UI, create `.env.local` with:
+
+```
+VITE_API_BASE=https://<api-id>.execute-api.us-east-1.amazonaws.com
+VITE_COGNITO_DOMAIN=https://<your-domain>.auth.us-east-1.amazoncognito.com
+VITE_COGNITO_CLIENT_ID=<app-client-id>
+VITE_COGNITO_REDIRECT_URI=http://localhost:5173/
+```
+
+Reads (GET) remain public; writes (POST/PUT/DELETE) require an authenticated session and will send an Authorization header.
+
 ## Architecture & roadmap (original, preserved)
 
 Here’s a high-level plan to deploy a Single Page Application (SPA) for storing recipes, pictures, and ratings on AWS using S3, CloudFront, and Lambda:

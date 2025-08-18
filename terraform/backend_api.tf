@@ -152,10 +152,9 @@ resource "aws_lambda_function" "recipes_fn" {
 
   environment {
     variables = {
-      RECIPES_TABLE     = aws_dynamodb_table.recipes.name
-      RATINGS_TABLE     = aws_dynamodb_table.ratings.name
-      IMAGES_BUCKET     = aws_s3_bucket.images.id
-      API_SHARED_SECRET = random_password.api_secret.result
+      RECIPES_TABLE = aws_dynamodb_table.recipes.name
+      RATINGS_TABLE = aws_dynamodb_table.ratings.name
+      IMAGES_BUCKET = aws_s3_bucket.images.id
     }
   }
 }
@@ -170,25 +169,67 @@ resource "aws_lambda_function" "images_fn" {
 
   environment {
     variables = {
-      IMAGES_BUCKET     = aws_s3_bucket.images.id
-      API_SHARED_SECRET = random_password.api_secret.result
+      IMAGES_BUCKET = aws_s3_bucket.images.id
     }
   }
 }
 
-# Quick safeguard: require a shared secret header if provided.
-# TODO: replace with proper authorizer (Cognito / JWT / WAF) in medium-term plan.
-resource "random_password" "api_secret" {
-  length           = 32
-  override_special = "_-"
+# Authorization is enforced via Cognito JWT authorizer on protected routes.
+#########################################
+# Cognito: User Pool, App Client, Domain
+#########################################
+
+resource "aws_cognito_user_pool" "mbm" {
+  name = "mbm-user-pool"
+
+  password_policy {
+    minimum_length    = 8
+    require_lowercase = true
+    require_numbers   = true
+    require_symbols   = false
+    require_uppercase = true
+  }
+
+  auto_verified_attributes = ["email"]
 }
-# API Gateway (HTTP API) wiring
+
+
+resource "aws_cognito_user_pool_client" "spa" {
+  name         = "mbm-spa-client"
+  user_pool_id = aws_cognito_user_pool.mbm.id
+
+  generate_secret = false
+
+  allowed_oauth_flows_user_pool_client = true
+  allowed_oauth_flows                  = ["code"]
+  allowed_oauth_scopes                 = ["openid", "email", "profile"]
+
+  callback_urls = var.cognito_callback_urls
+  logout_urls   = var.cognito_logout_urls
+
+  supported_identity_providers  = ["COGNITO"]
+  prevent_user_existence_errors = "ENABLED"
+}
+
+resource "aws_cognito_user_pool_domain" "mbm" {
+  domain       = "mbm-app-${random_id.bucket_suffix.hex}"
+  user_pool_id = aws_cognito_user_pool.mbm.id
+}
+
+#########################################
+# API Gateway (HTTP API) wiring + CORS
+#########################################
+
 resource "aws_apigatewayv2_api" "http_api" {
   name          = "mbm-http-api"
   protocol_type = "HTTP"
-  # NOTE: HTTP APIs don't accept an inline 'policy' argument here. For
-  # quick IP-based restrictions you'd need to use AWS WAF or a REST API
-  # resource policy. TODO: apply proper authorizer (Cognito/JWT) or WAF.
+
+  cors_configuration {
+    allow_origins = ["*"]
+    allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers = ["content-type", "authorization"]
+    max_age       = 3600
+  }
 }
 
 # Integrations
@@ -205,27 +246,92 @@ resource "aws_apigatewayv2_integration" "images_integration" {
 }
 
 # Routes
-resource "aws_apigatewayv2_route" "recipes_route" {
+#############################
+# Authorizer (Cognito JWT)
+#############################
+
+resource "aws_apigatewayv2_authorizer" "cognito_jwt" {
+  api_id          = aws_apigatewayv2_api.http_api.id
+  authorizer_type = "JWT"
+  identity_sources = [
+    "$request.header.Authorization"
+  ]
+  name = "cognito-jwt"
+
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.spa.id]
+    issuer   = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.mbm.id}"
+  }
+}
+
+#########################################
+# Routes (split by method: public vs auth)
+#########################################
+
+# Recipes
+resource "aws_apigatewayv2_route" "recipes_get" {
   api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "ANY /recipes"
+  route_key = "GET /recipes"
   target    = "integrations/${aws_apigatewayv2_integration.recipes_integration.id}"
 }
 
-resource "aws_apigatewayv2_route" "recipes_item_route" {
+resource "aws_apigatewayv2_route" "recipes_post" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "POST /recipes"
+  target             = "integrations/${aws_apigatewayv2_integration.recipes_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
+}
+
+resource "aws_apigatewayv2_route" "recipes_item_get" {
   api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "ANY /recipes/{id}"
+  route_key = "GET /recipes/{id}"
   target    = "integrations/${aws_apigatewayv2_integration.recipes_integration.id}"
 }
 
-resource "aws_apigatewayv2_route" "ratings_route" {
+resource "aws_apigatewayv2_route" "recipes_item_put" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "PUT /recipes/{id}"
+  target             = "integrations/${aws_apigatewayv2_integration.recipes_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
+}
+
+resource "aws_apigatewayv2_route" "recipes_item_delete" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "DELETE /recipes/{id}"
+  target             = "integrations/${aws_apigatewayv2_integration.recipes_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
+}
+
+# Ratings
+resource "aws_apigatewayv2_route" "ratings_get" {
   api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "ANY /ratings"
+  route_key = "GET /ratings"
   target    = "integrations/${aws_apigatewayv2_integration.recipes_integration.id}"
 }
 
-resource "aws_apigatewayv2_route" "images_route" {
+resource "aws_apigatewayv2_route" "ratings_post" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "POST /ratings"
+  target             = "integrations/${aws_apigatewayv2_integration.recipes_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
+}
+
+# Images
+resource "aws_apigatewayv2_route" "images_post" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "POST /images"
+  target             = "integrations/${aws_apigatewayv2_integration.images_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
+}
+
+resource "aws_apigatewayv2_route" "images_get" {
   api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "ANY /images"
+  route_key = "GET /images/{key+}"
   target    = "integrations/${aws_apigatewayv2_integration.images_integration.id}"
 }
 
@@ -235,7 +341,8 @@ resource "aws_lambda_permission" "allow_apigw_recipes" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.recipes_fn.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${aws_apigatewayv2_api.http_api.id}/*/*/recipes"
+  # Allow all routes on this API to call this Lambda (covers /recipes, /recipes/{id}, /ratings)
+  source_arn = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${aws_apigatewayv2_api.http_api.id}/*/*/*"
 }
 
 resource "aws_lambda_permission" "allow_apigw_images" {
@@ -243,7 +350,8 @@ resource "aws_lambda_permission" "allow_apigw_images" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.images_fn.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${aws_apigatewayv2_api.http_api.id}/*/*/images"
+  # Allow all routes on this API to call this Lambda (covers /images and /images/{key+})
+  source_arn = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${aws_apigatewayv2_api.http_api.id}/*/*/*"
 }
 
 # Stage
@@ -261,6 +369,26 @@ EOF
 
 output "http_api_invoke_url" {
   value = aws_apigatewayv2_api.http_api.api_endpoint
+}
+
+output "cognito_user_pool_id" {
+  value = aws_cognito_user_pool.mbm.id
+}
+
+output "cognito_user_pool_client_id" {
+  value = aws_cognito_user_pool_client.spa.id
+}
+
+output "cognito_domain_prefix" {
+  value = aws_cognito_user_pool_domain.mbm.domain
+}
+
+output "cognito_oauth_base" {
+  value = "https://${aws_cognito_user_pool_domain.mbm.domain}.auth.${var.aws_region}.amazoncognito.com"
+}
+
+output "cognito_issuer" {
+  value = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.mbm.id}"
 }
 
 # CloudWatch Log Groups for Lambdas

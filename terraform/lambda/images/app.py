@@ -23,14 +23,7 @@ def handler(event, context):
     raw_path = event.get('rawPath', '')
 
     try:
-        # Quick auth: require shared secret in header to reduce public abuse.
-        # TODO: Replace with proper JWT/Cognito/Lambda authorizer in medium-term plan.
-        headers = {k.lower(): v for k, v in (event.get('headers') or {}).items()}
-        secret = os.environ.get('API_SHARED_SECRET')
-        if secret:
-            if headers.get('x-api-key') != secret:
-                return response(401, {'message': 'unauthorized'})
-        if method == 'POST' and raw_path == '/images':
+        if raw_path == '/images' and method in ('POST', 'GET'):
             body = json.loads(event.get('body') or '{}')
             filename = body.get('filename') or 'upload'
             # preserve extension if present
