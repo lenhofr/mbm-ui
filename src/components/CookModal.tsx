@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react'
+import * as Phosphor from 'phosphor-react'
 import { createPortal } from 'react-dom'
 import type { Recipe } from '../App'
 
-export default function CookModal({ visible, onClose, recipe }: { visible: boolean; onClose: () => void; recipe?: Recipe | null }) {
+export default function CookModal({ visible, onClose, recipe, onEdit }: { visible: boolean; onClose: () => void; recipe?: Recipe | null; onEdit?: (r: Recipe) => void }) {
   const root = (typeof document !== 'undefined' && document.getElementById('modal-root')) || null
-  const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large'>('medium')
+  const [fontSize/*, setFontSize*/] = useState<'small' | 'medium' | 'large'>('medium')
+  // font size controls removed from initial view; keep state placeholder for compatibility
+  const [cookMode, setCookMode] = useState(false)
   // Images displayed by default in cook view
   const modalRef = React.useRef<HTMLDivElement | null>(null)
   const lastFocused = React.useRef<HTMLElement | null>(null)
@@ -13,7 +16,6 @@ export default function CookModal({ visible, onClose, recipe }: { visible: boole
   useEffect(() => {
     if (visible) {
       // reset preferences when opening
-  setFontSize('medium')
       // save focus and move focus into modal
       lastFocused.current = document.activeElement as HTMLElement | null
       setTimeout(() => {
@@ -65,7 +67,7 @@ export default function CookModal({ visible, onClose, recipe }: { visible: boole
   return createPortal(
     <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
     <div
-      className={`modal cook-modal cook-fullscreen ${fontSize}`}
+      className={`modal cook-modal cook-fullscreen ${cookMode ? 'cook-mode-active' : ''}`}
         onMouseDown={(e) => e.stopPropagation()}
         aria-labelledby="cook-title"
         ref={modalRef}
@@ -88,51 +90,41 @@ export default function CookModal({ visible, onClose, recipe }: { visible: boole
         }}
       >
         {/* Mobile-friendly always-visible close button */}
-        <button className="cook-close-fab" aria-label="Close" onClick={onClose}>✕</button>
-        <div className="cook-toolbar" role="toolbar" aria-label="Cook view controls">
-          <div className="cook-actions">
-            <div className="icon-group" role="group" aria-label="Reading controls">
-              <button
-                className="icon-btn"
-                onClick={() => setFontSize(s => s === 'small' ? 'small' : s === 'medium' ? 'small' : 'medium')}
-                aria-label="Decrease font size"
-                title="Decrease font size"
-              >
-                <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path fill="currentColor" d="M6 12.75h12v-1.5H6v1.5Z"/>
-                </svg>
-              </button>
-              <button
-                className="icon-btn"
-                onClick={() => setFontSize(s => s === 'large' ? 'large' : s === 'medium' ? 'large' : 'medium')}
-                aria-label="Increase font size"
-                title="Increase font size"
-              >
-                <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path fill="currentColor" d="M11.25 6v5.25H6v1.5h5.25V18h1.5v-5.25H18v-1.5h-5.25V6h-1.5Z"/>
-                </svg>
-              </button>
-              <button
-                className="icon-btn icon-btn-print"
-                onClick={handlePrint}
-                aria-label="Print recipe"
-                title="Print"
-              >
-                <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path fill="currentColor" d="M6 8V4h12v4h-2V6H8v2H6Zm12 3h2a2 2 0 0 1 2 2v5h-4v2H6v-2H2v-5a2 2 0 0 1 2-2h2v2H4v3h16v-3h-2v-2Zm-2 9v-6H8v6h8Z"/>
-                </svg>
-              </button>
+  <button className="cook-close-fab" aria-label="Close cook view" onClick={onClose}>✕</button>
+  {/* Cook-mode toggle always present; edit button only when onEdit provided */}
+  <button className="cook-mode-btn" title="Toggle cook mode" aria-label="Toggle cook mode" onClick={() => setCookMode(s => !s)}>
+  {Phosphor?.ForkKnife ? <Phosphor.ForkKnife size={18} weight="duotone" /> : (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 2v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 8v11a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M9 13h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+    )}
+  </button>
+  {onEdit && (
+    <button className="cook-edit-btn" title="Edit recipe" aria-label="Edit recipe" onClick={() => onEdit(recipe as Recipe)}>
+      {Phosphor?.Pencil ? <Phosphor.Pencil size={18} weight="regular" /> : (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M3 21v-3.6a2.4 2.4 0 0 1 .7-1.7L14.2 5.2a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L7.3 21.3A2.4 2.4 0 0 1 5.6 22H3z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M14.7 6.3l2.9 2.9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+      )}
+    </button>
+  )}
+  {/* Read controls removed from initial view modal per design — cook mode toggle and edit remain */}
+
+  <div className="cook-content">
+          <div className="cook-header">
+            {recipe.image ? <img className="cook-image" src={((): string => {
+              const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
+              const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
+              const apiBase = (viteBase || legacyBase || '').trim()
+              if (!/^(https?:|data:|blob:)/i.test(recipe.image || '') && apiBase) return `${apiBase}/images/${encodeURIComponent(recipe.image as string)}`
+              return recipe.image as string
+            })()} alt={recipe.title} /> : null}
+
+            <div style={{flex:1}}>
+              <header style={{display:'flex',gap:12,alignItems:'center',marginBottom:6}}>
+                <h2 id="cook-title" style={{margin:0}}>{recipe.title}</h2>
+                <div className="cook-meta">{recipe.servings ? `${recipe.servings} servings` : ''}{recipe.cookTime ? ` • ${recipe.cookTime}` : ''}</div>
+              </header>
+              {recipe.description ? <p style={{marginTop:6,marginBottom:6}}>{recipe.description}</p> : null}
+              {recipe.tags?.length ? <div className="cook-tags">{recipe.tags.map(t => <span key={t} className="tag">{t}</span>)}</div> : null}
             </div>
           </div>
-        </div>
-
-        <div className="cook-content" style={{paddingTop:12}}>
-          <header style={{display:'flex',gap:12,alignItems:'center',marginBottom:12}}>
-            <h2 id="cook-title" style={{margin:0}}>{recipe.title}</h2>
-            <div style={{marginLeft:'auto',color:'#8b6b7a'}}>{recipe.servings ? `${recipe.servings} servings` : ''}</div>
-          </header>
-
-          {/* Intentionally no image in cook view for focus and simplicity */}
 
           <section style={{marginBottom:12}}>
             <h3>Ingredients</h3>

@@ -2,6 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import './styles.css'
+import './theme.css'
 import { initAuth } from './lib/auth'
 
 // Initialize auth on load (handles redirect callback)

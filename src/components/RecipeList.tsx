@@ -20,7 +20,7 @@ function CardMenu({ recipe, onEdit, onDelete, onView }: { recipe: Recipe; onEdit
       <button className="btn-ghost" aria-haspopup="menu" aria-expanded={open} aria-label="More options" onClick={() => setOpen(s => !s)}>⋯</button>
       {open && (
         <div style={{position:'absolute',right:0,top:28,background:'white',boxShadow:'0 6px 18px rgba(0,0,0,0.08)',borderRadius:8,padding:8,zIndex:30}}>
-          {onView && <div><button className="btn-ghost" onClick={() => { onView(recipe); setOpen(false)} }>Cook</button></div>}
+          {/* Cook action removed from card menu per UI polish request */}
           {onEdit && <div><button className="btn-ghost" onClick={() => { onEdit(recipe); setOpen(false)} }>Edit</button></div>}
           {onDelete && <div><button className="btn-ghost" onClick={() => { onDelete(recipe); setOpen(false)} }>Delete</button></div>}
         </div>
@@ -53,7 +53,7 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query }:
   return (
     <div className="recipe-list">
       {recipes.map(r => (
-        <article key={r.id} className="recipe-card" onClick={(e) => {
+        <article key={r.id} className="recipe-card bg-gradient-card border-none shadow-card" onClick={(e) => {
           // prevent clicks from buttons/menus from opening view
           const target = e.target as HTMLElement
           if (target.closest('button') || target.closest('a')) return
