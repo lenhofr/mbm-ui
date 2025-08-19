@@ -142,7 +142,7 @@ main{display:flex;gap:20px;align-items:flex-start}
 
 /* modal */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
-.modal{width:100%;max-width:720px;background:white;padding:18px;border-radius:14px;box-shadow:0 24px 60px rgba(42,15,28,0.2);max-height:80vh;overflow:auto}
+.modal{width:100%;max-width:720px;background:white;padding:18px;border-radius:14px;box-shadow:0 24px 60px rgba(42,15,28,0.2);max-height:80vh;overflow:auto;position:relative}
 .modal h3{margin-top:0}
 .modal label{display:block;margin-bottom:10px}
 .modal input,.modal textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #f0e6ea}
@@ -171,11 +171,41 @@ main{display:flex;gap:20px;align-items:flex-start}
 
 .cook-toolbar {
   display:flex;
-  justify-content:space-between;
+  justify-content:center;
   align-items:center;
   gap:12px;
   margin-bottom:8px;
+  /* ensure toolbar is tall enough to line up with the close FAB */
+  min-height:44px;
+  padding-top:4px;
+  /* reserve space on the right so the floating close button doesn't overlap right-aligned controls */
+  padding-right: 72px;
 }
+
+.cook-actions{ display:flex; align-items:center; justify-content:center; width:100% }
+.cook-toolbar .icon{ width:18px; height:18px; display:inline-block; vertical-align:middle; color: var(--muted) }
+.icon-group{ display:inline-flex; gap:8px; padding:6px; border:1px solid var(--btn-ghost-border); border-radius:999px; background: rgba(255,255,255,0.95); box-shadow: 0 8px 20px rgba(0,0,0,0.06); align-items:center }
+.icon-btn{ appearance:none; background:transparent; border:0; width:40px; height:40px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; color:var(--muted); cursor:pointer }
+.icon-btn:active{ transform: translateY(1px) }
+.icon-btn:hover{ background: rgba(0,0,0,0.04) }
+.icon-btn.icon-btn-print{ width:44px; height:44px }
+
+/* Floating close button for mobile accessibility */
+.cook-close-fab{
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  /* sit above most content but below any global modals */
+  z-index: 70;
+  width: 44px; height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--btn-ghost-border);
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.08);
+  display: inline-flex; align-items:center; justify-content:center;
+  font-size: 18px; color: var(--muted);
+}
+.cook-close-fab:active{ transform: translateY(1px) }
 
 .cook-content h2 { font-size: 1.6rem }
 .cook-content h3 { font-size: 1.15rem; margin-top:12px }
@@ -206,6 +236,12 @@ main{display:flex;gap:20px;align-items:flex-start}
 
 @media (max-width:480px){
   .modal{padding:12px}
+  .cook-toolbar{ gap: 8px }
+  /* reduce reserved right padding on small screens to keep controls visible */
+  .cook-toolbar{ padding-right: 56px }
+  .cook-toolbar .btn-ghost{ padding: 10px 14px; font-size: 16px }
+  .cook-content h2 { font-size: 1.3rem }
+  .cook-content h3 { font-size: 1.05rem }
 }
 
 .app-footer{margin-top:22px;color:var(--muted);text-align:center;font-size:13px}
