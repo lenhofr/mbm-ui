@@ -187,13 +187,19 @@ export default function App() {
 
   return (
     <div className="app">
-      <Hero onAdd={recipes.length === 0 ? () => { /* optional: trigger add flow */ } : undefined} />
+      <Hero onAdd={isAuthenticated() && recipes.length === 0 ? () => setShowAddModal(true) : undefined} />
       <header className="app-header" style={{ marginTop: 18 }}>
         <div style={{ position: 'absolute', right: 20, top: 20 }}>
           {isAuthenticated() ? (
-            <button className="btn-ghost" onClick={() => logout()}>Log out</button>
+            <button className="auth-cta" onClick={() => logout()} aria-label="Log out">
+              <span className="auth-icon" aria-hidden>⎋</span>
+              Log out
+            </button>
           ) : (
-            <button className="btn-ghost" onClick={() => login()}>Log in</button>
+            <button className="auth-cta" onClick={() => login()} aria-label="Log in">
+              <span className="auth-icon" aria-hidden>🔐</span>
+              Log in
+            </button>
           )}
         </div>
       </header>
@@ -263,9 +269,11 @@ export default function App() {
           </div>
 
           {/* Inline New Recipe button */}
-          <div>
-            <button type="button" className="primary" onClick={() => setShowAddModal(true)}>New Recipe</button>
-          </div>
+          {isAuthenticated() && (
+            <div>
+              <button type="button" className="primary" onClick={() => setShowAddModal(true)}>New Recipe</button>
+            </div>
+          )}
 
         </div>
   </div>
@@ -297,7 +305,14 @@ export default function App() {
 
       <ConfirmDialog visible={!!deleting} title="Delete recipe" message={`Delete "${deleting?.title}"?`} onCancel={() => setDeleting(null)} onConfirm={confirmDelete} />
 
-  {viewing && <CookModal visible={!!viewing} onClose={() => setViewing(null)} recipe={viewing} onEdit={(r) => { setEditing(r); setViewing(null) }} />}
+  {viewing && (
+        <CookModal
+          visible={!!viewing}
+          onClose={() => setViewing(null)}
+          recipe={viewing}
+          onEdit={isAuthenticated() ? (r) => { setEditing(r); setViewing(null) } : undefined}
+        />
+      )}
 
       <footer className="app-footer">Built with ❤️ — local UI scaffold</footer>
     </div>

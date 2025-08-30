@@ -1,10 +1,11 @@
 .root{
-  --bg: #FFF8FB;
-  --accent: #FFB6D5; /* soft pink */
-  --accent-2: #FFD9EC; /* lighter */
-  --card: #FFFFFF;
-  --muted: #7a6f78;
-  --text: #3b2b32;
+  /* Legacy vars retained for backwards-compat; prefer theme.css tokens */
+  --bg: hsl(var(--background));
+  --accent: hsl(var(--primary));
+  --accent-2: hsl(var(--muted-bg));
+  --card: hsl(var(--card));
+  --muted: hsl(var(--muted-fg));
+  --text: hsl(var(--foreground));
 }
 :root{
   --btn-primary-bg: #ff6fa7;
@@ -21,17 +22,17 @@
   --btn-danger-color: #fff;
 }
 *{box-sizing:border-box}
-body{font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue';background:var(--bg);margin:0;color:var(--text)}
+body{font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue';background:var(--bg);margin:0;color:var(--text)}
 .app{max-width:1040px;margin:28px auto;padding:20px}
 .app-header{margin-bottom:16px;text-align:center}
-.app-header h1{font-family: 'Pacifico', cursive;margin:0;color:#7a2f4b}
+.app-header h1{font-family: 'Pacifico', cursive;margin:0;color:hsl(var(--brand-fg))}
 .app-header p{margin:6px 0;color:var(--muted)}
 main{display:flex;gap:20px;align-items:flex-start}
 .left{flex:1}
 .right{flex:2}
 
 .recipe-form{background:linear-gradient(180deg,var(--card),var(--accent-2));padding:16px;border-radius:14px;box-shadow:0 6px 18px rgba(122,47,75,0.08);border:1px solid rgba(122,47,75,0.06)}
-.recipe-form h2{margin:0 0 8px 0;color:#7a2f4b}
+.recipe-form h2{margin:0 0 8px 0;color:hsl(var(--brand-fg))}
 .recipe-form label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
 .recipe-form input, .recipe-form textarea{width:100%;padding:10px;margin-top:6px;margin-bottom:12px;border:1px solid rgba(60,40,45,0.06);border-radius:10px;background:rgba(255,255,255,0.9);font-size:14px}
 
@@ -46,7 +47,7 @@ main{display:flex;gap:20px;align-items:flex-start}
 .search-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;font-size:18px;cursor:pointer;color:var(--muted);padding:6px;border-radius:6px}
 .search-clear:hover{background:rgba(0,0,0,0.04)}
 
-.search-highlight{background:linear-gradient(90deg,#fff29a,#ffd9a8);padding:0 2px;border-radius:3px}
+.search-highlight{background:linear-gradient(90deg,hsl(50 100% 85%),hsl(30 100% 85%));padding:0 2px;border-radius:3px}
 
 /* tag suggestion dropdown for search input */
 .tag-suggestions{
@@ -54,7 +55,7 @@ main{display:flex;gap:20px;align-items:flex-start}
   z-index: 60;
   margin-top: 8px;
   width: calc(100% - 4px);
-  background: #fff;
+  background: hsl(var(--card));
   border-radius: 10px;
   box-shadow: 0 12px 30px rgba(42,15,28,0.12);
   border: 1px solid rgba(60,40,45,0.06);
@@ -74,7 +75,7 @@ main{display:flex;gap:20px;align-items:flex-start}
   font-weight:600;
 }
 .tag-suggestion:hover, .tag-suggestion.active{
-  background:linear-gradient(90deg,#fff7f9,#fff1f5);
+  background:linear-gradient(90deg,hsl(var(--card)),hsl(var(--muted-bg)));
   transform:translateY(-2px);
 }
 
@@ -87,7 +88,7 @@ main{display:flex;gap:20px;align-items:flex-start}
 .recipe-form button.primary, .primary{
   /* Soft pill default to be easy on the eyes; accent on hover */
   background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,252,0.98));
-  color: #7a2f4b;
+  color: hsl(var(--foreground));
   box-shadow: inset 0 -2px 0 rgba(0,0,0,0.03), 0 6px 16px rgba(122,47,75,0.04);
   border: 1px solid rgba(122,47,75,0.06);
   padding:10px 16px;border-radius:999px;transition:transform .08s ease,box-shadow .12s ease,background .12s ease,color .12s ease
@@ -102,8 +103,30 @@ main{display:flex;gap:20px;align-items:flex-start}
 
 /* ghost / subtle button */
 .btn-ghost{background:var(--btn-ghost-bg);border:1px solid var(--btn-ghost-border);padding:8px 12px;border-radius:10px;color:var(--muted);cursor:pointer;transition:background .1s ease,border-color .08s ease}
-.btn-ghost:hover{background:rgba(255,111,167,0.04);border-color:rgba(122,47,75,0.12)}
+.btn-ghost:hover{background: hsl(var(--muted-bg)); border-color: hsl(var(--border))}
 .btn-ghost:active{transform:translateY(1px)}
+
+/* Auth CTA (top-right) */
+.auth-cta{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  background: linear-gradient(180deg, hsl(var(--card)), hsl(var(--muted-bg)));
+  color:hsl(var(--brand-fg));
+  border:1px solid rgba(122,47,75,0.1);
+  box-shadow: 0 6px 16px rgba(122,47,75,0.06);
+  cursor:pointer;
+  font-weight:700;
+}
+.auth-cta:hover{
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-color);
+  box-shadow: var(--btn-primary-shadow);
+  transform: translateY(-2px);
+}
+.auth-icon{ filter: saturate(0.8); }
 
 /* secondary (outlined) */
 .secondary{background:var(--btn-secondary-bg);border:1px solid var(--btn-secondary-border);color:var(--text);padding:8px 12px;border-radius:10px}
@@ -113,19 +136,20 @@ main{display:flex;gap:20px;align-items:flex-start}
 .danger:hover{filter:brightness(0.98)}
 
 .recipe-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
-.recipe-card{background:linear-gradient(180deg,var(--card),#fff7fb);padding:12px;border-radius:14px;box-shadow:0 8px 24px rgba(122,47,75,0.06);display:flex;flex-direction:column;border:1px solid rgba(122,47,75,0.03)}
-.recipe-image{height:140px;background:linear-gradient(135deg,#fff5f9,#fffafc);border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;overflow:hidden}
+.recipe-card{background:linear-gradient(180deg,hsl(var(--card)),hsl(var(--muted-bg)));padding:12px;border-radius:14px;box-shadow:0 8px 24px rgba(122,47,75,0.06);display:flex;flex-direction:column;border:1px solid hsl(var(--border))}
+.recipe-image{height:140px;background:linear-gradient(135deg,hsl(var(--card)),hsl(var(--muted-bg)));border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;overflow:hidden}
 .recipe-image img{width:100%;height:100%;object-fit:cover}
-.recipe-body h3{margin:0 0 6px 0;color:#6b213a}
+.recipe-body h3{margin:0 0 6px 0;color:hsl(var(--brand-fg))}
 .recipe-body p{margin:0;color:var(--muted);font-size:14px}
 
 /* tags */
 .tag-list{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-.tag{background:linear-gradient(90deg,#ffd9e8,#ffeef6);color:#9b3760;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:600}
+.tag{background:hsl(var(--muted-bg));color:hsl(var(--muted-fg));padding:4px 8px;border-radius:999px;font-size:12px;font-weight:600}
+.tag{color:hsl(var(--brand-fg))}
 
 /* tag micro-interactions */
 .tag{transition:transform .12s ease, box-shadow .12s ease}
-.tag:hover{transform:translateY(-3px);box-shadow:0 8px 18px rgba(122,47,75,0.06)}
+.tag:hover{transform:translateY(-3px);box-shadow:0 8px 18px rgba(0,0,0,0.06)}
 .tag button{opacity:0;transition:opacity .12s ease}
 .tag:hover button{opacity:1}
 
@@ -142,21 +166,21 @@ main{display:flex;gap:20px;align-items:flex-start}
 
 /* Make the three-dot / menu button feel responsive inside the card */
 .recipe-card .btn-ghost{transition:opacity .16s ease, transform .12s ease, background .12s ease;opacity:0.9}
-.recipe-card:hover .btn-ghost{opacity:1;transform:translateY(-2px) scale(1.03);background:rgba(198,166,255,0.06);border-color:rgba(122,47,75,0.08)}
+.recipe-card:hover .btn-ghost{opacity:1;transform:translateY(-2px) scale(1.03);background:hsl(var(--muted-bg));border-color:hsl(var(--border))}
 
 /* Slightly bolder tag hover for better affordance */
 .tag{transition:transform .14s ease, box-shadow .14s ease, background .12s ease}
-.tag:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 12px 30px rgba(122,47,75,0.08);background:linear-gradient(90deg,#ffd9e8,#fff1f8)}
+.tag:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 12px 30px rgba(0,0,0,0.08);background:hsl(var(--muted-bg))}
 
 /* active tag chip for search filters */
-.tag-active{background:linear-gradient(90deg,#ffd9e8,#ffe0f0);border:1px solid rgba(122,47,75,0.12);box-shadow:0 10px 24px rgba(122,47,75,0.08)}
+.tag-active{background:hsl(var(--muted-bg));border:1px solid hsl(var(--border));box-shadow:0 10px 24px rgba(0,0,0,0.08)}
 
 /* modal */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
-.modal{width:100%;max-width:720px;background:white;padding:18px;border-radius:14px;box-shadow:0 24px 60px rgba(42,15,28,0.2);max-height:80vh;overflow:auto;position:relative}
+.modal{width:100%;max-width:720px;background:hsl(var(--card));padding:18px;border-radius:14px;box-shadow:0 24px 60px rgba(42,15,28,0.2);max-height:80vh;overflow:auto;position:relative}
 .modal h3{margin-top:0}
 .modal label{display:block;margin-bottom:10px}
-.modal input,.modal textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #f0e6ea}
+.modal input,.modal textarea{width:100%;padding:10px;border-radius:8px;border:1px solid hsl(var(--border))}
 .modal input:focus,.modal textarea:focus{outline:3px solid rgba(255,111,167,0.12)}
 .modal-image-preview{max-width:100%;border-radius:8px;max-height:40vh;object-fit:cover}
 .error{color:#b1224a;background:rgba(177,34,74,0.06);padding:8px;border-radius:8px;margin-bottom:8px}
@@ -180,43 +204,7 @@ main{display:flex;gap:20px;align-items:flex-start}
   padding: 18px;
 }
 
-.cook-toolbar {
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  gap:12px;
-  margin-bottom:8px;
-  /* ensure toolbar is tall enough to line up with the close FAB */
-  min-height:44px;
-  padding-top:4px;
-  /* reserve space on the right so the floating close button doesn't overlap right-aligned controls */
-  padding-right: 72px;
-}
-
-.cook-actions{ display:flex; align-items:center; justify-content:center; width:100% }
-.cook-toolbar .icon{ width:18px; height:18px; display:inline-block; vertical-align:middle; color: var(--muted) }
-.icon-group{ display:inline-flex; gap:8px; padding:6px; border:1px solid var(--btn-ghost-border); border-radius:999px; background: rgba(255,255,255,0.95); box-shadow: 0 8px 20px rgba(0,0,0,0.06); align-items:center }
-.icon-btn{ appearance:none; background:transparent; border:0; width:40px; height:40px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; color:var(--muted); cursor:pointer }
-.icon-btn:active{ transform: translateY(1px) }
-.icon-btn:hover{ background: rgba(0,0,0,0.04) }
-.icon-btn.icon-btn-print{ width:44px; height:44px }
-
-/* Floating close button for mobile accessibility */
-.cook-close-fab{
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  /* sit above most content but below any global modals */
-  z-index: 70;
-  width: 44px; height: 44px;
-  border-radius: 999px;
-  border: 1px solid var(--btn-ghost-border);
-  background: rgba(255,255,255,0.95);
-  box-shadow: 0 8px 22px rgba(0,0,0,0.08);
-  display: inline-flex; align-items:center; justify-content:center;
-  font-size: 18px; color: var(--muted);
-}
-.cook-close-fab:active{ transform: translateY(1px) }
+/* Removed obsolete cook toolbar and floating close styles in favor of theme.css */
 
 .cook-content h2 { font-size: 1.6rem }
 .cook-content h3 { font-size: 1.15rem; margin-top:12px }
