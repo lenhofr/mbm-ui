@@ -34,6 +34,26 @@ export default function DetailsModal({
   const titleRef = useRef<HTMLInputElement | null>(null)
   const lastFocused = useRef<HTMLElement | null>(null)
 
+  // Manage scroll locking with a simple global counter to support multiple modals
+  function lockScroll() {
+    if (typeof window === 'undefined') return
+    const w = window as any
+    w.__modalCount = (w.__modalCount || 0) + 1
+    if (w.__modalCount === 1) {
+      document.documentElement.classList.add('modal-open')
+      document.body.classList.add('modal-open')
+    }
+  }
+  function unlockScroll() {
+    if (typeof window === 'undefined') return
+    const w = window as any
+    w.__modalCount = Math.max(0, (w.__modalCount || 0) - 1)
+    if (w.__modalCount === 0) {
+      document.documentElement.classList.remove('modal-open')
+      document.body.classList.remove('modal-open')
+    }
+  }
+
   useEffect(() => {
     if (!imageFile) return
     const reader = new FileReader()
@@ -53,12 +73,40 @@ export default function DetailsModal({
     setDescription(initialRecipe?.description ?? '')
     setImageFile(null)
     if (visible) {
+      lockScroll()
       lastFocused.current = document.activeElement as HTMLElement | null
       setTimeout(() => titleRef.current?.focus(), 0)
     } else {
+      unlockScroll()
       setTimeout(() => lastFocused.current?.focus?.(), 0)
     }
   }, [visible, initialRecipe])
+
+  // Keyboard handling: Escape to close and focus trap within the modal when visible
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!visible) return
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+      }
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>('a[href], button, textarea, input, select')
+        if (!focusable.length) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [visible, onClose])
 
   function parseIngredients(text: string) {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
@@ -128,6 +176,13 @@ export default function DetailsModal({
     }, (initialRecipe as any)?.id)
     onClose()
   }
+
+  useEffect(() => {
+    return () => {
+      // ensure scroll unlock on unmount
+      unlockScroll()
+    }
+  }, [])
 
   if (!visible || !modalRoot) return null
 

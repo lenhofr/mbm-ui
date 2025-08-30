@@ -13,15 +13,38 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
   const lastFocused = React.useRef<HTMLElement | null>(null)
   const touchStart = React.useRef<{ x: number; y: number; scrollTop: number } | null>(null)
 
+  // Manage scroll locking with a simple global counter to support multiple modals safely
+  function lockScroll() {
+    if (typeof window === 'undefined') return
+    const w = window as any
+    w.__modalCount = (w.__modalCount || 0) + 1
+    if (w.__modalCount === 1) {
+      document.documentElement.classList.add('modal-open')
+      document.body.classList.add('modal-open')
+    }
+  }
+  function unlockScroll() {
+    if (typeof window === 'undefined') return
+    const w = window as any
+    w.__modalCount = Math.max(0, (w.__modalCount || 0) - 1)
+    if (w.__modalCount === 0) {
+      document.documentElement.classList.remove('modal-open')
+      document.body.classList.remove('modal-open')
+    }
+  }
+
   useEffect(() => {
     if (visible) {
-      // reset preferences when opening
-      // save focus and move focus into modal
+      lockScroll()
+      // reset preferences when opening; save focus and move focus into modal
       lastFocused.current = document.activeElement as HTMLElement | null
       setTimeout(() => {
         const el = modalRef.current?.querySelector('button, [href], input, textarea, select') as HTMLElement | null
         el?.focus()
       }, 0)
+    } else {
+      // when hidden, release scroll lock
+      unlockScroll()
     }
   }, [visible])
 
@@ -54,6 +77,8 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
     return () => {
       // restore focus when modal unmounts
       setTimeout(() => lastFocused.current?.focus?.(), 0)
+  // ensure scroll is unlocked if unmounting while visible
+  unlockScroll()
     }
   }, [])
 

@@ -131,7 +131,14 @@ main{display:flex;gap:20px;align-items:flex-start}
 
 /* Card micro-interactions: subtle lift and stronger shadow on hover */
 .recipe-card{transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease}
-.recipe-card:hover{transform:translateY(-6px) scale(1.01);box-shadow:0 18px 42px rgba(122,47,75,0.12);border-color:rgba(122,47,75,0.12)}
+/* Only apply lift on devices with hover + fine pointer (desktops/laptops) */
+@media (hover: hover) and (pointer: fine) {
+  .recipe-card:hover{transform:translateY(-6px) scale(1.01);box-shadow:0 18px 42px rgba(122,47,75,0.12);border-color:rgba(122,47,75,0.12)}
+}
+/* On touch devices, prevent any unintended lift on tap */
+@media (hover: none) and (pointer: coarse) {
+  .recipe-card:hover, .recipe-card:active { transform:none; box-shadow:0 8px 24px rgba(122,47,75,0.06); }
+}
 
 /* Make the three-dot / menu button feel responsive inside the card */
 .recipe-card .btn-ghost{transition:opacity .16s ease, transform .12s ease, background .12s ease;opacity:0.9}

@@ -43,21 +43,49 @@ html, body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
 }
+/* Prevent background scroll when a modal is open */
+html.modal-open, body.modal-open { overflow: hidden; height: 100%; }
 
 /* Utility classes used by the new Hero component */
-.hero {
-  background-image: var(--gradient-hero);
-  color: white;
-  padding: 3.5rem 1rem;
+.hero-card {
+  /* Option 2: flatter look with subtle top gradient border */
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  padding: clamp(14px, 3vw, 22px);
   text-align: center;
-  border-radius: 12px;
-  box-shadow: var(--shadow-dreamy);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  max-width: 1040px;
+  margin: 12px auto 10px;
+  position: relative;
 }
-.hero-inner { max-width: 980px; margin: 0 auto; }
-.hero-title { font-family: 'Pacifico', cursive; font-size: 3.5rem; line-height: 1; margin: 0; text-shadow: 0 8px 30px rgba(0,0,0,0.25); }
-.hero-tagline { margin-top: 1rem; font-size: 1.15rem; opacity: 0.95; }
-.hero-cta { margin-top: 1.25rem; display:inline-flex; align-items:center; gap:0.6rem; padding:0.85rem 1.25rem; border-radius:999px; background:rgba(255,255,255,0.95); color: hsl(var(--primary)); font-weight:700; box-shadow: 0 10px 24px rgba(0,0,0,0.12); cursor:pointer; border: none; }
-.hero-emoji { transform: translateY(-2px); }
+/* Gradient top border using pseudo-element */
+.hero-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px; /* 2–3px */
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+  background: linear-gradient(90deg, hsl(330 85% 75%), hsl(280 70% 78%), hsl(200 70% 80%));
+  opacity: 0.9;
+}
+.hero-inner { max-width: 920px; margin: 0 auto; }
+.hero-title { font-family: 'Pacifico', cursive; font-size: clamp(22px, 3.6vw, 36px); line-height: 1.05; margin: 0; text-shadow: none; color: #6b213a; }
+.hero-tagline { margin-top: 8px; font-size: clamp(14px, 2.2vw, 16px); opacity: 0.9; }
+.hero-emoji { transform: translateY(-1px); }
+.hero-cta-ghost { margin-top: 10px; display:inline-flex; align-items:center; gap:0.5rem; padding: 0.55rem 0.9rem; border-radius:999px; font-weight:700; }
+
+@media (max-width: 480px) {
+  .hero-card {
+    /* Keep hero compact on small screens */
+    padding: 12px;
+    margin: 10px 12px 8px;
+  }
+  .hero-title { font-size: clamp(20px, 7.2vw, 28px); }
+  .hero-tagline { font-size: 14px; }
+}
 
 /* Modal & form tighten/spacing/accessibility */
 .modal-backdrop {
@@ -69,6 +97,7 @@ html, body {
   background: rgba(12,10,12,0.35);
   padding: 1rem;
   z-index: 1000;
+  overscroll-behavior: contain; /* avoid scroll chaining on mobile */
 }
 .modal {
   width: 100%;
@@ -79,6 +108,9 @@ html, body {
   position: relative;
   font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
   color: hsl(var(--card-foreground));
+  max-height: 90vh; /* allow internal scroll */
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .modal-header { margin-bottom: 0.35rem; }
 .modal-close {
@@ -109,7 +141,7 @@ textarea { min-height: 92px; }
 .grid-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
 
 /* Cook / view modal specific styling */
-.cook-modal { max-width: 900px; max-height: 90vh; overflow:auto; padding: 1rem; }
+.cook-modal { max-width: 900px; max-height: 90vh; overflow:auto; padding: 1rem; -webkit-overflow-scrolling: touch; }
 .cook-close-fab { position: absolute; top: 12px; right: 12px; border: none; background: hsl(var(--card)); width: 40px; height: 40px; display:inline-grid; place-items:center; border-radius: 999px; font-size: 1rem; cursor: pointer; box-shadow: 0 8px 22px rgba(0,0,0,0.08); }
 .cook-close-fab:hover { transform: translateY(-2px); }
 .cook-edit-btn { position: absolute; top: 12px; right: 60px; border: none; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); width: 40px; height: 40px; display:inline-grid; place-items:center; border-radius: 10px; font-size: 0.95rem; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
