@@ -110,7 +110,7 @@ main{display:flex;gap:20px;align-items:flex-start}
 .auth-cta{
   display:inline-flex;
   align-items:center;
-  gap:8px;
+  gap:12px; /* Adjusted gap for better spacing */
   padding:8px 12px;
   border-radius:999px;
   background: linear-gradient(180deg, hsl(var(--card)), hsl(var(--muted-bg)));
@@ -127,6 +127,7 @@ main{display:flex;gap:20px;align-items:flex-start}
   transform: translateY(-2px);
 }
 .auth-icon{ filter: saturate(0.8); }
+.auth-cta svg{ opacity: .9; }
 
 /* secondary (outlined) */
 .secondary{background:var(--btn-secondary-bg);border:1px solid var(--btn-secondary-border);color:var(--text);padding:8px 12px;border-radius:10px}
