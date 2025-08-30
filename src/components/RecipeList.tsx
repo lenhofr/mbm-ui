@@ -91,7 +91,7 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query }:
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
               <h3>{highlight(r.title, query)}</h3>
               <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                <small style={{color:'#d36b96',fontWeight:600}}>{r.servings ? `${r.servings} ppl` : ''}</small>
+                <small style={{color:'hsl(var(--muted-fg))',fontWeight:600}}>{r.servings ? `${r.servings} ppl` : ''}</small>
                 {(onEdit || onDelete || onView) && authed && (
                   <CardMenu recipe={r} onEdit={onEdit} onDelete={onDelete} onView={onView} />
                 )}

@@ -30,7 +30,7 @@ export default function ConfirmDialog({
     <div className="modal-backdrop" role="alertdialog" aria-modal="true">
       <div className="modal small bg-gradient-card border-none shadow-card">
         <h3 className="text-primary">{title}</h3>
-        {message && <p style={{color:'#544'}}>{message}</p>}
+  {message && <p style={{color:'hsl(var(--muted-fg))'}}>{message}</p>}
         <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:12}}>
           <button className="secondary" onClick={onCancel}>Cancel</button>
           <button className="danger" onClick={onConfirm}>Delete</button>

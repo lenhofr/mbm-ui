@@ -114,24 +114,35 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
           }
         }}
       >
-        {/* Mobile-friendly always-visible close button */}
-  <button className="cook-close-fab" aria-label="Close cook view" onClick={onClose}>✕</button>
-  {/* Cook-mode toggle always present; edit button only when onEdit provided */}
-  <button className="cook-mode-btn" title="Toggle cook mode" aria-label="Toggle cook mode" onClick={() => setCookMode(s => !s)}>
-  {Phosphor?.ForkKnife ? <Phosphor.ForkKnife size={18} weight="duotone" /> : (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 2v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 8v11a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M9 13h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-    )}
-  </button>
-  {onEdit && (
-    <button className="cook-edit-btn" title="Edit recipe" aria-label="Edit recipe" onClick={() => onEdit(recipe as Recipe)}>
-      {Phosphor?.Pencil ? <Phosphor.Pencil size={18} weight="regular" /> : (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M3 21v-3.6a2.4 2.4 0 0 1 .7-1.7L14.2 5.2a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L7.3 21.3A2.4 2.4 0 0 1 5.6 22H3z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M14.7 6.3l2.9 2.9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-      )}
-    </button>
-  )}
+        {/* Sticky header row with title/meta on the left and actions on the right */}
+        <div className="cook-toolbar" aria-label="Recipe header">
+          <div className="cook-toolbar-left">
+            <h2 id="cook-title" className="cook-title" title={recipe.title}>{recipe.title}</h2>
+            <div className="cook-meta">{recipe.servings ? `${recipe.servings} servings` : ''}{recipe.cookTime ? ` • ${recipe.cookTime}` : ''}</div>
+          </div>
+          <div className="cook-toolbar-actions">
+            <button className="cook-mode-btn" title="Toggle cook mode" aria-label="Toggle cook mode" onClick={() => setCookMode(s => !s)}>
+              {Phosphor?.CookingPot ? <Phosphor.CookingPot size={20} weight="regular" /> : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 10h16v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-7Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 10h20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              )}
+            </button>
+            {onEdit && (
+              <button className="cook-edit-btn" title="Edit recipe" aria-label="Edit recipe" onClick={() => onEdit(recipe as Recipe)}>
+                {Phosphor?.Pencil ? <Phosphor.Pencil size={20} weight="regular" /> : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M3 21v-3.6a2.4 2.4 0 0 1 .7-1.7L14.2 5.2a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L7.3 21.3A2.4 2.4 0 0 1 5.6 22H3z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M14.7 6.3l2.9 2.9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                )}
+              </button>
+            )}
+            <button className="cook-close-fab" aria-label="Close cook view" onClick={onClose}>
+              {Phosphor?.X ? <Phosphor.X size={20} weight="regular" /> : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 6l12 12M6 18L18 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              )}
+            </button>
+          </div>
+        </div>
   {/* Read controls removed from initial view modal per design — cook mode toggle and edit remain */}
 
-  <div className="cook-content">
+          <div className="cook-content">
           <div className="cook-header">
             {recipe.image ? <img className="cook-image" src={((): string => {
               const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
@@ -142,10 +153,6 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
             })()} alt={recipe.title} /> : null}
 
             <div style={{flex:1}}>
-              <header style={{display:'flex',gap:12,alignItems:'center',marginBottom:6}}>
-                <h2 id="cook-title" style={{margin:0}}>{recipe.title}</h2>
-                <div className="cook-meta">{recipe.servings ? `${recipe.servings} servings` : ''}{recipe.cookTime ? ` • ${recipe.cookTime}` : ''}</div>
-              </header>
               {recipe.description ? <p style={{marginTop:6,marginBottom:6}}>{recipe.description}</p> : null}
               {recipe.tags?.length ? <div className="cook-tags">{recipe.tags.map(t => <span key={t} className="tag">{t}</span>)}</div> : null}
             </div>
