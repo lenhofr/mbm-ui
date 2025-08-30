@@ -35,9 +35,12 @@ describe('CookModal', () => {
   expect(screen.getByText(/flour/i)).toBeInTheDocument()
     expect(screen.getByText(/mix ingredients/i)).toBeInTheDocument()
 
-    const printBtn = screen.getByRole('button', { name: /print recipe/i })
-    fireEvent.click(printBtn)
-    expect(printSpy).toHaveBeenCalled()
+  // The print/size controls were removed from the initial view; ensure cook-mode toggle exists
+  const cookModeBtn = screen.getByRole('button', { name: /toggle cook mode/i })
+  fireEvent.click(cookModeBtn)
+  // modal should have cook-mode-active class when toggled
+  const modalEl = document.querySelector('.cook-modal')
+  expect(modalEl?.classList.contains('cook-mode-active')).toBe(true)
 
     const closeBtn = screen.getByRole('button', { name: /close cook view/i })
     fireEvent.click(closeBtn)

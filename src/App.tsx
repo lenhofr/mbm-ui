@@ -1,9 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import RecipeList from './components/RecipeList'
-import RecipeForm from './components/RecipeForm'
 import DetailsModal from './components/DetailsModal'
 import ConfirmDialog from './components/ConfirmDialog'
 import CookModal from './components/CookModal'
+import Hero from './components/Hero'
 import Fuse from 'fuse.js'
 import { storage } from './lib/storage'
 import { isAuthenticated, login, logout } from './lib/auth'
@@ -16,6 +16,7 @@ export type Recipe = {
   tags?: string[]
   ingredients?: { name: string; amount?: string }[]
   servings?: string
+  cookTime?: string
   instructions?: string[]
 }
 
@@ -62,6 +63,8 @@ export default function App() {
   }
 
   const [viewing, setViewing] = useState<Recipe | null>(null)
+
+  const [showAddModal, setShowAddModal] = useState(false)
 
   function startView(recipe: Recipe) {
     setViewing(recipe)
@@ -184,9 +187,8 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="app-header">
-        <h1>Meals by Maggie</h1>
-        <p className="subtitle">A cozy place to collect your favorite recipes</p>
+      <Hero onAdd={recipes.length === 0 ? () => { /* optional: trigger add flow */ } : undefined} />
+      <header className="app-header" style={{ marginTop: 18 }}>
         <div style={{ position: 'absolute', right: 20, top: 20 }}>
           {isAuthenticated() ? (
             <button className="btn-ghost" onClick={() => logout()}>Log out</button>
@@ -196,11 +198,12 @@ export default function App() {
         </div>
       </header>
 
-      {/* Search bar placed under the tagline */}
+  {/* Search bar placed under the hero */}
   <div style={{maxWidth:1040, margin:'0 auto 16px', padding:'0 20px'}}>
-        <label style={{display:'block', marginBottom:8, color:'var(--muted)'}} htmlFor="recipe-search">Search recipes</label>
-        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+        <label style={{display:'block', marginBottom:8, color:'var(--muted)'}} htmlFor="recipe-search">Recipe Collection</label>
+        <div style={{display:'flex',gap:12,alignItems:'center'}}>
           <div style={{position:'relative',flex:1}}>
+            <span className="search-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="11" cy="11" r="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></span>
             <input
               id="recipe-search"
               className="search-input"
@@ -258,14 +261,17 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {/* Inline New Recipe button */}
+          <div>
+            <button type="button" className="primary" onClick={() => setShowAddModal(true)}>New Recipe</button>
+          </div>
+
         </div>
   </div>
 
   <main>
-        <section className="left">
-          <RecipeForm onAdd={addRecipe} />
-        </section>
-        <section className="right">
+        <section className="right" style={{width:'100%'}}>
           <RecipeList
             recipes={filtered}
             onEdit={isAuthenticated() ? startEdit : undefined}
@@ -280,9 +286,18 @@ export default function App() {
   <DetailsModal visible={true} onClose={() => setEditing(null)} onSave={updateRecipe} initialRecipe={editing} onCook={startView} />
       )}
 
+      {showAddModal && (
+        <DetailsModal
+          visible={true}
+          onClose={() => setShowAddModal(false)}
+          onSave={(r) => { addRecipe(r); setShowAddModal(false) }}
+          initialRecipe={{ title: '', description: '' }}
+        />
+      )}
+
       <ConfirmDialog visible={!!deleting} title="Delete recipe" message={`Delete "${deleting?.title}"?`} onCancel={() => setDeleting(null)} onConfirm={confirmDelete} />
 
-  {viewing && <CookModal visible={!!viewing} onClose={() => setViewing(null)} recipe={viewing} />}
+  {viewing && <CookModal visible={!!viewing} onClose={() => setViewing(null)} recipe={viewing} onEdit={(r) => { setEditing(r); setViewing(null) }} />}
 
       <footer className="app-footer">Built with ❤️ — local UI scaffold</footer>
     </div>

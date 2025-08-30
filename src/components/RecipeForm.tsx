@@ -26,7 +26,7 @@ export default function RecipeForm({ onAdd }: { onAdd: (r: Omit<Recipe, 'id'>) =
     <>
       {authed ? (
         <>
-          <form className="recipe-form" onSubmit={quickAdd}>
+          <form className="recipe-form bg-gradient-card border-none shadow-card" onSubmit={quickAdd}>
             <h2>✨ Add Recipe</h2>
             <label>
               Title
@@ -49,7 +49,7 @@ export default function RecipeForm({ onAdd }: { onAdd: (r: Omit<Recipe, 'id'>) =
           />
         </>
       ) : (
-        <div className="recipe-form" style={{opacity:0.9}}>
+  <div className="recipe-form bg-gradient-card border-none shadow-card" style={{opacity:0.9}}>
           <h2>✨ Add Recipe</h2>
           <p style={{color:'var(--muted)', marginBottom:12}}>Log in to add, edit, or delete recipes.</p>
           <button type="button" className="primary" onClick={() => login()}>Log in</button>

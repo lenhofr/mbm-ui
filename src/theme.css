@@ -1,0 +1,213 @@
+/* Theme tokens copied / adapted from exampleApp/COPY_ME.md */
+:root {
+  /* Lover Era Color Palette (adapted) */
+  --background: 340 100% 98%;
+  --foreground: 340 15% 25%;
+
+  --card: 340 100% 99%;
+  --card-foreground: 340 15% 25%;
+
+  --primary: 330 85% 70%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 280 60% 85%;
+  --muted: 320 40% 95%;
+
+  --border: 320 30% 90%;
+  --input: 320 30% 95%;
+  --ring: 330 85% 70%;
+
+  /* Gradients */
+  --gradient-lover: linear-gradient(135deg, hsl(330, 85%, 70%), hsl(280, 70%, 75%), hsl(200, 70%, 80%));
+  --gradient-dreamy: linear-gradient(180deg, hsl(340, 100%, 98%), hsl(320, 40%, 95%));
+  --gradient-card: linear-gradient(145deg, hsl(340, 100%, 99%), hsl(320, 60%, 97%));
+  --gradient-hero: linear-gradient(135deg, hsl(330, 85%, 70%) 0%, hsl(280, 70%, 75%) 50%, hsl(200, 70%, 80%) 100%);
+
+  /* Shadows */
+  --shadow-dreamy: 0 10px 30px -5px rgba(198,166,255,0.2);
+  --shadow-card: 0 4px 20px -2px rgba(198,166,255,0.15);
+
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --primary: 210 40% 98%;
+}
+
+/* Helper CSS variables for direct use (hsl()) */
+html, body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+/* Prevent background scroll when a modal is open */
+html.modal-open, body.modal-open { overflow: hidden; height: 100%; }
+
+/* Utility classes used by the new Hero component */
+.hero-card {
+  /* Option 2: flatter look with subtle top gradient border */
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  padding: clamp(14px, 3vw, 22px);
+  text-align: center;
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  max-width: 1040px;
+  margin: 12px auto 10px;
+  position: relative;
+}
+/* Gradient top border using pseudo-element */
+.hero-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px; /* 2–3px */
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+  background: linear-gradient(90deg, hsl(330 85% 75%), hsl(280 70% 78%), hsl(200 70% 80%));
+  opacity: 0.9;
+}
+.hero-inner { max-width: 920px; margin: 0 auto; }
+.hero-title { font-family: 'Pacifico', cursive; font-size: clamp(22px, 3.6vw, 36px); line-height: 1.05; margin: 0; text-shadow: none; color: #6b213a; }
+.hero-tagline { margin-top: 8px; font-size: clamp(14px, 2.2vw, 16px); opacity: 0.9; }
+.hero-emoji { transform: translateY(-1px); }
+.hero-cta-ghost { margin-top: 10px; display:inline-flex; align-items:center; gap:0.5rem; padding: 0.55rem 0.9rem; border-radius:999px; font-weight:700; }
+
+@media (max-width: 480px) {
+  .hero-card {
+    /* Keep hero compact on small screens */
+    padding: 12px;
+    margin: 10px 12px 8px;
+  }
+  .hero-title { font-size: clamp(20px, 7.2vw, 28px); }
+  .hero-tagline { font-size: 14px; }
+}
+
+/* Modal & form tighten/spacing/accessibility */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(12,10,12,0.35);
+  padding: 1rem;
+  z-index: 1000;
+  overscroll-behavior: contain; /* avoid scroll chaining on mobile */
+}
+.modal {
+  width: 100%;
+  max-width: 760px;
+  border-radius: calc(var(--radius) + 0.25rem);
+  padding: 1rem 1rem 0.75rem 1rem;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  color: hsl(var(--card-foreground));
+  max-height: 90vh; /* allow internal scroll */
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.modal-header { margin-bottom: 0.35rem; }
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: none;
+  background: hsl(var(--card));
+  width: 36px;
+  height: 36px;
+  display:inline-grid;
+  place-items:center;
+  border-radius: 999px;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+.modal-close:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(0,0,0,0.08) }
+.form-field { display: block; margin-bottom: 0.6rem; }
+.form-label { display:block; font-weight:700; margin-bottom:0.25rem; font-size:0.95rem }
+.required-asterisk { color: #b1224a; margin-left:0.25rem }
+input[type="text"], input[type="file"], input, textarea, select { width: 100%; box-sizing: border-box; padding: 0.5rem 0.65rem; border-radius: 10px; border: 1px solid hsl(var(--border)); background: hsl(var(--input)); font-size: 0.95rem }
+textarea { min-height: 92px; }
+.image-preview-wrap { margin-bottom: 0.7rem; }
+.modal-image-preview { max-width: 100%; border-radius: 10px; display:block }
+.grid-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
+
+/* Cook / view modal specific styling */
+.cook-modal { max-width: 900px; max-height: 90vh; overflow:auto; padding: 1rem; -webkit-overflow-scrolling: touch; }
+.cook-close-fab { position: absolute; top: 12px; right: 12px; border: none; background: hsl(var(--card)); width: 40px; height: 40px; display:inline-grid; place-items:center; border-radius: 999px; font-size: 1rem; cursor: pointer; box-shadow: 0 8px 22px rgba(0,0,0,0.08); }
+.cook-close-fab:hover { transform: translateY(-2px); }
+.cook-edit-btn { position: absolute; top: 12px; right: 60px; border: none; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); width: 40px; height: 40px; display:inline-grid; place-items:center; border-radius: 10px; font-size: 0.95rem; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+.cook-edit-btn svg { width:18px; height:18px; }
+.cook-edit-btn:hover { transform: translateY(-2px); filter: brightness(0.98); }
+
+/* Cook mode toggle button (near edit) */
+.cook-mode-btn { position: absolute; top: 12px; right: 108px; border: none; background: transparent; color: hsl(var(--foreground)); width: 36px; height: 36px; display:inline-grid; place-items:center; border-radius: 8px; font-size: 0.95rem; cursor: pointer; }
+.cook-mode-btn svg { width:18px; height:18px; }
+.cook-mode-btn:hover { background: hsl(var(--muted)); }
+
+/* Active cook-mode: fullscreen, larger type, hide decorative image */
+.cook-modal.cook-mode-active { max-width: none; width: 100%; height: 100vh; max-height: none; border-radius: 0; padding: 1.25rem 1.5rem; }
+.cook-modal.cook-mode-active .cook-image { display: none; }
+.cook-modal.cook-mode-active .cook-content { font-size: 1.15rem; line-height: 1.6 }
+
+.cook-header { display:flex; gap:12px; align-items:flex-start; margin-bottom:12px; }
+.cook-image { width: 240px; max-width: 40%; height: 160px; border-radius: 10px; object-fit:cover; box-shadow: var(--shadow-card); }
+.cook-meta { margin-left: auto; color: hsl(var(--muted)); font-weight:600; font-size:0.95rem }
+.cook-content h2 { font-size: 1.5rem; margin:0; }
+.cook-content h3 { font-size: 1.05rem; margin: 0.6rem 0 0.4rem 0 }
+.cook-content p { color: hsl(var(--foreground)); margin: 0.35rem 0 }
+.cook-tags { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px }
+.cook-tags .tag { background: hsl(var(--muted)); padding:6px 8px; border-radius:999px }
+.cook-content h3 { margin-top:0 }
+
+@media (max-width: 720px) {
+  .cook-header { flex-direction: column; }
+  .cook-image { width: 100%; max-width: 100%; }
+  .cook-edit-btn { right: 56px; }
+}
+
+/* When image exists on small screens, push content down so top buttons don't overlap */
+@media (max-width: 640px) {
+  .cook-modal .cook-image { display:block }
+  .cook-modal .cook-content { padding-top: 54px; }
+  .cook-close-fab, .cook-edit-btn, .cook-mode-btn { top: 8px }
+}
+
+/* Align labels + inputs in-line for denser appearance on medium+ screens */
+@media (min-width: 720px) {
+  .form-field.inline {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 12px;
+    align-items: center;
+  }
+  .form-field.inline .form-label { margin: 0 }
+  .form-field.inline input, .form-field.inline textarea, .form-field.inline select { margin: 0 }
+}
+
+.tag-input-row { display:flex; gap:8px; align-items:center }
+.tag-list { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap }
+.tag { display:inline-flex; align-items:center; gap:6px; background: hsl(var(--muted)); padding:6px 8px; border-radius:999px }
+.btn-ghost { background: transparent; border: 1px solid transparent; padding:6px 8px; border-radius:8px; cursor:pointer }
+.modal-actions { display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-top: 0.65rem }
+
+/* Make primary (Save) expand to take most of the available width and keep Cancel to the right */
+.modal-actions .primary { flex: 1 1 auto; padding: 0.85rem 1rem; border-radius: 10px; font-weight:700; }
+.modal-actions .btn-cancel { flex: 0 0 auto; padding: 0.7rem 0.9rem; border-radius: 10px; border: 1px solid hsl(var(--border)); background: transparent; cursor: pointer; }
+.modal-actions .btn-cancel:hover { background: hsl(var(--muted)); }
+
+/* Responsive: stack grid on smaller screens */
+@media (max-width: 640px) {
+  .modal { padding: 1rem }
+  .grid-two { grid-template-columns: 1fr; }
+  .modal { max-width: 520px }
+}
+
