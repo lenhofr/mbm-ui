@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import type { Recipe } from '../App'
-import { isAuthenticated, login } from '../lib/auth'
 
 function CardMenu({ recipe, onEdit, onDelete, onView }: { recipe: Recipe; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void; onView?: (r: Recipe) => void }) {
   const [open, setOpen] = useState(false)
@@ -37,14 +36,13 @@ function highlight(text: string | undefined, q: string | undefined) {
   return parts.map((p, i) => (re.test(p) ? <mark key={i} className="search-highlight">{p}</mark> : <span key={i}>{p}</span>))
 }
 
-export default function RecipeList({ recipes, onEdit, onDelete, onView, query }: { recipes: Recipe[]; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void; onView?: (r: Recipe) => void; query?: string }) {
-  const authed = isAuthenticated()
+export default function RecipeList({ recipes, onEdit, onDelete, onView, query, authed, onLogin }: { recipes: Recipe[]; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void; onView?: (r: Recipe) => void; query?: string; authed?: boolean; onLogin?: () => void }) {
   if (recipes.length === 0) return (
     <div>
       No recipes yet — add one!
-      {!authed && (
+    {!authed && (
         <div style={{marginTop:8}}>
-          <button className="btn-ghost" onClick={() => login()}>Log in to add</button>
+      <button className="btn-ghost" onClick={onLogin}>Log in to add</button>
         </div>
       )}
     </div>
