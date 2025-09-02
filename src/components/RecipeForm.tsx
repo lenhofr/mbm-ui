@@ -1,9 +1,8 @@
 import React, { useState } from 'react'
 import DetailsModal from './DetailsModal'
 import type { Recipe } from '../App'
-import { isAuthenticated, login } from '../lib/auth'
 
-export default function RecipeForm({ onAdd }: { onAdd: (r: Omit<Recipe, 'id'>) => void }) {
+export default function RecipeForm({ onAdd, authed, onLogin }: { onAdd: (r: Omit<Recipe, 'id'>) => void; authed: boolean; onLogin: () => void }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -21,7 +20,6 @@ export default function RecipeForm({ onAdd }: { onAdd: (r: Omit<Recipe, 'id'>) =
     setDescription('')
   }
 
-  const authed = isAuthenticated()
   return (
     <>
       {authed ? (
@@ -52,7 +50,7 @@ export default function RecipeForm({ onAdd }: { onAdd: (r: Omit<Recipe, 'id'>) =
   <div className="recipe-form bg-gradient-card border-none shadow-card" style={{opacity:0.9}}>
           <h2>✨ Add Recipe</h2>
           <p style={{color:'var(--muted)', marginBottom:12}}>Log in to add, edit, or delete recipes.</p>
-          <button type="button" className="primary" onClick={() => login()}>Log in</button>
+          <button type="button" className="primary" onClick={onLogin}>Log in</button>
         </div>
       )}
     </>

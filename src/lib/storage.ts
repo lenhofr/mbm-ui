@@ -2,7 +2,8 @@
 // and a RemoteAdapter stub for future HTTP-backed storage.
 
 import type { Recipe } from '../App'
-import { authHeader } from './auth'
+import '../auth/amplify'
+import { fetchAuthSession } from 'aws-amplify/auth'
 
 export type Storage = {
   listRecipes: () => Promise<Recipe[]>
@@ -77,6 +78,16 @@ class LocalAdapter implements Storage {
 class RemoteAdapter implements Storage {
   constructor(private base: string) {}
 
+  private async getAuthHeader(): Promise<Record<string, string>> {
+    try {
+      const session = await fetchAuthSession()
+      const token = session.tokens?.idToken?.toString() || session.tokens?.accessToken?.toString()
+      return token ? { Authorization: `Bearer ${token}` } : {}
+    } catch {
+      return {}
+    }
+  }
+
   async listRecipes() {
     const res = await fetch(`${this.base}/recipes`)
     if (!res.ok) throw new Error('network')
@@ -91,7 +102,8 @@ class RemoteAdapter implements Storage {
   }
 
   async createRecipe(r: Omit<Recipe, 'id'>) {
-    const res = await fetch(`${this.base}/recipes`, { method: 'POST', body: JSON.stringify(r), headers: { 'Content-Type': 'application/json', ...authHeader() } })
+    const authHeaders = await this.getAuthHeader()
+    const res = await fetch(`${this.base}/recipes`, { method: 'POST', body: JSON.stringify(r), headers: { ...(authHeaders as Record<string,string>), 'Content-Type': 'application/json' } })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       console.error('POST /recipes failed', res.status, text)
@@ -101,7 +113,8 @@ class RemoteAdapter implements Storage {
   }
 
   async updateRecipe(id: string, r: Omit<Recipe, 'id'>) {
-    const res = await fetch(`${this.base}/recipes/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(r), headers: { 'Content-Type': 'application/json', ...authHeader() } })
+    const authHeaders = await this.getAuthHeader()
+    const res = await fetch(`${this.base}/recipes/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(r), headers: { ...(authHeaders as Record<string,string>), 'Content-Type': 'application/json' } })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       console.error('PUT /recipes/{id} failed', res.status, text)
@@ -111,7 +124,8 @@ class RemoteAdapter implements Storage {
   }
 
   async deleteRecipe(id: string) {
-    const res = await fetch(`${this.base}/recipes/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { ...authHeader() } })
+    const authHeaders = await this.getAuthHeader()
+    const res = await fetch(`${this.base}/recipes/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { ...(authHeaders as Record<string,string>) } })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       console.error('DELETE /recipes/{id} failed', res.status, text)

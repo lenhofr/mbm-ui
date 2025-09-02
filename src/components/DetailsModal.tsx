@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { Recipe } from '../App'
-import { authHeader, isAuthenticated, login } from '../lib/auth'
+import { useCognitoAuth } from '../hooks/useCognitoAuth'
 
 // Replaced file content with a clean, minimal DetailsModal implementation
 export default function DetailsModal({
@@ -10,13 +10,16 @@ export default function DetailsModal({
   onSave,
   initialRecipe,
   onCook,
+  onLogin,
 }: {
   visible: boolean
   onClose: () => void
   onSave: (r: Omit<Recipe, 'id'>, id?: string) => void
   initialRecipe?: Partial<Recipe> | null
   onCook?: (r: Recipe) => void
+  onLogin?: () => void
 }) {
+  const auth = useCognitoAuth()
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(initialRecipe?.image ?? null)
   const [servings, setServings] = useState(initialRecipe?.servings ?? '')
@@ -143,7 +146,7 @@ export default function DetailsModal({
   }
 
   async function save() {
-    if (!isAuthenticated()) { login(); return }
+  if (!auth.isAuthed) { onLogin?.(); return }
     if (!validate()) return
     const ingredients = parseIngredients(ingredientsText)
     const instructions = parseInstructions(instructionsText)
@@ -153,7 +156,8 @@ export default function DetailsModal({
     const apiBase = (viteBase || legacyBase || '').trim()
     if (imageFile && apiBase) {
       try {
-        const resp = await fetch(`${apiBase}/images`, { method: 'POST', body: JSON.stringify({ filename: imageFile.name }), headers: { 'Content-Type': 'application/json', ...authHeader() } })
+  const authHeaders = auth.authHeader()
+  const resp = await fetch(`${apiBase}/images`, { method: 'POST', body: JSON.stringify({ filename: imageFile.name }), headers: { ...(authHeaders as Record<string, string>), 'Content-Type': 'application/json' } })
         if (resp.ok) {
           const data = await resp.json()
           await fetch(data.uploadUrl, { method: 'PUT', body: imageFile })
@@ -264,7 +268,7 @@ export default function DetailsModal({
         </label>
 
         <div className="modal-actions">
-          <button type="button" className="primary" onClick={() => save()} disabled={!isAuthenticated()} title={!isAuthenticated() ? 'Log in to save' : undefined}>Save recipe</button>
+          <button type="button" className="primary" onClick={() => save()} disabled={!auth.isAuthed} title={!auth.isAuthed ? 'Log in to save' : undefined}>Save recipe</button>
           <button type="button" className="btn-cancel" onClick={onClose}>Cancel</button>
         </div>
       </div>

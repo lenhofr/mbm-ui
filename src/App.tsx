@@ -6,7 +6,8 @@ import CookModal from './components/CookModal'
 import Hero from './components/Hero'
 import Fuse from 'fuse.js'
 import { storage } from './lib/storage'
-import { isAuthenticated, login, logout } from './lib/auth'
+import LoginModal from './components/LoginModal'
+import { useCognitoAuth } from './hooks/useCognitoAuth'
 
 export type Recipe = {
   id: string
@@ -21,6 +22,9 @@ export type Recipe = {
 }
 
 export default function App() {
+  const auth = useCognitoAuth()
+  const authed = auth.isAuthed
+  const [showLogin, setShowLogin] = useState(false)
   const [recipes, setRecipes] = useState<Recipe[]>([])
 
   // Load initial recipes from storage on mount
@@ -187,16 +191,16 @@ export default function App() {
 
   return (
     <div className="app">
-      <Hero onAdd={isAuthenticated() && recipes.length === 0 ? () => setShowAddModal(true) : undefined} />
+      <Hero onAdd={authed && recipes.length === 0 ? () => setShowAddModal(true) : undefined} />
       <header className="app-header" style={{ marginTop: 18 }}>
         <div style={{ position: 'absolute', right: 20, top: 20 }}>
-          {isAuthenticated() ? (
-            <button className="auth-cta" onClick={() => logout()} aria-label="Log out">
+          {authed ? (
+            <button className="auth-cta" onClick={() => auth.signOut()} aria-label="Log out">
               <span className="auth-icon" aria-hidden>⎋</span>
               Log out
             </button>
           ) : (
-            <button className="auth-cta" onClick={() => login()} aria-label="Log in">
+            <button className="auth-cta" onClick={() => setShowLogin(true)} aria-label="Log in">
               <span className="auth-icon" aria-hidden>🔐</span>
               Log in
             </button>
@@ -269,7 +273,7 @@ export default function App() {
           </div>
 
           {/* Inline New Recipe button */}
-          {isAuthenticated() && (
+          {authed && (
             <div>
               <button type="button" className="primary" onClick={() => setShowAddModal(true)}>New Recipe</button>
             </div>
@@ -282,17 +286,19 @@ export default function App() {
         <section className="right" style={{width:'100%'}}>
           <RecipeList
             recipes={filtered}
-            onEdit={isAuthenticated() ? startEdit : undefined}
-            onDelete={isAuthenticated() ? requestDelete : undefined}
+            onEdit={authed ? startEdit : undefined}
+            onDelete={authed ? requestDelete : undefined}
             onView={startView}
             query={debouncedQuery}
+            authed={authed}
+            onLogin={() => setShowLogin(true)}
           />
         </section>
       </main>
 
-      {editing && (
-  <DetailsModal visible={true} onClose={() => setEditing(null)} onSave={updateRecipe} initialRecipe={editing} onCook={startView} />
-      )}
+    {editing && (
+  <DetailsModal visible={true} onClose={() => setEditing(null)} onSave={updateRecipe} initialRecipe={editing} onCook={startView} onLogin={() => setShowLogin(true)} />
+    )}
 
       {showAddModal && (
         <DetailsModal
@@ -300,6 +306,7 @@ export default function App() {
           onClose={() => setShowAddModal(false)}
           onSave={(r) => { addRecipe(r); setShowAddModal(false) }}
           initialRecipe={{ title: '', description: '' }}
+          onLogin={() => setShowLogin(true)}
         />
       )}
 
@@ -310,9 +317,11 @@ export default function App() {
           visible={!!viewing}
           onClose={() => setViewing(null)}
           recipe={viewing}
-          onEdit={isAuthenticated() ? (r) => { setEditing(r); setViewing(null) } : undefined}
+      onEdit={authed ? (r) => { setEditing(r); setViewing(null) } : undefined}
         />
       )}
+
+    <LoginModal visible={showLogin && !authed} onClose={() => setShowLogin(false)} />
 
       <footer className="app-footer">Built with ❤️ — local UI scaffold</footer>
     </div>

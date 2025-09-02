@@ -6,15 +6,17 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --port 4173",
-  "test": "vitest --run",
-  "tf:fmt": "terraform fmt -recursive",
-  "tf:fmt:check": "terraform fmt -recursive -check",
-  "install-hooks": "mkdir -p .githooks && cp scripts/pre-commit.sh .githooks/pre-commit && chmod +x .githooks/pre-commit && git config core.hooksPath .githooks",
-  "scaffold:spa": "node scripts/scaffold-spa.mjs"
+    "test": "vitest --run",
+    "tf:fmt": "terraform fmt -recursive",
+    "tf:fmt:check": "terraform fmt -recursive -check",
+    "install-hooks": "mkdir -p .githooks && cp scripts/pre-commit.sh .githooks/pre-commit && chmod +x .githooks/pre-commit && git config core.hooksPath .githooks",
+    "scaffold:spa": "node scripts/scaffold-spa.mjs"
   },
   "dependencies": {
+    "@aws-amplify/ui-react": "^6.12.0",
+    "aws-amplify": "^6.15.5",
     "fuse.js": "^6.6.2",
-  "phosphor-react": "^1.4.1",
+    "phosphor-react": "^1.4.1",
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },
@@ -24,7 +26,7 @@
     "@types/react": "18.2.21",
     "@types/react-dom": "18.2.7",
     "@vitejs/plugin-react": "^4.2.3",
-  "jsdom": "^22.1.0",
+    "jsdom": "^22.1.0",
     "typescript": "5.2.2",
     "vite": "^4.5.0",
     "vitest": "^0.34.1"
