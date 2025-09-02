@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import '../auth/amplify'
 import { fetchAuthSession, signIn, signOut, signUp, confirmSignUp, type SignInInput, type SignUpInput } from 'aws-amplify/auth'
+import { Hub } from 'aws-amplify/utils'
 
 export type AuthUser = {
   sub?: string
@@ -35,6 +36,20 @@ export function useCognitoAuth() {
 
   useEffect(() => {
     refresh()
+  }, [refresh])
+
+  // Subscribe to Amplify auth Hub events so UI reflects changes instantly when
+  // the Authenticator completes sign-in/out flows outside of this hook's methods.
+  useEffect(() => {
+    const unsub = Hub.listen('auth', (data: { payload?: { event?: string } }) => {
+      const evt = data?.payload?.event
+      if (evt === 'signedIn' || evt === 'tokenRefresh' || evt === 'tokenRefresh_failure') {
+        refresh()
+      } else if (evt === 'signedOut') {
+        setState({ isAuthed: false, loading: false })
+      }
+    })
+    return unsub
   }, [refresh])
 
   const doSignIn = useCallback(async (input: SignInInput) => {

@@ -7,6 +7,7 @@ import Hero from './components/Hero'
 import Fuse from 'fuse.js'
 import { storage } from './lib/storage'
 import LoginModal from './components/LoginModal'
+import { IconSignIn, IconSignOut } from './icons/Icons'
 import { useCognitoAuth } from './hooks/useCognitoAuth'
 
 export type Recipe = {
@@ -196,12 +197,12 @@ export default function App() {
         <div style={{ position: 'absolute', right: 20, top: 20 }}>
           {authed ? (
             <button className="auth-cta" onClick={() => auth.signOut()} aria-label="Log out">
-              <span className="auth-icon" aria-hidden>⎋</span>
+              <span className="auth-icon" aria-hidden><IconSignOut size={18} /></span>
               Log out
             </button>
           ) : (
             <button className="auth-cta" onClick={() => setShowLogin(true)} aria-label="Log in">
-              <span className="auth-icon" aria-hidden>🔐</span>
+              <span className="auth-icon" aria-hidden><IconSignIn size={18} /></span>
               Log in
             </button>
           )}
@@ -321,7 +322,9 @@ export default function App() {
         />
       )}
 
-    <LoginModal visible={showLogin && !authed} onClose={() => setShowLogin(false)} />
+    {showLogin && !authed ? (
+      <LoginModal visible={true} onClose={() => setShowLogin(false)} />
+    ) : null}
 
       <footer className="app-footer">Built with ❤️ — local UI scaffold</footer>
     </div>

@@ -126,7 +126,8 @@ main{display:flex;gap:20px;align-items:flex-start}
   box-shadow: var(--btn-primary-shadow);
   transform: translateY(-2px);
 }
-.auth-icon{ filter: saturate(0.8); }
+.auth-icon{ filter: saturate(0.8); display:inline-flex; align-items:center; justify-content:center }
+.auth-icon svg{ width:18px; height:18px; display:block }
 
 /* secondary (outlined) */
 .secondary{background:var(--btn-secondary-bg);border:1px solid var(--btn-secondary-border);color:var(--text);padding:8px 12px;border-radius:10px}
