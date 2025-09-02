@@ -322,7 +322,9 @@ export default function App() {
         />
       )}
 
-    <LoginModal visible={showLogin && !authed} onClose={() => setShowLogin(false)} />
+    {showLogin && !authed ? (
+      <LoginModal visible={true} onClose={() => setShowLogin(false)} />
+    ) : null}
 
       <footer className="app-footer">Built with ❤️ — local UI scaffold</footer>
     </div>

@@ -12,13 +12,27 @@ type Props = {
 export default function LoginModal({ visible, onClose }: Props) {
   if (!visible) return null
 
-  // prevent background scroll
-  React.useEffect(() => {
-    document.documentElement.classList.add('modal-open')
-    document.body.classList.add('modal-open')
-    return () => {
+  // Use a global counter to manage scroll lock across multiple modals
+  function lockScroll() {
+    const w = window as any
+    w.__modalCount = (w.__modalCount || 0) + 1
+    if (w.__modalCount === 1) {
+      document.documentElement.classList.add('modal-open')
+      document.body.classList.add('modal-open')
+    }
+  }
+  function unlockScroll() {
+    const w = window as any
+    w.__modalCount = Math.max(0, (w.__modalCount || 0) - 1)
+    if (w.__modalCount === 0) {
       document.documentElement.classList.remove('modal-open')
       document.body.classList.remove('modal-open')
+    }
+  }
+  React.useEffect(() => {
+    lockScroll()
+    return () => {
+      unlockScroll()
     }
   }, [])
 
