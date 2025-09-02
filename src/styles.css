@@ -25,6 +25,7 @@
 body{font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue';background:var(--bg);margin:0;color:var(--text)}
 .app{max-width:1040px;margin:28px auto;padding:20px}
 .app-header{margin-bottom:16px;text-align:center}
+.auth-cta-wrap{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:8px 8px; padding-top: calc(env(safe-area-inset-top, 0px) + 8px);}
 .app-header h1{font-family: 'Pacifico', cursive;margin:0;color:hsl(var(--brand-fg))}
 .app-header p{margin:6px 0;color:var(--muted)}
 main{display:flex;gap:20px;align-items:flex-start}
