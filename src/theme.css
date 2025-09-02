@@ -143,11 +143,11 @@ textarea { min-height: 92px; }
 
 /* Cook / view modal specific styling */
 .cook-modal { max-width: 900px; max-height: 90vh; overflow:auto; padding: 1rem; -webkit-overflow-scrolling: touch; }
-.cook-toolbar { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 4px; background: linear-gradient(180deg, hsl(var(--card)) 85%, transparent); z-index: 5; }
-.cook-toolbar-left { display:flex; align-items: baseline; gap: 10px; min-width: 0; }
+/* Sticky actions-only bar; placed at top of modal content */
+.cook-actions-sticky { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 6px); display: block; width: max-content; margin-left: auto; padding: 0; background: transparent; z-index: 5; }
 .cook-title { margin: 0; font-size: 1.25rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cook-title { color: hsl(var(--brand-fg)); }
-.cook-toolbar-actions { display:flex; gap:8px; align-items:center; }
+.cook-toolbar-actions { display:flex; gap:8px; align-items:center; background: hsl(var(--card)); padding: 6px; border-radius: 12px; box-shadow: 0 8px 22px rgba(0,0,0,0.08); }
 .cook-close-fab { position: static; border: none; background: hsl(var(--card)); width: 36px; height: 36px; display:inline-grid; place-items:center; border-radius: 10px; font-size: 1rem; cursor: pointer; box-shadow: 0 8px 22px rgba(0,0,0,0.08); }
 .cook-close-fab:hover { background: hsl(var(--muted-bg)); }
 .cook-edit-btn { border: none; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); width: 36px; height: 36px; display:inline-grid; place-items:center; border-radius: 10px; font-size: 0.95rem; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
@@ -162,10 +162,13 @@ textarea { min-height: 92px; }
 .cook-modal.cook-mode-active { max-width: none; width: 100%; height: 100vh; max-height: none; border-radius: 0; padding: 1.25rem 1.5rem; }
 .cook-modal.cook-mode-active .cook-image { display: none; }
 .cook-modal.cook-mode-active .cook-content { font-size: 1.15rem; line-height: 1.6 }
+.cook-modal.cook-mode-active .cook-tags { display: none; }
 
-.cook-header { display:flex; gap:12px; align-items:flex-start; margin-bottom:12px; padding-top: 6px; }
-.cook-image { width: 240px; max-width: 40%; height: 160px; border-radius: 10px; object-fit:cover; box-shadow: var(--shadow-card); }
-.cook-meta { margin-left: auto; color: hsl(var(--muted-fg)); font-weight:600; font-size:0.95rem }
+.cook-header { display:block; margin-bottom:12px; padding-top: 6px; }
+.cook-image { width: 240px; max-width: 100%; height: 160px; border-radius: 12px; object-fit: cover; box-shadow: var(--shadow-card); display: block; margin: 8px 0; }
+.cook-summary-row { display:flex; gap: 12px; align-items: flex-start; margin-top: 4px; }
+.cook-summary { flex: 1 1 auto; min-width: 0; }
+.cook-meta { color: hsl(var(--muted-fg)); font-weight:600; font-size:0.95rem; margin-top: 2px }
 .cook-content h2 { font-size: 1.5rem; margin:0; }
 .cook-content h3 { font-size: 1.05rem; margin: 0.6rem 0 0.4rem 0 }
 .cook-content p { color: hsl(var(--foreground)); margin: 0.35rem 0 }
@@ -173,9 +176,8 @@ textarea { min-height: 92px; }
 .cook-tags .tag { background: hsl(var(--muted-bg)); color: hsl(var(--brand-fg)); padding:6px 8px; border-radius:999px }
 .cook-content h3 { margin-top:0 }
 
-@media (max-width: 720px) {
-  .cook-header { flex-direction: column; }
-  .cook-image { width: 100%; max-width: 100%; }
+@media (max-width: 640px) {
+  .cook-summary-row { flex-direction: column; }
 }
 
 /* When image exists on small screens, push content down so top buttons don't overlap */
