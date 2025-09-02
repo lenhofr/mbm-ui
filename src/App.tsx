@@ -1,5 +1,4 @@
 import React, { useMemo, useState, useEffect } from 'react'
-import { SignIn, SignOut } from 'phosphor-react'
 import RecipeList from './components/RecipeList'
 import DetailsModal from './components/DetailsModal'
 import ConfirmDialog from './components/ConfirmDialog'
@@ -189,17 +188,17 @@ export default function App() {
   return (
     <div className="app">
       <Hero onAdd={isAuthenticated() && recipes.length === 0 ? () => setShowAddModal(true) : undefined} />
-  <header className="app-header" style={{ marginTop: 18 }}>
-    <div style={{ position: 'absolute', right: 20, top: 16, display:'flex', gap: 8 }}>
+      <header className="app-header" style={{ marginTop: 18 }}>
+        <div style={{ position: 'absolute', right: 20, top: 20 }}>
           {isAuthenticated() ? (
             <button className="auth-cta" onClick={() => logout()} aria-label="Log out">
-      <SignOut size={18} weight="bold" aria-hidden />
-      <span>Log out</span>
+              <span className="auth-icon" aria-hidden>⎋</span>
+              Log out
             </button>
           ) : (
             <button className="auth-cta" onClick={() => login()} aria-label="Log in">
-      <SignIn size={18} weight="bold" aria-hidden />
-      <span>Log in</span>
+              <span className="auth-icon" aria-hidden>🔐</span>
+              Log in
             </button>
           )}
         </div>
