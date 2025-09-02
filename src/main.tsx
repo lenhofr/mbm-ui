@@ -9,3 +9,10 @@ root.render(
     <App />
   </React.StrictMode>
 )
+
+// Register a simple service worker for offline caching (non-blocking)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  })
+}
