@@ -197,12 +197,12 @@ export default function App() {
         <div style={{ position: 'absolute', right: 20, top: 20 }}>
           {authed ? (
             <button className="auth-cta" onClick={() => auth.signOut()} aria-label="Log out">
-              <span className="auth-icon" aria-hidden><IconSignOut className="" /></span>
+              <span className="auth-icon" aria-hidden><IconSignOut size={18} /></span>
               Log out
             </button>
           ) : (
             <button className="auth-cta" onClick={() => setShowLogin(true)} aria-label="Log in">
-              <span className="auth-icon" aria-hidden><IconSignIn className="" /></span>
+              <span className="auth-icon" aria-hidden><IconSignIn size={18} /></span>
               Log in
             </button>
           )}
