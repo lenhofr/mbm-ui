@@ -7,7 +7,7 @@ import Hero from './components/Hero'
 import Fuse from 'fuse.js'
 import { storage } from './lib/storage'
 import LoginModal from './components/LoginModal'
-import { IconSignIn, IconSignOut } from './icons/Icons'
+import { IconSignIn, IconSignOut, IconPlus } from './icons/Icons'
 import { useCognitoAuth } from './hooks/useCognitoAuth'
 
 export type Recipe = {
@@ -276,7 +276,12 @@ export default function App() {
           {/* Inline New Recipe button */}
           {authed && (
             <div>
-              <button type="button" className="primary" onClick={() => setShowAddModal(true)}>New Recipe</button>
+              <button type="button" className="primary" onClick={() => setShowAddModal(true)}>
+                <span aria-hidden style={{display:'inline-flex',alignItems:'center',marginRight:8}}>
+                  <IconPlus size={18} />
+                </span>
+                New Recipe
+              </button>
             </div>
           )}
 
@@ -326,7 +331,7 @@ export default function App() {
       <LoginModal visible={true} onClose={() => setShowLogin(false)} />
     ) : null}
 
-      <footer className="app-footer">Built with ❤️ — local UI scaffold</footer>
+  <footer className="app-footer">Built with ❤️ — RobWare</footer>
     </div>
   )
 }

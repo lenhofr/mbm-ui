@@ -31,4 +31,10 @@ export const IconSignOut: React.FC<{ className?: string; size?: number }> = ({ c
   </svg>
 )
 
-export default { IconEdit, IconCookMode, IconSignIn, IconSignOut }
+export const IconPlus: React.FC<{ className?: string; size?: number }> = ({ className, size = 18 }) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+)
+
+export default { IconEdit, IconCookMode, IconSignIn, IconSignOut, IconPlus }

@@ -114,12 +114,8 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
           }
         }}
       >
-        {/* Sticky header row with title/meta on the left and actions on the right */}
-        <div className="cook-toolbar" aria-label="Recipe header">
-          <div className="cook-toolbar-left">
-            <h2 id="cook-title" className="cook-title" title={recipe.title}>{recipe.title}</h2>
-            <div className="cook-meta">{recipe.servings ? `${recipe.servings} servings` : ''}{recipe.cookTime ? ` • ${recipe.cookTime}` : ''}</div>
-          </div>
+        {/* Sticky actions only (top-right); title/meta move into scrollable content */}
+        <div className="cook-actions-sticky" aria-label="Recipe actions">
           <div className="cook-toolbar-actions">
             <button className="cook-mode-btn" title="Toggle cook mode" aria-label="Toggle cook mode" onClick={() => setCookMode(s => !s)}>
               {Phosphor?.CookingPot ? <Phosphor.CookingPot size={20} weight="regular" /> : (
@@ -144,6 +140,9 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
 
           <div className="cook-content">
           <div className="cook-header">
+            <h2 id="cook-title" className="cook-title" title={recipe.title}>{recipe.title}</h2>
+            <div className="cook-meta">{recipe.servings ? `${recipe.servings} servings` : ''}{recipe.cookTime ? ` • ${recipe.cookTime}` : ''}</div>
+            <div className="cook-summary-row">
             {recipe.image ? <img className="cook-image" src={((): string => {
               const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
               const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
@@ -152,9 +151,10 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
               return recipe.image as string
             })()} alt={recipe.title} /> : null}
 
-            <div style={{flex:1}}>
+            <div className="cook-summary">
               {recipe.description ? <p style={{marginTop:6,marginBottom:6}}>{recipe.description}</p> : null}
               {recipe.tags?.length ? <div className="cook-tags">{recipe.tags.map(t => <span key={t} className="tag">{t}</span>)}</div> : null}
+            </div>
             </div>
           </div>
 
