@@ -200,6 +200,12 @@ resource "aws_cognito_user_pool_client" "spa" {
 
   generate_secret = false
 
+  # Enable SRP (Secure Remote Password) and refresh token flows for embedded login
+  explicit_auth_flows = [
+    "ALLOW_USER_SRP_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH",
+  ]
+
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
   allowed_oauth_scopes                 = ["openid", "email", "profile"]
