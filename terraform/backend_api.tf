@@ -216,6 +216,19 @@ resource "aws_cognito_user_pool_domain" "mbm" {
   user_pool_id = aws_cognito_user_pool.mbm.id
 }
 
+# Hosted UI customization (brand look & feel)
+resource "aws_cognito_user_pool_ui_customization" "mbm_spa" {
+  user_pool_id = aws_cognito_user_pool.mbm.id
+  # Tie customization to the SPA client specifically.
+  client_id = aws_cognito_user_pool_client.spa.id
+
+  # Keep CSS in a separate file for easier iteration.
+  css = file("${path.module}/cognito-ui.css")
+
+  # Optional: add a logo image (PNG/JPG/SVG as base64). Provide a small square/rectangular logo.
+  # image_file = filebase64("${path.module}/assets/mbm-logo.png")
+}
+
 #########################################
 # API Gateway (HTTP API) wiring + CORS
 #########################################
