@@ -192,22 +192,20 @@ export default function App() {
 
   return (
     <div className="app">
-      <Hero onAdd={authed && recipes.length === 0 ? () => setShowAddModal(true) : undefined} />
-      <header className="app-header" style={{ marginTop: 18 }}>
-        <div style={{ position: 'absolute', right: 20, top: 20 }}>
-          {authed ? (
-            <button className="auth-cta" onClick={() => auth.signOut()} aria-label="Log out">
-              <span className="auth-icon" aria-hidden><IconSignOut size={18} /></span>
-              Log out
-            </button>
-          ) : (
-            <button className="auth-cta" onClick={() => setShowLogin(true)} aria-label="Log in">
-              <span className="auth-icon" aria-hidden><IconSignIn size={18} /></span>
-              Log in
-            </button>
-          )}
-        </div>
-      </header>
+      <Hero
+        authControl={authed ? (
+          <button className="auth-cta" onClick={() => auth.signOut()} aria-label="Log out">
+            <span className="auth-icon" aria-hidden><IconSignOut size={18} /></span>
+            Log out
+          </button>
+        ) : (
+          <button className="auth-cta" onClick={() => setShowLogin(true)} aria-label="Log in">
+            <span className="auth-icon" aria-hidden><IconSignIn size={18} /></span>
+            Log in
+          </button>
+        )}
+        onAdd={authed && recipes.length === 0 ? () => setShowAddModal(true) : undefined}
+      />
 
   {/* Search bar placed under the hero */}
   <div style={{maxWidth:1040, margin:'0 auto 16px', padding:'0 20px'}}>
