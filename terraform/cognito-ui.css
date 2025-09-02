@@ -1,51 +1,42 @@
-/* Cognito Hosted UI overrides to match SPA theme */
-/* Tip: Cognito injects this CSS into the Hosted UI. Use high-specificity selectors. */
-/* Limited DOM control – avoid relying on deep structures that may change. */
+/* Cognito Hosted UI overrides (only allowed classes) */
+/* These classes are whitelisted by Cognito’s SetUICustomization API. */
 
-/* Base */
-html, body {
-  background: hsl(340 100% 98%) !important; /* matches --background */
-  color: hsl(340 15% 25%) !important;      /* matches --foreground */
+/* Page background */
+.background-customizable {
+  background: hsl(340 100% 98%) !important; /* matches SPA --background */
+  color: hsl(340 15% 25%) !important;       /* matches SPA --foreground */
   font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial !important;
 }
 
-/* Headings */
-h1, h2, h3, h4, h5, h6, .title, .heading {
-  color: hsl(334 46% 33%) !important; /* --brand-fg */
-  font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial !important;
-}
-
-/* Card/container */
-.container, .amplify-container, .amplify-authenticator, .sign-in {
-  background: white !important;
+/* Top banner/card region */
+.banner-customizable {
+  background: #fff !important;
   border: 1px solid hsl(320 30% 90%) !important; /* --border */
   border-radius: 14px !important;
   box-shadow: 0 4px 20px -2px rgba(198,166,255,0.15) !important; /* --shadow-card */
 }
 
-/* Inputs */
-input, select, textarea {
-  background: hsl(320 30% 95%) !important; /* --input */
-  border: 1px solid hsl(320 30% 90%) !important; /* --border */
-  border-radius: 10px !important;
+/* Headings: no dedicated allowed selector; rely on label/legal/description */
+
+/* Labels and helper text */
+.label-customizable {
+  color: hsl(340 15% 35%) !important;
+}
+.legalText-customizable {
+  color: hsl(340 15% 35%) !important;
 }
 
-/* Primary button */
-button, .amplify-button, input[type="submit"], .btn, .btn-primary {
+/* Text inputs: not customizable reliably, omit to satisfy allowed list */
+
+/* Primary submit button */
+.submitButton-customizable {
   background: hsl(330 85% 70%) !important; /* --primary */
-  color: white !important;                 /* --primary-foreground */
-  border-radius: 10px !important;
+  color: #fff !important;                   /* --primary-foreground */
   border: none !important;
+  border-radius: 10px !important;
 }
-button:hover, .amplify-button:hover, .btn:hover, .btn-primary:hover {
+.submitButton-customizable:hover {
   filter: brightness(0.98) !important;
 }
 
-/* Links */
-a { color: hsl(334 46% 33%) !important; text-decoration: underline; }
-
-/* Error text */
-.amplify-field__error-message, .error, .alert-error { color: #c62828 !important; }
-
-/* Small helpers for spacing */
-.amplify-flex, .container, .sign-in { padding: 16px !important; }
+/* End */
