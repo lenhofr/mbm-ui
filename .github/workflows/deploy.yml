@@ -74,6 +74,7 @@ jobs:
           # Backend/API + Cognito
           if terraform output -raw http_api_invoke_url >/dev/null 2>&1; then echo "api_base=$(terraform output -raw http_api_invoke_url)" >> $GITHUB_OUTPUT; fi
           if terraform output -raw cognito_oauth_base >/dev/null 2>&1; then echo "cognito_domain=$(terraform output -raw cognito_oauth_base)" >> $GITHUB_OUTPUT; fi
+          if terraform output -raw cognito_user_pool_id >/dev/null 2>&1; then echo "cognito_user_pool_id=$(terraform output -raw cognito_user_pool_id)" >> $GITHUB_OUTPUT; fi
           if terraform output -raw cognito_user_pool_client_id >/dev/null 2>&1; then echo "cognito_client_id=$(terraform output -raw cognito_user_pool_client_id)" >> $GITHUB_OUTPUT; fi
 
       - name: Setup Node
@@ -97,6 +98,10 @@ jobs:
           VITE_API_BASE: ${{ steps.tfout.outputs.api_base }}
           VITE_COGNITO_DOMAIN: ${{ steps.tfout.outputs.cognito_domain }}
           VITE_COGNITO_CLIENT_ID: ${{ steps.tfout.outputs.cognito_client_id }}
+          # SRP embedded auth requires these at build time
+          VITE_COGNITO_USER_POOL_ID: ${{ steps.tfout.outputs.cognito_user_pool_id }}
+          VITE_COGNITO_USER_POOL_WEB_CLIENT_ID: ${{ steps.tfout.outputs.cognito_client_id }}
+          VITE_COGNITO_REGION: ${{ env.AWS_REGION }}
           # Use apex domain to avoid www->apex redirect breaking PKCE sessionStorage
           VITE_COGNITO_REDIRECT_URI: https://mealsbymaggie.com/
         run: npm run build
@@ -115,6 +120,9 @@ jobs:
             echo "- VITE_API_BASE: ${{ steps.tfout.outputs.api_base }}"
             echo "- VITE_COGNITO_DOMAIN: ${{ steps.tfout.outputs.cognito_domain }}"
             echo "- VITE_COGNITO_CLIENT_ID: ${{ steps.tfout.outputs.cognito_client_id }}"
+            echo "- VITE_COGNITO_USER_POOL_ID: ${{ steps.tfout.outputs.cognito_user_pool_id }}"
+            echo "- VITE_COGNITO_USER_POOL_WEB_CLIENT_ID: ${{ steps.tfout.outputs.cognito_client_id }}"
+            echo "- VITE_COGNITO_REGION: ${{ env.AWS_REGION }}"
             echo "- VITE_COGNITO_REDIRECT_URI: https://mealsbymaggie.com/"
             if [ -n "${{ steps.tfout.outputs.site_website_endpoint }}" ]; then
               echo "\nSite endpoint: ${{ steps.tfout.outputs.site_website_endpoint }}"
