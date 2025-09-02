@@ -9,6 +9,7 @@ import { storage } from './lib/storage'
 import LoginModal from './components/LoginModal'
 import { IconSignIn, IconSignOut, IconPlus } from './icons/Icons'
 import { useCognitoAuth } from './hooks/useCognitoAuth'
+import InstallPrompt from './components/InstallPrompt'
 
 export type Recipe = {
   id: string
@@ -122,31 +123,33 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
+  // Precompute records and Fuse index based on recipes for better mobile perf
+  type Rec = Recipe & { ingredientsText: string; instructionsText: string }
+  const records = useMemo<Rec[]>(
+    () =>
+      recipes.map(r => ({
+        ...r,
+        ingredientsText: (r.ingredients || []).map(i => `${i.amount ?? ''} ${i.name}`).join('\n'),
+        instructionsText: (r.instructions || []).join('\n'),
+      })),
+    [recipes]
+  )
+
+  const fuse = useMemo(
+    () =>
+      new Fuse<Rec>(records, {
+        keys: ['title', 'description', 'tags', 'ingredientsText', 'instructionsText'],
+        includeMatches: true,
+        threshold: 0.4,
+        ignoreLocation: true,
+      }),
+    [records]
+  )
+
   const filtered = useMemo(() => {
     const q = debouncedQuery
     // If no query and no tag filters, short-circuit
     if (!q && selectedTags.length === 0) return recipes
-
-    type Rec = Recipe & { ingredientsText: string; instructionsText: string }
-    const records: Rec[] = recipes.map(r => ({
-      ...r,
-      ingredientsText: (r.ingredients || []).map(i => `${i.amount ?? ''} ${i.name}`).join('\n'),
-      instructionsText: (r.instructions || []).join('\n'),
-    }))
-
-    // Build a small Fuse index
-    const fuse = new Fuse<Rec>(records, {
-      keys: [
-        'title',
-        'description',
-        'tags',
-        'ingredientsText',
-        'instructionsText',
-      ],
-      includeMatches: true,
-      threshold: 0.4,
-      ignoreLocation: true,
-    })
 
     // parse tokens (support tag: and ing:)
   const tokens = (q || '').match(/(-?\w+:"[^"]+"|-?\w+:\S+|"[^"]+"|\S+)/g)?.map(t => t.replace(/^"|"$/g, '')) || []
@@ -159,7 +162,7 @@ export default function App() {
     } else {
       tokens.forEach(token => {
         const m = token.match(/^(\w+):(.*)$/)
-        let res: any[] = []
+  let res: any[] = []
         if (m) {
           const field = m[1].toLowerCase()
           const val = m[2]
@@ -207,6 +210,8 @@ export default function App() {
         onAdd={authed && recipes.length === 0 ? () => setShowAddModal(true) : undefined}
       />
 
+  <InstallPrompt />
+
   {/* Search bar placed under the hero */}
   <div style={{maxWidth:1040, margin:'0 auto 16px', padding:'0 20px'}}>
         <label style={{display:'block', marginBottom:8, color:'var(--muted)'}} htmlFor="recipe-search">Recipe Collection</label>
@@ -216,6 +221,12 @@ export default function App() {
             <input
               id="recipe-search"
               className="search-input"
+              type="search"
+              inputMode="search"
+              enterKeyHint="search"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder="Search by title, tag, ingredient or instruction..."
               value={query}
               onChange={(e) => {
@@ -262,10 +273,16 @@ export default function App() {
                   const partial = m[1].toLowerCase()
                   return t.toLowerCase().includes(partial)
                 }).map((t, idx) => (
-                  <div key={t} role="option" aria-selected={idx === tagSuggestionIndex} className={`tag-suggestion ${idx === tagSuggestionIndex ? 'active' : ''}`} onMouseDown={() => {
-                    setQuery(q => q.replace(/tag:\S*$/, `tag:${t} `))
-                    setShowTagSuggestions(false)
-                  }}>{t}</div>
+                  <div
+                    key={t}
+                    role="option"
+                    aria-selected={idx === tagSuggestionIndex}
+                    className={`tag-suggestion ${idx === tagSuggestionIndex ? 'active' : ''}`}
+                    onPointerDown={() => {
+                      setQuery(q => q.replace(/tag:\S*$/, `tag:${t} `))
+                      setShowTagSuggestions(false)
+                    }}
+                  >{t}</div>
                 ))}
               </div>
             )}

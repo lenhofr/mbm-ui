@@ -24,6 +24,10 @@
 *{box-sizing:border-box}
 body{font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue';background:var(--bg);margin:0;color:var(--text)}
 .app{max-width:1040px;margin:28px auto;padding:20px}
+/* Safe-area and viewport stability for mobile */
+:root { --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px) }
+html, body { height: 100% }
+.app { min-height: 100svh; padding-top: calc(var(--safe-top)); padding-bottom: calc(var(--safe-bottom)) }
 .app-header{margin-bottom:16px;text-align:center}
 .auth-cta-wrap{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:8px 8px; padding-top: calc(env(safe-area-inset-top, 0px) + 8px);}
 .app-header h1{font-family: 'Pacifico', cursive;margin:0;color:hsl(var(--brand-fg))}
@@ -38,7 +42,7 @@ main{display:flex;gap:20px;align-items:flex-start}
 .recipe-form input, .recipe-form textarea{width:100%;padding:10px;margin-top:6px;margin-bottom:12px;border:1px solid rgba(60,40,45,0.06);border-radius:10px;background:rgba(255,255,255,0.9);font-size:14px}
 
 /* search input */
-.search-input{width:100%;padding:10px 12px 10px 40px;border-radius:10px;border:1px solid rgba(60,40,45,0.08);box-shadow:0 6px 18px rgba(60,40,45,0.03);font-size:15px}
+.search-input{width:100%;padding:10px 12px 10px 40px;border-radius:10px;border:1px solid rgba(60,40,45,0.08);box-shadow:0 6px 18px rgba(60,40,45,0.03);font-size:16px;appearance:none;-webkit-appearance:none}
 .search-input:focus{outline:3px solid rgba(198,166,255,0.14)}
 
 /* search icon inside input */
@@ -61,8 +65,10 @@ main{display:flex;gap:20px;align-items:flex-start}
   box-shadow: 0 12px 30px rgba(42,15,28,0.12);
   border: 1px solid rgba(60,40,45,0.06);
   overflow: hidden;
-  max-height: 220px;
+  max-height: 50svh;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 6px;
 }
 .tag-suggestion{
@@ -191,7 +197,7 @@ main{display:flex;gap:20px;align-items:flex-start}
 .cook-modal {
   max-width: 900px;
   width: min(92vw, 900px);
-  max-height: 86vh;
+  max-height: 86svh;
   overflow: auto;
   padding: 20px 22px;
 }
@@ -200,8 +206,8 @@ main{display:flex;gap:20px;align-items:flex-start}
 .cook-fullscreen {
   width: 98vw;
   max-width: 98vw;
-  height: 96vh;
-  max-height: 96vh;
+  height: 96svh;
+  max-height: 96svh;
   border-radius: 10px;
   padding: 18px;
 }
@@ -237,6 +243,7 @@ main{display:flex;gap:20px;align-items:flex-start}
 
 @media (max-width:480px){
   .modal{padding:12px}
+  .auth-cta, .primary, button{ min-height:44px; padding:10px 14px; touch-action: manipulation }
   .cook-actions-sticky{ gap: 8px }
   .cook-toolbar .btn-ghost{ padding: 10px 14px; font-size: 16px }
   .cook-content h2 { font-size: 1.3rem }
@@ -244,6 +251,19 @@ main{display:flex;gap:20px;align-items:flex-start}
 }
 
 .app-footer{margin-top:22px;color:var(--muted);text-align:center;font-size:13px}
+
+/* Remove tap highlight for a native feel */
+*{ -webkit-tap-highlight-color: transparent }
+
+/* Install banner */
+.install-banner{ position: sticky; top: calc(var(--safe-top) + 8px); z-index: 80; display:flex; justify-content:center; padding: 0 16px }
+.install-banner__content{ background: linear-gradient(180deg, hsl(var(--card)), hsl(var(--muted-bg))); border:1px solid hsl(var(--border)); box-shadow: 0 10px 24px rgba(0,0,0,0.08); border-radius: 14px; padding: 10px 12px; display:flex; align-items:center; gap: 10px; width: min(100%, 980px) }
+.install-banner__text{ display:flex; flex-direction:column; gap: 2px }
+.install-banner__sub{ color: var(--muted); font-size: 13px }
+.install-banner__dismiss{ margin-left: auto }
+.install-banner__ios summary{ list-style: none; cursor: pointer }
+.install-banner__ios summary::-webkit-details-marker{ display:none }
+.install-banner__steps{ padding: 8px 0 0 0; color: var(--muted); font-size: 14px }
 
 @media (max-width: 800px){
   main{flex-direction:column}
