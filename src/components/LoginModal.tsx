@@ -1,5 +1,5 @@
 import React from 'react'
-import { Authenticator } from '@aws-amplify/ui-react'
+import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react'
 import '@aws-amplify/ui-react/styles.css'
 import '../auth/amplify'
 
@@ -21,12 +21,36 @@ export default function LoginModal({ visible, onClose }: Props) {
     }
   }, [])
 
+  // Track Amplify Authenticator route/status to improve UX
+  const { authStatus, route } = useAuthenticator((context) => [context.authStatus, context.route])
+
+  // Close the modal automatically once the user is authenticated
+  React.useEffect(() => {
+    if (authStatus === 'authenticated') {
+      onClose()
+    }
+  }, [authStatus, onClose])
+
+  const titleByRoute: Record<string, string> = {
+    signIn: 'Sign in',
+    signUp: 'Create account',
+    confirmSignUp: 'Confirm your email',
+    confirmSignIn: 'Confirm sign-in',
+    setupTOTP: 'Set up two‑factor auth',
+    forceNewPassword: 'Update your password',
+    resetPassword: 'Reset your password',
+    verifyUser: 'Verify your account',
+    signOut: 'Signing out…',
+    idle: 'Sign in',
+  }
+  const headerTitle = titleByRoute[route ?? 'signIn'] ?? 'Sign in'
+
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="modal" style={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}>
+    <div className="modal" style={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}>
         <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         <div className="modal-header">
-          <h2 style={{ margin: 0 }}>Log in</h2>
+      <h2 style={{ margin: 0 }}>{headerTitle}</h2>
         </div>
         <div style={{ padding: '6px 2px 10px' }}>
           <Authenticator
