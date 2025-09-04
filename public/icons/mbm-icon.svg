@@ -7,13 +7,11 @@
       <stop offset="100%" stop-color="hsl(200, 70%, 80%)"/>
     </linearGradient>
   </defs>
-  <!-- Background rounded squircle -->
-  <rect x="32" y="32" width="448" height="448" rx="96" ry="96" fill="url(#grad)"/>
-  <!-- Subtle inner highlight -->
-  <rect x="42" y="42" width="428" height="428" rx="88" ry="88" fill="rgba(255,255,255,0.06)"/>
+  <!-- Full-bleed background (no baked-in rounded corners) -->
+  <rect x="0" y="0" width="512" height="512" fill="url(#grad)"/>
   <!-- Initials -->
   <g fill="#ffffff">
-    <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
+  <text x="50%" y="55%" text-anchor="middle" dominant-baseline="middle"
           font-family="Poppins, Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
           font-size="180" font-weight="800" letter-spacing="0.5">
       MbM
