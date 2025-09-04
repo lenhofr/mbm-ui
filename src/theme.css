@@ -117,8 +117,8 @@ html.modal-open, body.modal-open { overflow: hidden; height: 100%; }
   overflow: auto;
   -webkit-overflow-scrolling: touch;
 }
-.modal-grabber-wrap { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 6px); display:flex; justify-content:center; padding: 4px 0 6px; z-index: 6; }
-.modal-grabber { width: 36px; height: 4px; border-radius: 999px; background: hsl(var(--border)); box-shadow: 0 1px 0 rgba(0,0,0,0.04) inset }
+.modal:focus { outline: none; }
+/* grabber styles removed per design */
 .modal-header { margin-bottom: 0.35rem; }
 .modal-close {
   position: absolute;

@@ -109,7 +109,7 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
         onMouseDown={(e) => e.stopPropagation()}
         aria-labelledby="cook-title"
         ref={modalRef}
-        tabIndex={-1}
+  tabIndex={-1}
         onTouchStart={(e) => {
           const t = e.touches[0]
           if (!t || !modalRef.current) return
@@ -124,9 +124,9 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
           const dy = t.clientY - start.y
           // Only when scrolled to top, and a mostly vertical downward swipe beyond threshold
           const atTop = start.scrollTop <= 0
-          const verticalDominant = Math.abs(dy) > Math.abs(dx) * 1.6
+          const verticalDominant = Math.abs(dy) > Math.abs(dx) * 2.0
           const draggingDown = dy > 0
-          const threshold = Math.max(140, Math.min(220, (typeof window !== 'undefined' ? window.innerHeight : 800) * 0.22))
+          const threshold = Math.max(200, Math.min(280, (typeof window !== 'undefined' ? window.innerHeight : 800) * 0.30))
           if (atTop && draggingDown && verticalDominant && dy > threshold) {
             shouldClose.current = true
           } else {
@@ -153,10 +153,7 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
         }}
         onTouchCancel={() => { touchStart.current = null; shouldClose.current = false; snapBack() }}
       >
-        {/* Small centered grabber to hint drag-to-close */}
-        <div className="modal-grabber-wrap" aria-hidden="true">
-          <div className="modal-grabber" />
-        </div>
+  {/* grabber removed per design */}
         {/* Sticky actions only (top-right); title/meta move into scrollable content */}
         <div className="cook-actions-sticky" aria-label="Recipe actions">
           <div className="cook-toolbar-actions">
