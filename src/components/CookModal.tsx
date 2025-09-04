@@ -12,6 +12,22 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
   const modalRef = React.useRef<HTMLDivElement | null>(null)
   const lastFocused = React.useRef<HTMLElement | null>(null)
   const touchStart = React.useRef<{ x: number; y: number; scrollTop: number } | null>(null)
+  const shouldClose = React.useRef(false)
+  const maxFollow = 40 // px of visual follow before we consider dismissal
+
+  function setTranslate(y: number) {
+    if (!modalRef.current) return
+    modalRef.current.style.transform = y ? `translateY(${y}px)` : ''
+    if (y) modalRef.current.style.willChange = 'transform'
+  }
+  function snapBack() {
+    if (!modalRef.current) return
+    modalRef.current.style.transition = 'transform 160ms ease'
+    modalRef.current.style.transform = ''
+    const el = modalRef.current
+    // cleanup transition after it runs
+    setTimeout(() => { if (el) el.style.transition = '' }, 180)
+  }
 
   // Manage scroll locking with a simple global counter to support multiple modals safely
   function lockScroll() {
@@ -36,12 +52,9 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
   useEffect(() => {
     if (visible) {
       lockScroll()
-      // reset preferences when opening; save focus and move focus into modal
+      // save last focus and move focus to the dialog container (avoid focusing toolbar buttons)
       lastFocused.current = document.activeElement as HTMLElement | null
-      setTimeout(() => {
-        const el = modalRef.current?.querySelector('button, [href], input, textarea, select') as HTMLElement | null
-        el?.focus()
-      }, 0)
+      setTimeout(() => { modalRef.current?.focus() }, 0)
     } else {
       // when hidden, release scroll lock
       unlockScroll()
@@ -96,10 +109,12 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
         onMouseDown={(e) => e.stopPropagation()}
         aria-labelledby="cook-title"
         ref={modalRef}
+        tabIndex={-1}
         onTouchStart={(e) => {
           const t = e.touches[0]
           if (!t || !modalRef.current) return
           touchStart.current = { x: t.clientX, y: t.clientY, scrollTop: modalRef.current.scrollTop }
+          shouldClose.current = false
         }}
         onTouchMove={(e) => {
           const start = touchStart.current
@@ -108,12 +123,40 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
           const dx = t.clientX - start.x
           const dy = t.clientY - start.y
           // Only when scrolled to top, and a mostly vertical downward swipe beyond threshold
-          if (start.scrollTop <= 0 && dy > 80 && Math.abs(dy) > Math.abs(dx) * 1.5) {
-            touchStart.current = null
-            onClose()
+          const atTop = start.scrollTop <= 0
+          const verticalDominant = Math.abs(dy) > Math.abs(dx) * 1.6
+          const draggingDown = dy > 0
+          const threshold = Math.max(140, Math.min(220, (typeof window !== 'undefined' ? window.innerHeight : 800) * 0.22))
+          if (atTop && draggingDown && verticalDominant && dy > threshold) {
+            shouldClose.current = true
+          } else {
+            shouldClose.current = false
+          }
+          // Apply a subtle follow effect for the first ~40px when dragging down at top
+          if (atTop && draggingDown && verticalDominant) {
+            const follow = Math.max(0, Math.min(maxFollow, dy))
+            setTranslate(follow)
+          } else {
+            setTranslate(0)
           }
         }}
+        onTouchEnd={() => {
+          if (shouldClose.current) {
+            shouldClose.current = false
+            touchStart.current = null
+            setTranslate(0)
+            onClose()
+          } else {
+            touchStart.current = null
+            snapBack()
+          }
+        }}
+        onTouchCancel={() => { touchStart.current = null; shouldClose.current = false; snapBack() }}
       >
+        {/* Small centered grabber to hint drag-to-close */}
+        <div className="modal-grabber-wrap" aria-hidden="true">
+          <div className="modal-grabber" />
+        </div>
         {/* Sticky actions only (top-right); title/meta move into scrollable content */}
         <div className="cook-actions-sticky" aria-label="Recipe actions">
           <div className="cook-toolbar-actions">

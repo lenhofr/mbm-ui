@@ -36,6 +36,22 @@ export default function DetailsModal({
   const modalRef = useRef<HTMLDivElement | null>(null)
   const titleRef = useRef<HTMLInputElement | null>(null)
   const lastFocused = useRef<HTMLElement | null>(null)
+  const touchStart = useRef<{ x: number; y: number; scrollTop: number } | null>(null)
+  const shouldClose = useRef(false)
+  const maxFollow = 40
+
+  function setTranslate(y: number) {
+    if (!modalRef.current) return
+    modalRef.current.style.transform = y ? `translateY(${y}px)` : ''
+    if (y) modalRef.current.style.willChange = 'transform'
+  }
+  function snapBack() {
+    if (!modalRef.current) return
+    modalRef.current.style.transition = 'transform 160ms ease'
+    modalRef.current.style.transform = ''
+    const el = modalRef.current
+    setTimeout(() => { if (el) el.style.transition = '' }, 180)
+  }
 
   // Manage scroll locking with a simple global counter to support multiple modals
   function lockScroll() {
@@ -78,7 +94,8 @@ export default function DetailsModal({
     if (visible) {
       lockScroll()
       lastFocused.current = document.activeElement as HTMLElement | null
-      setTimeout(() => titleRef.current?.focus(), 0)
+      // Focus the modal container to avoid auto-opening the keyboard on iOS
+      setTimeout(() => modalRef.current?.focus(), 0)
     } else {
       unlockScroll()
       setTimeout(() => lastFocused.current?.focus?.(), 0)
@@ -192,7 +209,49 @@ export default function DetailsModal({
 
   return createPortal(
     <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="modal bg-gradient-card border-none shadow-floating" ref={modalRef} onMouseDown={(e) => e.stopPropagation()}>
+      <div
+        className="modal bg-gradient-card border-none shadow-floating"
+        ref={modalRef}
+        tabIndex={-1}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => {
+          const t = e.touches[0]
+          if (!t || !modalRef.current) return
+          touchStart.current = { x: t.clientX, y: t.clientY, scrollTop: modalRef.current.scrollTop }
+          shouldClose.current = false
+        }}
+        onTouchMove={(e) => {
+          const start = touchStart.current
+          const t = e.touches[0]
+          if (!start || !t || !modalRef.current) return
+          const dx = t.clientX - start.x
+          const dy = t.clientY - start.y
+          const atTop = start.scrollTop <= 0
+          const verticalDominant = Math.abs(dy) > Math.abs(dx) * 1.6
+          const draggingDown = dy > 0
+          const threshold = Math.max(140, Math.min(220, (typeof window !== 'undefined' ? window.innerHeight : 800) * 0.22))
+          shouldClose.current = atTop && draggingDown && verticalDominant && dy > threshold
+          if (atTop && draggingDown && verticalDominant) {
+            const follow = Math.max(0, Math.min(maxFollow, dy))
+            setTranslate(follow)
+          } else {
+            setTranslate(0)
+          }
+        }}
+        onTouchEnd={() => {
+          if (shouldClose.current) {
+            shouldClose.current = false
+            touchStart.current = null
+            setTranslate(0)
+            onClose()
+          } else {
+            touchStart.current = null
+            snapBack()
+          }
+        }}
+        onTouchCancel={() => { touchStart.current = null; shouldClose.current = false; snapBack() }}
+      >
+        <div className="modal-grabber-wrap" aria-hidden="true"><div className="modal-grabber" /></div>
         <button className="modal-close" aria-label="Close" onClick={onClose}>×</button>
         <div className="modal-header"><h3 className="text-primary">Recipe details</h3></div>
         {errors.title && <div className="error">{errors.title}</div>}
