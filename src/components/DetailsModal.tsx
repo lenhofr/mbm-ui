@@ -212,8 +212,8 @@ export default function DetailsModal({
       <div
         className="modal bg-gradient-card border-none shadow-floating"
         ref={modalRef}
-        tabIndex={-1}
-        onMouseDown={(e) => e.stopPropagation()}
+  tabIndex={-1}
+  onMouseDown={(e) => e.stopPropagation()}
         onTouchStart={(e) => {
           const t = e.touches[0]
           if (!t || !modalRef.current) return
@@ -227,9 +227,9 @@ export default function DetailsModal({
           const dx = t.clientX - start.x
           const dy = t.clientY - start.y
           const atTop = start.scrollTop <= 0
-          const verticalDominant = Math.abs(dy) > Math.abs(dx) * 1.6
+          const verticalDominant = Math.abs(dy) > Math.abs(dx) * 2.0
           const draggingDown = dy > 0
-          const threshold = Math.max(140, Math.min(220, (typeof window !== 'undefined' ? window.innerHeight : 800) * 0.22))
+          const threshold = Math.max(200, Math.min(300, (typeof window !== 'undefined' ? window.innerHeight : 800) * 0.30))
           shouldClose.current = atTop && draggingDown && verticalDominant && dy > threshold
           if (atTop && draggingDown && verticalDominant) {
             const follow = Math.max(0, Math.min(maxFollow, dy))
@@ -251,7 +251,7 @@ export default function DetailsModal({
         }}
         onTouchCancel={() => { touchStart.current = null; shouldClose.current = false; snapBack() }}
       >
-        <div className="modal-grabber-wrap" aria-hidden="true"><div className="modal-grabber" /></div>
+  {/* grabber removed per design */}
         <button className="modal-close" aria-label="Close" onClick={onClose}>×</button>
         <div className="modal-header"><h3 className="text-primary">Recipe details</h3></div>
         {errors.title && <div className="error">{errors.title}</div>}
