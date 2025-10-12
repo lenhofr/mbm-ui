@@ -178,7 +178,7 @@ export default function DetailsModal({
   const resp = await fetch(`${apiBase}/images`, { method: 'POST', body: JSON.stringify({ filename: imageFile.name }), headers: { ...(authHeaders as Record<string, string>), 'Content-Type': 'application/json' } })
         if (resp.ok) {
           const data = await resp.json()
-          await fetch(data.uploadUrl, { method: 'PUT', body: imageFile })
+          await fetch(data.uploadUrl, { method: 'PUT', body: imageFile, headers: { 'Content-Type': imageFile.type } })
           imageUrl = data.key
         }
       } catch (e) { console.warn('image upload failed', e) }
