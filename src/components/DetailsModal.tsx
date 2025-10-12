@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { Recipe } from '../App'
 import { useCognitoAuth } from '../hooks/useCognitoAuth'
+import { IconClose } from '../icons/Icons'
 
 // Replaced file content with a clean, minimal DetailsModal implementation
 export default function DetailsModal({
@@ -252,7 +253,7 @@ export default function DetailsModal({
         onTouchCancel={() => { touchStart.current = null; shouldClose.current = false; snapBack() }}
       >
   {/* grabber removed per design */}
-        <button className="modal-close" aria-label="Close" onClick={onClose}>×</button>
+        <button className="modal-close" aria-label="Close" onClick={onClose}><IconClose size={20} /></button>
         <div className="modal-header"><h3 className="text-primary">Recipe details</h3></div>
         {errors.title && <div className="error">{errors.title}</div>}
 
@@ -276,7 +277,7 @@ export default function DetailsModal({
             {tags.map(t => (
               <div key={t} className="tag">
                 <span>{t}</span>
-                <button type="button" className="btn-ghost" onClick={() => removeTag(t)}>×</button>
+                <button type="button" className="btn-ghost" onClick={() => removeTag(t)}><IconClose size={14} /></button>
               </div>
             ))}
           </div>
@@ -302,17 +303,15 @@ export default function DetailsModal({
           </div>
         )}
 
-        <div className="grid-two">
-          <label className="form-field">
-            <span className="form-label">Cook Time</span>
-            <input value={cookTime} onChange={e => setCookTime(e.target.value)} placeholder="e.g., 30 minutes" />
-          </label>
-          <label className="form-field">
-            <span className="form-label">Servings</span>
-            <input value={servings} onChange={e => setServings(e.target.value)} placeholder="e.g., 4" />
-            {errors.servings && <small className="error">{errors.servings}</small>}
-          </label>
-        </div>
+        <label className="form-field">
+          <span className="form-label">Cook Time</span>
+          <input value={cookTime} onChange={e => setCookTime(e.target.value)} placeholder="e.g., 30 minutes" />
+        </label>
+        <label className="form-field">
+          <span className="form-label">Servings</span>
+          <input value={servings} onChange={e => setServings(e.target.value)} placeholder="e.g., 4" />
+          {errors.servings && <small className="error">{errors.servings}</small>}
+        </label>
 
         
 
@@ -328,7 +327,7 @@ export default function DetailsModal({
 
         <div className="modal-actions">
           <button type="button" className="primary" onClick={() => save()} disabled={!auth.isAuthed} title={!auth.isAuthed ? 'Log in to save' : undefined}>Save recipe</button>
-          <button type="button" className="btn-cancel" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
         </div>
       </div>
     </div>,

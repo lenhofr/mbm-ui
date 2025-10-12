@@ -163,6 +163,18 @@ main{display:flex;gap:20px;align-items:flex-start}
 
 /* Card micro-interactions: subtle lift and stronger shadow on hover */
 .recipe-card{transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease}
+
+.recipe-card-actions {
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.recipe-card:hover .recipe-card-actions {
+  opacity: 1;
+}
+
 /* Only apply lift on devices with hover + fine pointer (desktops/laptops) */
 @media (hover: hover) and (pointer: fine) {
   .recipe-card:hover{transform:translateY(-6px) scale(1.01);box-shadow:0 18px 42px rgba(122,47,75,0.12);border-color:rgba(122,47,75,0.12)}
@@ -186,6 +198,20 @@ main{display:flex;gap:20px;align-items:flex-start}
 /* modal */
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
 .modal{width:100%;max-width:720px;background:hsl(var(--card));padding:18px;border-radius:14px;box-shadow:0 24px 60px rgba(42,15,28,0.2);max-height:80vh;overflow:auto;position:relative}
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: hsl(var(--muted-fg));
+}
+
+.modal-close:hover {
+  color: hsl(var(--foreground));
+}
 .modal h3{margin-top:0}
 .modal label{display:block;margin-bottom:10px}
 .modal input,.modal textarea{width:100%;padding:10px;border-radius:8px;border:1px solid hsl(var(--border))}
@@ -269,4 +295,35 @@ main{display:flex;gap:20px;align-items:flex-start}
   main{flex-direction:column}
   .right{order:2}
   .left{order:1}
+}
+
+.cook-actions-sticky {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+}
+
+.cook-toolbar-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.cook-toolbar-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.02);
+  color: hsl(var(--muted-fg));
+  border-radius: 999px;
+  padding: 8px;
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+
+.cook-toolbar-actions button:hover {
+  background: rgba(0,0,0,0.1);
+  color: hsl(var(--foreground));
 }

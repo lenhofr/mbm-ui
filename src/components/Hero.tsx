@@ -1,14 +1,9 @@
 import React from 'react'
 
-export default function Hero({ onAdd, authControl }: { onAdd?: () => void; authControl?: React.ReactNode }) {
+export default function Hero({ onAdd }: { onAdd?: () => void }) {
   return (
     <div className="hero-card">
       <div className="hero-inner">
-        {authControl ? (
-          <div className="hero-top">
-            {authControl}
-          </div>
-        ) : null}
         <div style={{ display: 'flex', justifyContent: 'center', gap: 10, alignItems: 'center', marginBottom: 8 }}>
           <div style={{ fontSize: 24, lineHeight: 1 }}>💕</div>
         </div>
