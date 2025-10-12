@@ -140,7 +140,7 @@ export default function App() {
       new Fuse<Rec>(records, {
         keys: ['title', 'description', 'tags', 'ingredientsText', 'instructionsText'],
         includeMatches: true,
-        threshold: 0.4,
+        threshold: 0.2,
         ignoreLocation: true,
       }),
     [records]
@@ -196,17 +196,6 @@ export default function App() {
   return (
     <div className="app">
       <Hero
-        authControl={authed ? (
-          <button className="auth-cta" onClick={() => auth.signOut()} aria-label="Log out">
-            <span className="auth-icon" aria-hidden><IconSignOut size={18} /></span>
-            Log out
-          </button>
-        ) : (
-          <button className="auth-cta" onClick={() => setShowLogin(true)} aria-label="Log in">
-            <span className="auth-icon" aria-hidden><IconSignIn size={18} /></span>
-            Log in
-          </button>
-        )}
         onAdd={authed && recipes.length === 0 ? () => setShowAddModal(true) : undefined}
       />
 
@@ -289,16 +278,26 @@ export default function App() {
           </div>
 
           {/* Inline New Recipe button */}
-          {authed && (
-            <div>
+                    {/* Inline New Recipe button */}
+          <div style={{ display: 'flex', gap: 12 }}>
+            {authed && (
               <button type="button" className="primary" onClick={() => setShowAddModal(true)}>
                 <span aria-hidden style={{display:'inline-flex',alignItems:'center',marginRight:8}}>
-                  <IconPlus size={18} />
+                  <IconPlus size={18} weight="regular" />
                 </span>
                 New Recipe
               </button>
-            </div>
-          )}
+            )}
+            {authed ? (
+              <button className="auth-cta" onClick={() => auth.signOut()} aria-label="Log out">
+                <span className="auth-icon" aria-hidden><IconSignOut size={18} weight="regular" /></span>
+              </button>
+            ) : (
+              <button className="auth-cta" onClick={() => setShowLogin(true)} aria-label="Log in">
+                <span className="auth-icon" aria-hidden><IconSignIn size={18} weight="regular" /></span>
+              </button>
+            )}
+          </div>
 
         </div>
   </div>

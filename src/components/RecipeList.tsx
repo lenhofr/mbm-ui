@@ -1,32 +1,6 @@
-import React, { useState } from 'react'
+import React from 'react'
 import type { Recipe } from '../App'
-
-function CardMenu({ recipe, onEdit, onDelete, onView }: { recipe: Recipe; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void; onView?: (r: Recipe) => void }) {
-  const [open, setOpen] = useState(false)
-  const rootRef = React.useRef<HTMLDivElement | null>(null)
-
-  React.useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      if (!rootRef.current) return
-      if (!rootRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    if (open) document.addEventListener('click', onDocClick)
-    return () => document.removeEventListener('click', onDocClick)
-  }, [open])
-
-  return (
-    <div style={{position:'relative'}} ref={rootRef}>
-      <button className="btn-ghost" aria-haspopup="menu" aria-expanded={open} aria-label="More options" onClick={() => setOpen(s => !s)}>⋯</button>
-      {open && (
-        <div style={{position:'absolute',right:0,top:28,background:'white',boxShadow:'0 6px 18px rgba(0,0,0,0.08)',borderRadius:8,padding:8,zIndex:30}}>
-          {/* Cook action removed from card menu per UI polish request */}
-          {onEdit && <div><button className="btn-ghost" onClick={() => { onEdit(recipe); setOpen(false)} }>Edit</button></div>}
-          {onDelete && <div><button className="btn-ghost" onClick={() => { onDelete(recipe); setOpen(false)} }>Delete</button></div>}
-        </div>
-      )}
-    </div>
-  )
-}
+import { IconEdit, IconDelete } from '../icons/Icons'
 
 function highlight(text: string | undefined, q: string | undefined) {
   if (!text) return null
@@ -88,11 +62,9 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query, a
             <div className="recipe-body">
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
               <h3>{highlight(r.title, query)}</h3>
-              <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                <small style={{color:'hsl(var(--muted-fg))',fontWeight:600}}>{r.servings ? `${r.servings} ppl` : ''}</small>
-                {(onEdit || onDelete || onView) && authed && (
-                  <CardMenu recipe={r} onEdit={onEdit} onDelete={onDelete} onView={onView} />
-                )}
+              <div className="recipe-card-actions">
+                {authed && onEdit && <button onClick={() => onEdit(r)} className="btn-ghost" aria-label="Edit"><IconEdit /></button>}
+                {authed && onDelete && <button onClick={() => onDelete(r)} className="btn-ghost" aria-label="Delete"><IconDelete /></button>}
               </div>
             </div>
             <p>{highlight(r.description, query) || r.description}</p>

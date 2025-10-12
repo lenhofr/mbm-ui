@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import * as Phosphor from 'phosphor-react'
 import { createPortal } from 'react-dom'
 import type { Recipe } from '../App'
+import { IconCookMode, IconEdit, IconClose } from '../icons/Icons'
 
 export default function CookModal({ visible, onClose, recipe, onEdit }: { visible: boolean; onClose: () => void; recipe?: Recipe | null; onEdit?: (r: Recipe) => void }) {
   const root = (typeof document !== 'undefined' && document.getElementById('modal-root')) || null
@@ -158,21 +158,15 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
         <div className="cook-actions-sticky" aria-label="Recipe actions">
           <div className="cook-toolbar-actions">
             <button className="cook-mode-btn" title="Toggle cook mode" aria-label="Toggle cook mode" onClick={() => setCookMode(s => !s)}>
-              {Phosphor?.CookingPot ? <Phosphor.CookingPot size={20} weight="regular" /> : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 10h16v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-7Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M2 10h20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              )}
+              <IconCookMode size={20} weight="regular" />
             </button>
             {onEdit && (
               <button className="cook-edit-btn" title="Edit recipe" aria-label="Edit recipe" onClick={() => onEdit(recipe as Recipe)}>
-                {Phosphor?.Pencil ? <Phosphor.Pencil size={20} weight="regular" /> : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M3 21v-3.6a2.4 2.4 0 0 1 .7-1.7L14.2 5.2a2 2 0 0 1 2.8 0l1.8 1.8a2 2 0 0 1 0 2.8L7.3 21.3A2.4 2.4 0 0 1 5.6 22H3z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M14.7 6.3l2.9 2.9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                )}
+                <IconEdit size={20} weight="regular" />
               </button>
             )}
             <button className="cook-close-fab" aria-label="Close cook view" onClick={onClose}>
-              {Phosphor?.X ? <Phosphor.X size={20} weight="regular" /> : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 6l12 12M6 18L18 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              )}
+              <IconClose size={20} weight="regular" />
             </button>
           </div>
         </div>
