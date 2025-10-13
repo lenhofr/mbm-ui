@@ -33,6 +33,7 @@ export default function DetailsModal({
   const [instructionsText, setInstructionsText] = useState(initialRecipe?.instructions?.join('\n') ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // Force redeploy 1
   const modalRoot = (typeof document !== 'undefined' && document.getElementById('modal-root')) || null
   const modalRef = useRef<HTMLDivElement | null>(null)
   const titleRef = useRef<HTMLInputElement | null>(null)
