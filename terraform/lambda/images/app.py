@@ -28,22 +28,61 @@ def redirect(location: str, status: int = 302):
     }
 
 
+def _extract_request(event: dict):
+    """Extract method, path, route_key, and body text from either HTTP API v2.0 or v1.0/REST events."""
+    rc = event.get('requestContext', {}) or {}
+    version = event.get('version') or rc.get('version') or ''
+    method = None
+    route_key = rc.get('routeKey') or ''
+    # Path sources (ordered by confidence)
+    routed_path = None
+    raw_path = None
+    top_path = event.get('path')
+
+    http_ctx = rc.get('http') or {}
+    if http_ctx:  # HTTP API v2.0
+        method = http_ctx.get('method')
+        routed_path = http_ctx.get('path')
+        raw_path = event.get('rawPath')
+    else:  # v1.0 or REST proxy
+        method = event.get('httpMethod') or rc.get('httpMethod')
+        # v1.0 puts the request path at top-level 'path'
+        routed_path = None
+        raw_path = None
+        if not route_key and method and top_path:
+            route_key = f"{method} {top_path}"
+
+    path_source = routed_path or raw_path or top_path or ''
+    path = (path_source.rstrip('/') or '/') if path_source else '/'
+
+    # Body (handle base64 flag)
+    body_text = event.get('body')
+    if body_text and event.get('isBase64Encoded'):
+        try:
+            import base64
+            body_text = base64.b64decode(body_text).decode('utf-8', errors='replace')
+        except Exception:
+            pass
+
+    return {
+        'version': version,
+        'method': method,
+        'path': path,
+        'route_key': route_key,
+        'body_text': body_text or ''
+    }
+
+
 def handler(event, context):
     # Support two operations:
     # POST /images -> returns { uploadUrl, key }
     # GET /images/{key} -> returns { url }
-    rc = event.get('requestContext', {})
-    http_ctx = rc.get('http', {})
-    method = http_ctx.get('method')
-    # Prefer the routed path (often excludes base path mappings); fall back to rawPath
-    routed_path = http_ctx.get('path') or ''
-    raw_path = event.get('rawPath', '')
-    path_source = routed_path or raw_path or ''
-    # Normalize path to avoid trailing slash mismatches
-    path = path_source.rstrip('/') or '/'
-    route_key = rc.get('routeKey', '') or ''
+    info = _extract_request(event)
+    method = info['method']
+    path = info['path']
+    route_key = info['route_key']
     # Use print to ensure visibility at default logging level
-    print(f"images lambda: method={method} route_key={route_key} path={path} (routed={routed_path} raw={raw_path})")
+    print(f"images lambda: method={method} route_key={route_key} path={path}")
 
     try:
         # Presign request for uploads: POST /images (support base path mappings)
@@ -51,7 +90,10 @@ def handler(event, context):
             path == '/images' or path.endswith('/images') or route_key.startswith('POST /images')
         )
         if is_post_images:
-            body = json.loads(event.get('body') or '{}')
+            try:
+                body = json.loads(info['body_text'] or '{}')
+            except Exception:
+                body = {}
             filename = body.get('filename') or 'upload'
             content_type = body.get('type') or 'image/jpeg'
             # preserve extension if present
