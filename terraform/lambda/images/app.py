@@ -63,6 +63,7 @@ def handler(event, context):
                     Conditions=[
                         ["starts-with", "$Content-Type", "image/"],
                         {"key": key},
+                        ["content-length-range", 0, 26214400],  # up to 25MB
                     ],
                     ExpiresIn=300,
                 )

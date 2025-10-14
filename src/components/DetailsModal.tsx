@@ -33,6 +33,8 @@ export default function DetailsModal({
   const [instructionsText, setInstructionsText] = useState(initialRecipe?.instructions?.join('\n') ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [imageWarning, setImageWarning] = useState<string | null>(null)
+  const [uploading, setUploading] = useState<boolean>(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   // Force redeploy 1
   const modalRoot = (typeof document !== 'undefined' && document.getElementById('modal-root')) || null
@@ -213,6 +215,8 @@ export default function DetailsModal({
     const apiBase = (viteBase || legacyBase || '').trim()
     if (imageFile && apiBase) {
       try {
+        setUploadError(null)
+        setUploading(true)
         const authHeaders = auth.authHeader()
         // Ask backend for both PUT and POST presigned options (send filename and content-type)
         const resp = await fetch(`${apiBase}/images`, {
@@ -242,8 +246,12 @@ export default function DetailsModal({
           if (!putResp.ok) throw new Error(`PUT upload failed: ${putResp.status}`)
           imageUrl = data.key
         }
-      } catch (e) {
+      } catch (e: any) {
         console.warn('image upload failed', e)
+        setUploadError((e?.message || 'Image upload failed') as string)
+        return // abort save if upload fails
+      } finally {
+        setUploading(false)
       }
     }
     if (!imageFile && apiBase && imageUrl && /^https?:\/\//i.test(imageUrl)) {
@@ -413,8 +421,10 @@ export default function DetailsModal({
           <textarea value={instructionsText} onChange={e => setInstructionsText(e.target.value)} placeholder={`e.g.\nPreheat oven to 180\u00b0C\nMix dry ingredients\nBake 25-30 minutes`} />
         </label>
 
+        {uploadError && <div className="error" role="alert">{uploadError}</div>}
+
         <div className="modal-actions">
-          <button type="button" className="primary" onClick={() => save()} disabled={!auth.isAuthed} title={!auth.isAuthed ? 'Log in to save' : undefined}>Save recipe</button>
+          <button type="button" className="primary" onClick={() => save()} disabled={!auth.isAuthed || uploading} title={!auth.isAuthed ? 'Log in to save' : undefined}>{uploading ? 'Uploading…' : 'Save recipe'}</button>
           <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
         </div>
       </div>
