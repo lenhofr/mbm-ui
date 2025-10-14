@@ -38,6 +38,7 @@ def handler(event, context):
         if raw_path == '/images' and method in ('POST', 'GET'):
             body = json.loads(event.get('body') or '{}')
             filename = body.get('filename') or 'upload'
+            content_type = body.get('type') or 'image/jpeg'
             # preserve extension if present
             ext = ''
             if '.' in filename:
@@ -50,13 +51,40 @@ def handler(event, context):
                 Params={'Bucket': IMAGES_BUCKET, 'Key': key},
                 ExpiresIn=300
             )
+            # Generate a presigned POST as a more compatible path for some mobile browsers
+            # Use a starts-with policy for Content-Type to allow any image/* subtype
+            try:
+                post = s3.generate_presigned_post(
+                    Bucket=IMAGES_BUCKET,
+                    Key=key,
+                    Fields={
+                        'Content-Type': content_type,
+                    },
+                    Conditions=[
+                        ["starts-with", "$Content-Type", "image/"],
+                        {"key": key},
+                    ],
+                    ExpiresIn=300,
+                )
+                post_url = post.get('url')
+                post_fields = post.get('fields')
+            except ClientError as _e:
+                # If POST presign fails for any reason, fall back to only PUT
+                post_url = None
+                post_fields = None
             # Also provide a presigned GET URL for convenience
             get_url = s3.generate_presigned_url(
                 ClientMethod='get_object',
                 Params={'Bucket': IMAGES_BUCKET, 'Key': key},
                 ExpiresIn=300
             )
-            return response(200, {'uploadUrl': upload_url, 'key': key, 'url': get_url})
+            return response(200, {
+                'uploadUrl': upload_url,
+                'postUrl': post_url,
+                'fields': post_fields,
+                'key': key,
+                'url': get_url
+            })
 
         # GET presigned view URL: /images/{key}
         if method == 'GET' and raw_path.startswith('/images/'):
