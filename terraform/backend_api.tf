@@ -392,9 +392,25 @@ resource "aws_apigatewayv2_stage" "default" {
   auto_deploy = true
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api.arn
-    format          = <<EOF
-$context.requestId $context.identity.sourceIp $context.httpMethod $context.path $context.status $context.responseLength
-EOF
+    # Structured JSON for easier filtering in CloudWatch Logs Insights
+    format = jsonencode({
+      requestId                    = "$context.requestId"
+      requestTime                  = "$context.requestTime"
+      sourceIp                     = "$context.identity.sourceIp"
+      httpMethod                   = "$context.httpMethod"
+      path                         = "$context.path"
+      protocol                     = "$context.protocol"
+      routeKey                     = "$context.routeKey"
+      status                       = "$context.status"
+      responseLength               = "$context.responseLength"
+      integrationStatus            = "$context.integrationStatus"
+      integrationLatency           = "$context.integrationLatency"
+      integrationErrorMessage      = "$context.integrationErrorMessage"
+      errorMessage                 = "$context.error.message"
+      errorResponseType            = "$context.error.responseType"
+      authorizerError              = "$context.authorizer.error"
+      authorizerIntegrationLatency = "$context.authorizer.integrationLatency"
+    })
   }
 }
 
