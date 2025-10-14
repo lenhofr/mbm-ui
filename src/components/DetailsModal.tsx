@@ -32,6 +32,7 @@ export default function DetailsModal({
   const [ingredientsText, setIngredientsText] = useState(initialRecipe?.ingredients?.map(i => (i.amount ? i.amount + ' ' + i.name : i.name)).join('\n') ?? '')
   const [instructionsText, setInstructionsText] = useState(initialRecipe?.instructions?.join('\n') ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [imageWarning, setImageWarning] = useState<string | null>(null)
 
   // Force redeploy 1
   const modalRoot = (typeof document !== 'undefined' && document.getElementById('modal-root')) || null
@@ -81,6 +82,43 @@ export default function DetailsModal({
     reader.onload = () => setImagePreview(String(reader.result))
     reader.readAsDataURL(imageFile)
   }, [imageFile])
+
+  function isHeic(file: File) {
+    const t = (file.type || '').toLowerCase()
+    const n = (file.name || '').toLowerCase()
+    return t === 'image/heic' || t === 'image/heif' || n.endsWith('.heic') || n.endsWith('.heif')
+  }
+
+  async function convertHeicToJpeg(file: File): Promise<File> {
+    // Try converting via canvas; if the browser cannot decode HEIC, this will fail
+    const url = URL.createObjectURL(file)
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image()
+        i.onload = () => resolve(i)
+        i.onerror = (e) => reject(e)
+        i.src = url
+      })
+      const canvas = document.createElement('canvas')
+      const maxDim = 3000
+      let { width, height } = img
+      if (width > maxDim || height > maxDim) {
+        const scale = Math.min(maxDim / width, maxDim / height)
+        width = Math.max(1, Math.round(width * scale))
+        height = Math.max(1, Math.round(height * scale))
+      }
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Canvas 2D not available')
+      ctx.drawImage(img, 0, 0, width, height)
+      const blob: Blob = await new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/jpeg', 0.92))
+      const f = new File([blob], (file.name.replace(/\.heic$|\.heif$/i, '') || 'photo') + '.jpeg', { type: 'image/jpeg' })
+      return f
+    } finally {
+      URL.revokeObjectURL(url)
+    }
+  }
 
   useEffect(() => {
     setImagePreview(initialRecipe?.image ?? null)
@@ -310,8 +348,33 @@ export default function DetailsModal({
 
         <label className="form-field">
           <span className="form-label">Image (upload)</span>
-          <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] ?? null)} />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={async e => {
+              setImageWarning(null)
+              const f = e.target.files?.[0] ?? null
+              if (!f) { setImageFile(null); setImagePreview(initialRecipe?.image ?? null); return }
+              if (isHeic(f)) {
+                try {
+                  const jpeg = await convertHeicToJpeg(f)
+                  setImageFile(jpeg)
+                  // Preview from newly converted JPEG
+                  const reader = new FileReader()
+                  reader.onload = () => setImagePreview(String(reader.result))
+                  reader.readAsDataURL(jpeg)
+                } catch (err) {
+                  setImageWarning('This photo appears to be HEIC, which is not widely supported on the web. Please choose a JPEG/PNG image or change iOS Camera to “Most Compatible”.')
+                  // Fall back to original selection; preview may fail if browser can’t decode HEIC
+                  setImageFile(f)
+                }
+              } else {
+                setImageFile(f)
+              }
+            }}
+          />
         </label>
+        {imageWarning && (<div className="warning" role="alert">{imageWarning}</div>)}
         {imagePreview && (
           <div className="image-preview-wrap">
             <img
