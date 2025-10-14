@@ -175,14 +175,38 @@ export default function DetailsModal({
     const apiBase = (viteBase || legacyBase || '').trim()
     if (imageFile && apiBase) {
       try {
-  const authHeaders = auth.authHeader()
-  const resp = await fetch(`${apiBase}/images`, { method: 'POST', body: JSON.stringify({ filename: imageFile.name }), headers: { ...(authHeaders as Record<string, string>), 'Content-Type': 'application/json' } })
-        if (resp.ok) {
-          const data = await resp.json()
-          await fetch(data.uploadUrl, { method: 'PUT', body: imageFile, headers: { 'Content-Type': imageFile.type } })
+        const authHeaders = auth.authHeader()
+        // Ask backend for both PUT and POST presigned options (send filename and content-type)
+        const resp = await fetch(`${apiBase}/images`, {
+          method: 'POST',
+          body: JSON.stringify({ filename: imageFile.name, type: imageFile.type || 'image/jpeg' }),
+          headers: { ...(authHeaders as Record<string, string>), 'Content-Type': 'application/json' }
+        })
+        if (!resp.ok) throw new Error(`presign failed: ${resp.status}`)
+        const data = await resp.json()
+
+        // Prefer presigned POST when available (better iOS Safari compatibility)
+        if (data.postUrl && data.fields) {
+          const form = new FormData()
+          Object.entries(data.fields as Record<string, string>).forEach(([k, v]) => form.append(k, v as string))
+          // Append file last
+          form.append('file', imageFile)
+          const uploadResp = await fetch(data.postUrl, { method: 'POST', body: form })
+          if (!uploadResp.ok) {
+            // Fall back to PUT if POST failed for any reason
+            const putResp = await fetch(data.uploadUrl, { method: 'PUT', body: imageFile, headers: { 'Content-Type': imageFile.type } })
+            if (!putResp.ok) throw new Error(`PUT upload failed: ${putResp.status}`)
+          }
+          imageUrl = data.key
+        } else {
+          // Fallback: simple presigned PUT
+          const putResp = await fetch(data.uploadUrl, { method: 'PUT', body: imageFile, headers: { 'Content-Type': imageFile.type } })
+          if (!putResp.ok) throw new Error(`PUT upload failed: ${putResp.status}`)
           imageUrl = data.key
         }
-      } catch (e) { console.warn('image upload failed', e) }
+      } catch (e) {
+        console.warn('image upload failed', e)
+      }
     }
     if (!imageFile && apiBase && imageUrl && /^https?:\/\//i.test(imageUrl)) {
       try { const base = apiBase.replace(/\/$/, ''); const prefix = `${base}/images/`; if (imageUrl.startsWith(prefix)) imageUrl = decodeURIComponent(imageUrl.slice(prefix.length)) } catch {}
