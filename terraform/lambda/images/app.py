@@ -2,6 +2,7 @@ import os
 import json
 import boto3
 from botocore.exceptions import ClientError
+import logging
 
 s3 = boto3.client('s3')
 IMAGES_BUCKET = os.environ.get('IMAGES_BUCKET')
@@ -31,11 +32,16 @@ def handler(event, context):
     # Support two operations:
     # POST /images -> returns { uploadUrl, key }
     # GET /images/{key} -> returns { url }
-    method = event.get('requestContext', {}).get('http', {}).get('method')
-    raw_path = event.get('rawPath', '')
+    http_ctx = event.get('requestContext', {}).get('http', {})
+    method = http_ctx.get('method')
+    raw_path = event.get('rawPath', '') or http_ctx.get('path', '') or ''
+    # Normalize path to avoid trailing slash mismatches
+    path = raw_path.rstrip('/') or '/'
+    logging.info("images lambda: method=%s raw_path=%s path=%s", method, raw_path, path)
 
     try:
-        if raw_path == '/images' and method in ('POST', 'GET'):
+        # Presign request for uploads: POST /images (accept with or without trailing slash)
+        if method == 'POST' and path == '/images':
             body = json.loads(event.get('body') or '{}')
             filename = body.get('filename') or 'upload'
             content_type = body.get('type') or 'image/jpeg'
@@ -88,8 +94,8 @@ def handler(event, context):
             })
 
         # GET presigned view URL: /images/{key}
-        if method == 'GET' and raw_path.startswith('/images/'):
-            key = raw_path.split('/images/', 1)[1]
+        if method == 'GET' and path.startswith('/images/'):
+            key = path.split('/images/', 1)[1]
             # decode if needed
             from urllib.parse import unquote
             key = unquote(key)
@@ -101,6 +107,11 @@ def handler(event, context):
             # Redirect to the signed URL so <img src> works directly
             return redirect(url, 302)
 
-        return response(400, {'message': 'Unsupported operation'})
+        # Default if nothing matched
+        return response(400, {'message': 'Unsupported operation', 'method': method, 'path': path})
     except ClientError as e:
+        logging.exception("ClientError while handling request")
         return response(500, {'error': str(e)})
+    except Exception as e:
+        logging.exception("Unhandled error while handling request")
+        return response(500, {'error': 'Internal server error'})
