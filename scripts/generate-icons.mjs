@@ -21,10 +21,13 @@ async function main() {
   await ensureSharp()
   const sharp = (await import('sharp')).default
 
-  const src = path.join(root, 'public', 'icons', 'mbm-icon.svg')
+  // Prefer the improved PNG if present; fall back to the legacy SVG
+  const preferredPng = path.join(root, 'tmpImages', 'mbmBetterColor.png')
+  const fallbackSvg = path.join(root, 'public', 'icons', 'mbm-icon.svg')
+  const src = fs.existsSync(preferredPng) ? preferredPng : fallbackSvg
   const outDir = path.join(root, 'public', 'icons')
   if (!fs.existsSync(src)) {
-    console.error('Missing', src)
+    console.error('Missing icon source. Expected one of:', preferredPng, 'or', fallbackSvg)
     process.exit(1)
   }
   fs.mkdirSync(outDir, { recursive: true })
