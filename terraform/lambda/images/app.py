@@ -32,16 +32,25 @@ def handler(event, context):
     # Support two operations:
     # POST /images -> returns { uploadUrl, key }
     # GET /images/{key} -> returns { url }
-    http_ctx = event.get('requestContext', {}).get('http', {})
+    rc = event.get('requestContext', {})
+    http_ctx = rc.get('http', {})
     method = http_ctx.get('method')
-    raw_path = event.get('rawPath', '') or http_ctx.get('path', '') or ''
+    # Prefer the routed path (often excludes base path mappings); fall back to rawPath
+    routed_path = http_ctx.get('path') or ''
+    raw_path = event.get('rawPath', '')
+    path_source = routed_path or raw_path or ''
     # Normalize path to avoid trailing slash mismatches
-    path = raw_path.rstrip('/') or '/'
-    logging.info("images lambda: method=%s raw_path=%s path=%s", method, raw_path, path)
+    path = path_source.rstrip('/') or '/'
+    route_key = rc.get('routeKey', '') or ''
+    # Use print to ensure visibility at default logging level
+    print(f"images lambda: method={method} route_key={route_key} path={path} (routed={routed_path} raw={raw_path})")
 
     try:
-        # Presign request for uploads: POST /images (accept with or without trailing slash)
-        if method == 'POST' and path == '/images':
+        # Presign request for uploads: POST /images (support base path mappings)
+        is_post_images = (method == 'POST') and (
+            path == '/images' or path.endswith('/images') or route_key.startswith('POST /images')
+        )
+        if is_post_images:
             body = json.loads(event.get('body') or '{}')
             filename = body.get('filename') or 'upload'
             content_type = body.get('type') or 'image/jpeg'
@@ -94,8 +103,16 @@ def handler(event, context):
             })
 
         # GET presigned view URL: /images/{key}
-        if method == 'GET' and path.startswith('/images/'):
-            key = path.split('/images/', 1)[1]
+        is_get_image = (method == 'GET') and (
+            path.startswith('/images/') or '/images/' in path or route_key.startswith('GET /images')
+        )
+        if is_get_image:
+            # Extract key component after the first occurrence of /images/
+            if '/images/' in path:
+                key = path.split('/images/', 1)[1]
+            else:
+                # Fallback: nothing to extract
+                return response(400, {'message': 'Missing image key in path', 'path': path})
             # decode if needed
             from urllib.parse import unquote
             key = unquote(key)
