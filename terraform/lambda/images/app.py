@@ -116,11 +116,13 @@ def handler(event, context):
                     Key=key,
                     Fields={
                         'Content-Type': content_type,
+                        'Cache-Control': 'public, max-age=31536000, immutable',
                     },
                     Conditions=[
                         ["starts-with", "$Content-Type", "image/"],
                         {"key": key},
                         ["content-length-range", 0, 26214400],  # up to 25MB
+                        ["starts-with", "$Cache-Control", "public"],
                     ],
                     ExpiresIn=300,
                 )
