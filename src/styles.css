@@ -277,6 +277,22 @@ main{display:flex;gap:20px;align-items:flex-start}
 }
 
 .app-footer{margin-top:22px;color:var(--muted);text-align:center;font-size:13px}
+.app-footer .footer-link{
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 2px 4px;
+  cursor: pointer;
+  text-decoration: none;
+  border-radius: 6px;
+}
+.app-footer .footer-link:hover{
+  color: hsl(var(--foreground));
+}
+.app-footer .footer-link:focus-visible{
+  outline: 2px solid rgba(198,166,255,0.6);
+  outline-offset: 2px;
+}
 
 /* Remove tap highlight for a native feel */
 *{ -webkit-tap-highlight-color: transparent }

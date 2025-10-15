@@ -288,11 +288,7 @@ export default function App() {
                 New Recipe
               </button>
             )}
-            {authed ? (
-              <button className="auth-cta" onClick={() => auth.signOut()} aria-label="Log out">
-                <span className="auth-icon" aria-hidden><IconSignOut size={18} weight="regular" /></span>
-              </button>
-            ) : (
+            {authed ? null : (
               <button className="auth-cta" onClick={() => setShowLogin(true)} aria-label="Log in">
                 <span className="auth-icon" aria-hidden><IconSignIn size={18} weight="regular" /></span>
               </button>
@@ -345,7 +341,15 @@ export default function App() {
       <LoginModal visible={true} onClose={() => setShowLogin(false)} />
     ) : null}
 
-  <footer className="app-footer">Built with ❤️ — RobWare</footer>
+  <footer className="app-footer">
+    <span>Built with ❤️ — RobWare</span>
+    {authed && (
+      <>
+        <span aria-hidden>{' '}·{' '}</span>
+        <button className="footer-link" onClick={() => auth.signOut()} aria-label="Log out">Logout</button>
+      </>
+    )}
+  </footer>
     </div>
   )
 }
