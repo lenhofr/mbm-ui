@@ -345,7 +345,7 @@ export default function App() {
     <span>Built with ❤️ — RobWare</span>
     {authed && (
       <>
-        <span aria-hidden>{' '}|{' '}</span>
+        <span aria-hidden>{' '}·{' '}</span>
         <button className="footer-link" onClick={() => auth.signOut()} aria-label="Log out">Logout</button>
       </>
     )}

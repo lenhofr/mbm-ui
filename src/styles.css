@@ -283,8 +283,7 @@ main{display:flex;gap:20px;align-items:flex-start}
   color: inherit;
   padding: 2px 4px;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
   border-radius: 6px;
 }
 .app-footer .footer-link:hover{
