@@ -91,35 +91,37 @@ export default function DetailsModal({
     return t === 'image/heic' || t === 'image/heif' || n.endsWith('.heic') || n.endsWith('.heif')
   }
 
-  async function convertHeicToJpeg(file: File): Promise<File> {
-    // Try converting via canvas; if the browser cannot decode HEIC, this will fail
+  async function decodeToImage(file: File): Promise<HTMLImageElement> {
     const url = URL.createObjectURL(file)
     try {
-      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      return await new Promise<HTMLImageElement>((resolve, reject) => {
         const i = new Image()
         i.onload = () => resolve(i)
         i.onerror = (e) => reject(e)
         i.src = url
       })
-      const canvas = document.createElement('canvas')
-      const maxDim = 3000
-      let { width, height } = img
-      if (width > maxDim || height > maxDim) {
-        const scale = Math.min(maxDim / width, maxDim / height)
-        width = Math.max(1, Math.round(width * scale))
-        height = Math.max(1, Math.round(height * scale))
-      }
-      canvas.width = width
-      canvas.height = height
-      const ctx = canvas.getContext('2d')
-      if (!ctx) throw new Error('Canvas 2D not available')
-      ctx.drawImage(img, 0, 0, width, height)
-      const blob: Blob = await new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/jpeg', 0.92))
-      const f = new File([blob], (file.name.replace(/\.heic$|\.heif$/i, '') || 'photo') + '.jpeg', { type: 'image/jpeg' })
-      return f
     } finally {
       URL.revokeObjectURL(url)
     }
+  }
+
+  async function resizeToJpeg(file: File, maxDim = 1600, quality = 0.82): Promise<File> {
+    const img = await decodeToImage(file)
+    const canvas = document.createElement('canvas')
+    let { width, height } = img
+    if (width > maxDim || height > maxDim) {
+      const scale = Math.min(maxDim / width, maxDim / height)
+      width = Math.max(1, Math.round(width * scale))
+      height = Math.max(1, Math.round(height * scale))
+    }
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Canvas 2D not available')
+    ctx.drawImage(img, 0, 0, width, height)
+    const blob: Blob = await new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/jpeg', quality))
+    const base = file.name.replace(/\.(heic|heif|jpeg|jpg|png)$/i, '') || 'photo'
+    return new File([blob], base + '.jpeg', { type: 'image/jpeg' })
   }
 
   useEffect(() => {
@@ -363,20 +365,19 @@ export default function DetailsModal({
               setImageWarning(null)
               const f = e.target.files?.[0] ?? null
               if (!f) { setImageFile(null); setImagePreview(initialRecipe?.image ?? null); return }
-              if (isHeic(f)) {
-                try {
-                  const jpeg = await convertHeicToJpeg(f)
-                  setImageFile(jpeg)
-                  // Preview from newly converted JPEG
-                  const reader = new FileReader()
-                  reader.onload = () => setImagePreview(String(reader.result))
-                  reader.readAsDataURL(jpeg)
-                } catch (err) {
+              try {
+                // Always convert to a web-friendly, resized JPEG for faster loads
+                const toProcess = isHeic(f) ? f : f
+                const jpeg = await resizeToJpeg(toProcess, 1600, 0.82)
+                setImageFile(jpeg)
+                const reader = new FileReader()
+                reader.onload = () => setImagePreview(String(reader.result))
+                reader.readAsDataURL(jpeg)
+              } catch (err) {
+                if (isHeic(f)) {
                   setImageWarning('This photo appears to be HEIC, which is not widely supported on the web. Please choose a JPEG/PNG image or change iOS Camera to “Most Compatible”.')
-                  // Fall back to original selection; preview may fail if browser can’t decode HEIC
-                  setImageFile(f)
                 }
-              } else {
+                // Fall back to original selection; preview may fail if browser can’t decode HEIC
                 setImageFile(f)
               }
             }}
