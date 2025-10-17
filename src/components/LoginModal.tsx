@@ -56,6 +56,19 @@ export default function LoginModal({ visible, onClose }: Props) {
         <div style={{ padding: '6px 2px 10px' }}>
           <Authenticator
             signUpAttributes={[ 'email' ]}
+            formFields={{
+              signUp: {
+                'custom:invite': {
+                  label: 'Invite code',
+                  placeholder: 'Enter your invite code',
+                  isRequired: true,
+                  order: 1,
+                },
+                email: { order: 2 },
+                password: { order: 3 },
+                confirm_password: { order: 4 },
+              },
+            }}
             components={{
               Header() { return null },
               Footer() { return null },

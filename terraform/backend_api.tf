@@ -136,6 +136,78 @@ data "aws_iam_policy_document" "lambda_policy" {
   }
 }
 
+# Invite codes table (single-use codes)
+resource "aws_dynamodb_table" "invites" {
+  name         = "mbm-invites"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "code"
+
+  attribute {
+    name = "code"
+    type = "S"
+  }
+
+  tags = {
+    Name = "mbm-invites"
+  }
+}
+
+# Package pre-sign-up auth lambda
+resource "archive_file" "auth_zip" {
+  type        = "zip"
+  output_path = "${path.module}/dist/auth.zip"
+  source_dir  = "${path.module}/lambda/auth"
+}
+
+# IAM for pre-sign-up lambda (separate from general lambda_exec for least privilege)
+resource "aws_iam_role" "pre_signup_role" {
+  name               = "mbm-cognito-pre-signup-role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+resource "aws_iam_policy" "pre_signup_ddb_policy" {
+  name = "mbm-pre-signup-ddb"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = ["dynamodb:UpdateItem", "dynamodb:GetItem"],
+        Resource = aws_dynamodb_table.invites.arn
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        Resource = "arn:aws:logs:*:*:*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "pre_signup_ddb_attach" {
+  role       = aws_iam_role.pre_signup_role.name
+  policy_arn = aws_iam_policy.pre_signup_ddb_policy.arn
+}
+
+resource "aws_lambda_function" "cognito_pre_signup" {
+  filename         = archive_file.auth_zip.output_path
+  function_name    = "mbm-cognito-pre-signup"
+  role             = aws_iam_role.pre_signup_role.arn
+  handler          = "pre_sign_up.handler"
+  runtime          = "python3.10"
+  source_code_hash = archive_file.auth_zip.output_base64sha256
+
+  environment {
+    variables = {
+      INVITES_TABLE = aws_dynamodb_table.invites.name
+    }
+  }
+}
+
 resource "aws_iam_role_policy_attachment" "lambda_policy_attach" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = aws_iam_policy.lambda_policy.arn
@@ -203,6 +275,23 @@ resource "aws_cognito_user_pool" "mbm" {
   }
 
   auto_verified_attributes = ["email"]
+
+  # Custom attribute to capture invite code
+  schema {
+    attribute_data_type      = "String"
+    developer_only_attribute = false
+    mutable                  = true
+    name                     = "invite"
+    required                 = false
+    string_attribute_constraints {
+      min_length = 1
+      max_length = 64
+    }
+  }
+
+  lambda_config {
+    pre_sign_up = aws_lambda_function.cognito_pre_signup.arn
+  }
 }
 
 
@@ -232,6 +321,15 @@ resource "aws_cognito_user_pool_client" "spa" {
 resource "aws_cognito_user_pool_domain" "mbm" {
   domain       = "mbm-app-${random_id.bucket_suffix.hex}"
   user_pool_id = aws_cognito_user_pool.mbm.id
+}
+
+# Allow Cognito to invoke the pre-signup lambda
+resource "aws_lambda_permission" "allow_cognito_pre_signup" {
+  statement_id  = "AllowCognitoPreSignUp"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.cognito_pre_signup.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.mbm.arn
 }
 
 # Hosted UI customization (brand look & feel)
