@@ -329,6 +329,13 @@ resource "aws_cognito_user_pool" "mbm" {
     # Use SESv2 domain identity ARN
     source_arn = aws_sesv2_email_identity.mbm_domain.arn
   }
+
+  # Brand the verification email (code option)
+  verification_message_template {
+    default_email_option = "CONFIRM_WITH_CODE"
+    email_subject        = "Meals by Maggie verification code"
+    email_message        = "Your confirmation code is {####}"
+  }
 }
 
 
