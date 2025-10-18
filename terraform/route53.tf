@@ -11,8 +11,9 @@ resource "aws_sesv2_email_identity" "mbm_domain" {
 }
 
 # Publish Easy DKIM CNAME records that SES requests for this identity
+# SES Easy DKIM issues exactly 3 tokens; use a static count to avoid plan-time unknown-length errors
 resource "aws_route53_record" "ses_dkim" {
-  count   = length(aws_sesv2_email_identity.mbm_domain.dkim_signing_attributes[0].tokens)
+  count   = 3
   zone_id = aws_route53_zone.mealsbymaggie.zone_id
   name    = "${aws_sesv2_email_identity.mbm_domain.dkim_signing_attributes[0].tokens[count.index]}._domainkey.mealsbymaggie.com"
   type    = "CNAME"
