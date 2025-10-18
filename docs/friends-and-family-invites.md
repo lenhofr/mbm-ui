@@ -277,6 +277,11 @@ Notes
 4. Seed initial invite codes (CLI or script) and distribute to testers securely.
 5. Validate on Test/Preview environment; then roll to Production.
 
+## Email verification sender notes
+- Cognito verification emails are configured to send via SES from `no-reply@mealsbymaggie.com`. Terraform manages the SES domain identity, DKIM, and optional MAIL FROM DNS in `terraform/route53.tf` and wires Cognito in `terraform/backend_api.tf`.
+- DNS changes can take time to propagate; SES must show the domain as verified before Cognito will send using it. Until then, emails may appear from the default amazonses.com address.
+- New SES accounts are in the sandbox and can only send to verified recipients. If you need to email arbitrary users, request production access in SES or temporarily verify recipient emails for testing.
+
 ## Rollback and kill switches
 - To pause sign-ups immediately: remove/detach PreSignUp trigger or set a `BLOCK_SIGNUP` env var and check it in Lambda to deny all.
 - To revert infra: `terraform apply` with previous state, or comment out trigger and re-apply.
