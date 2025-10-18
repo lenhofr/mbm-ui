@@ -140,11 +140,34 @@ data "aws_iam_policy_document" "lambda_policy" {
 resource "aws_dynamodb_table" "invites" {
   name         = "mbm-invites"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "code"
+
+  hash_key  = "code"
+  range_key = "sk"
 
   attribute {
     name = "code"
     type = "S"
+  }
+  attribute {
+    name = "sk"
+    type = "S"
+  }
+
+  # Attributes for GSI on email usage queries
+  attribute {
+    name = "email"
+    type = "S"
+  }
+  attribute {
+    name = "usedAt"
+    type = "N"
+  }
+
+  global_secondary_index {
+    name            = "gsi_email"
+    hash_key        = "email"
+    range_key       = "usedAt"
+    projection_type = "ALL"
   }
 
   tags = {
@@ -172,8 +195,13 @@ resource "aws_iam_policy" "pre_signup_ddb_policy" {
     Statement = [
       {
         Effect   = "Allow",
-        Action   = ["dynamodb:UpdateItem", "dynamodb:GetItem"],
+        Action   = ["dynamodb:UpdateItem", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:Query"],
         Resource = aws_dynamodb_table.invites.arn
+      },
+      {
+        Effect   = "Allow",
+        Action   = ["dynamodb:TransactWriteItems"],
+        Resource = "*"
       },
       {
         Effect = "Allow",
@@ -204,7 +232,6 @@ resource "aws_lambda_function" "cognito_pre_signup" {
   environment {
     variables = {
       INVITES_TABLE = aws_dynamodb_table.invites.name
-      MASTER_CODE   = var.master_code
     }
   }
 }
