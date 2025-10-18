@@ -21,3 +21,4 @@ variable "cognito_logout_urls" {
   type        = list(string)
   default     = ["http://localhost:5173/", "https://mealsbymaggie.com/", "https://www.mealsbymaggie.com/"]
 }
+

@@ -20,6 +20,9 @@ const items = Array.from({ length: COUNT }, () => {
   const code = makeCode();
   const item = {
     code: { S: code },
+    sk: { S: 'META' },
+    maxUses: { N: '1' },
+    uses: { N: '0' },
     issuedAt: { N: String(now) },
   };
   if (expiresAt) item.expiresAt = { N: String(expiresAt) };
