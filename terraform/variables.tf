@@ -21,3 +21,9 @@ variable "cognito_logout_urls" {
   type        = list(string)
   default     = ["http://localhost:5173/", "https://mealsbymaggie.com/", "https://www.mealsbymaggie.com/"]
 }
+
+variable "master_code" {
+  description = "Optional master invite code that bypasses DDB (for limited admin access)"
+  type        = string
+  default     = null
+}

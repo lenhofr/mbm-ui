@@ -2,6 +2,7 @@ import os, time, json, boto3
 from botocore.exceptions import ClientError
 
 TABLE = os.environ.get('INVITES_TABLE')
+MASTER_CODE = os.environ.get('MASTER_CODE')
 dynamodb = boto3.resource('dynamodb')
 
 def handler(event, _ctx):
@@ -11,6 +12,11 @@ def handler(event, _ctx):
     code  = attrs.get('custom:invite')
     if not code:
         raise Exception(json.dumps({'message': 'Missing invite code'}))
+
+    # Allow master code (does not consume DDB)
+    if MASTER_CODE and code == MASTER_CODE:
+        event.setdefault('response', {})
+        return event
 
     table = dynamodb.Table(TABLE)
     now = int(time.time())

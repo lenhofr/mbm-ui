@@ -204,6 +204,7 @@ resource "aws_lambda_function" "cognito_pre_signup" {
   environment {
     variables = {
       INVITES_TABLE = aws_dynamodb_table.invites.name
+      MASTER_CODE   = var.master_code
     }
   }
 }
