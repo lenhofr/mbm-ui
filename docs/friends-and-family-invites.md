@@ -218,23 +218,49 @@ def handler(event, _ctx):
 ## Seeding and managing codes
 You do not need the AWS Console. Use CLI or a Node script.
 
-- Single code via CLI:
+Single-table seed examples (current model)
+
+- Single-use:
 ```
-aws dynamodb put-item --table-name mbm-invites --item '{"code":{"S":"FNF-ALICE-001"}}'
+aws dynamodb put-item --region us-east-1 --table-name mbm-invites --item '{"code":{"S":"FNF-ALICE-001"},"sk":{"S":"META"},"maxUses":{"N":"1"},"uses":{"N":"0"},"issuedAt":{"N":"'"$(date +%s)"'"}}'
 ```
 
-- Revoke a code:
+- Multi-use (25 uses):
 ```
-aws dynamodb update-item --table-name mbm-invites --key '{"code":{"S":"FNF-ALICE-001"}}' \
-  --update-expression "SET revoked = :t" --expression-attribute-values '{":t":{"BOOL":true}}'
+aws dynamodb put-item --region us-east-1 --table-name mbm-invites --item '{"code":{"S":"FNF-BETA-25"},"sk":{"S":"META"},"maxUses":{"N":"25"},"uses":{"N":"0"},"issuedAt":{"N":"'"$(date +%s)"'"}}'
 ```
 
-- Bulk seeding script: `scripts/seed-invites.mjs` (Node, AWS SDK v3)
-  - Generates N secure random codes, optional TTL, batch-writes (25 at a time), prints codes.
-  - Example run:
+- Unlimited:
+```
+aws dynamodb put-item --region us-east-1 --table-name mbm-invites --item '{"code":{"S":"FNF-MASTER"},"sk":{"S":"META"},"unlimited":{"BOOL":true},"uses":{"N":"0"},"issuedAt":{"N":"'"$(date +%s)"'"}}'
+```
+
+- Revoke:
+```
+aws dynamodb update-item --region us-east-1 --table-name mbm-invites --key '{"code":{"S":"FNF-MASTER"},"sk":{"S":"META"}}' --update-expression "SET revoked = :t" --expression-attribute-values '{":t":{"BOOL":true}}'
+```
+
+Bulk seeding script: `scripts/seed-invites.mjs` (Node, AWS SDK v3)
+- Generates N secure random codes as META items (defaults to single-use), optional TTL, batch-writes (25 at a time), prints codes.
+- Example run:
 ```
 TABLE=mbm-invites COUNT=50 PREFIX=FNF CODE_LEN=8 TTL_DAYS=30 AWS_REGION=us-east-1 node scripts/seed-invites.mjs
 ```
+
+Using the npm script
+- You can run the same script via npm:
+```
+npm run invites:seed
+```
+
+- With overrides (zsh/macOS):
+```
+AWS_REGION=us-east-1 TABLE=mbm-invites COUNT=25 PREFIX=FNF CODE_LEN=8 TTL_DAYS=14 npm run invites:seed
+```
+
+Notes
+- The script prints the generated codes to stdout; copy and distribute them securely.
+- By default it creates single-use codes (maxUses=1). For multi-use or unlimited codes, use the CLI examples above to set maxUses or unlimited explicitly (we can extend the script to accept MAX_USES/UNLIMITED if desired).
 
 ## Testing checklist
 - Unit test Lambda locally with sample events (valid, invalid, used, revoked, expired, missing code).
