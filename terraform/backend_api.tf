@@ -320,6 +320,15 @@ resource "aws_cognito_user_pool" "mbm" {
   lambda_config {
     pre_sign_up = aws_lambda_function.cognito_pre_signup.arn
   }
+
+  # Send verification and other emails via SES using our domain
+  email_configuration {
+    email_sending_account  = "DEVELOPER"
+    from_email_address     = "no-reply@mealsbymaggie.com"
+    reply_to_email_address = "hello@mealsbymaggie.com"
+    # Use SESv2 domain identity ARN
+    source_arn = aws_sesv2_email_identity.mbm_domain.arn
+  }
 }
 
 
