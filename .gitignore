@@ -142,3 +142,6 @@ exampleApp/src/pages/Index.tsx
 exampleApp/src/pages/NotFound.tsx
 exampleApp/src/types/recipe.ts
 exampleApp/src/utils/storage.ts
+
+# Tool-specific local cache/state (do not commit)
+.serena/
