@@ -28,7 +28,11 @@ body{font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetic
 .app{max-width:1040px;margin:28px auto;padding:20px}
 /* Safe-area and viewport stability for mobile */
 :root { --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px) }
-html, body { height: 100%; overflow-x: hidden }
+/* Prevent page-level horizontal scrolling and rubber-banding */
+html, body { height: 100%; width: 100%; max-width: 100%; overflow-x: hidden; overscroll-behavior-x: none }
+@supports (overflow-x: clip) {
+  html, body { overflow-x: clip }
+}
 .app { min-height: 100svh; padding-top: calc(var(--safe-top)); padding-bottom: calc(var(--safe-bottom)); overflow-x: clip }
 .app-header{margin-bottom:16px;text-align:center}
 .auth-cta-wrap{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:8px 8px; padding-top: calc(env(safe-area-inset-top, 0px) + 8px);}
@@ -37,6 +41,16 @@ html, body { height: 100%; overflow-x: hidden }
 main{display:flex;gap:20px;align-items:flex-start}
 .left{flex:1}
 .right{flex:2}
+
+/* Defensive: allow flex/grid children to shrink instead of forcing overflow */
+main, .container, .row, .grid, .left, .right, .recipe-list, .recipe-card, .recipe-body { min-width: 0 }
+:where(main, .container, .row, .grid) > * { min-width: 0 }
+
+/* Long content should wrap within its container */
+body, .app, .recipe-card, .modal, .prose { overflow-wrap: anywhere; word-break: break-word }
+
+/* Tables/code blocks scroll within themselves, not the page */
+pre, code, .code, table, .table-scroll { max-width: 100%; overflow-x: auto }
 
 .recipe-form{background:linear-gradient(180deg,var(--card),var(--accent-2));padding:16px;border-radius:14px;box-shadow:0 6px 18px rgba(122,47,75,0.08);border:1px solid rgba(122,47,75,0.06)}
 .recipe-form h2{margin:0 0 8px 0;color:hsl(var(--brand-fg))}
@@ -247,7 +261,8 @@ main{display:flex;gap:20px;align-items:flex-start}
 
 .cook-modal {
   max-width: 900px;
-  width: min(92vw, 900px);
+  /* Use percentage widths to avoid viewport scrollbar quirks on mobile */
+  width: min(100%, 900px);
   max-height: 86svh;
   overflow: auto;
   padding: 20px 22px;
@@ -255,8 +270,9 @@ main{display:flex;gap:20px;align-items:flex-start}
 
 /* Fullscreen read-only cook view */
 .cook-fullscreen {
-  width: 98vw;
-  max-width: 98vw;
+  /* Avoid vw here; 100% prevents accidental horizontal scroll */
+  width: 100%;
+  max-width: 100%;
   height: 96svh;
   max-height: 96svh;
   border-radius: 10px;
