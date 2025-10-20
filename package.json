@@ -23,13 +23,14 @@
     "react-dom": "18.2.0"
   },
   "devDependencies": {
+    "@aws-sdk/client-dynamodb": "3.913.0",
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^13.4.0",
     "@types/react": "18.2.21",
     "@types/react-dom": "18.2.7",
-  "@vitejs/plugin-react": "^4.2.3",
-  "@aws-sdk/client-dynamodb": "3.913.0",
+    "@vitejs/plugin-react": "^4.2.3",
     "jsdom": "^22.1.0",
+    "playwright": "^1.56.1",
     "sharp": "^0.33.5",
     "typescript": "5.2.2",
     "vite": "^4.5.0",

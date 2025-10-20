@@ -347,6 +347,10 @@ pre, code, .code, table, .table-scroll { max-width: 100%; overflow-x: auto }
 .install-banner__ios summary{ list-style: none; cursor: pointer }
 .install-banner__ios summary::-webkit-details-marker{ display:none }
 .install-banner__steps{ padding: 8px 0 0 0; color: var(--muted); font-size: 14px }
+/* Prevent internal horizontal overflow in very small viewports */
+.install-banner__steps { max-width: 100%; overflow-x: hidden }
+.install-banner__steps ol { list-style-position: inside; padding-left: 1rem; margin: 0 }
+.install-banner__steps li { max-width: 100%; }
 
 @media (max-width: 800px){
   main{flex-direction:column}
