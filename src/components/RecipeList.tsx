@@ -31,7 +31,7 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query, a
           if (target.closest('button') || target.closest('a')) return
           onView && onView(r)
         }}>
-          <div className="recipe-image">{
+      <div className="recipe-image">{
               r.image ? <img src={(() => {
               const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
               const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
@@ -58,14 +58,24 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query, a
                 }
               } catch {}
               return img
-            })()} alt={r.title} /> : <div className="placeholder">No Image</div>}</div>
+            })()} alt={r.title} /> : <div className="placeholder">No Image</div>}
+            {/* Overlay actions at top-right of image */}
+            <div className="recipe-card-actions recipe-card-actions--overlay" onClick={(e) => e.stopPropagation()}>
+              {authed && onEdit && (
+                <button onClick={() => onEdit(r)} className="btn-ghost" aria-label="Edit">
+                  <IconEdit size={18} />
+                </button>
+              )}
+              {authed && onDelete && (
+                <button onClick={() => onDelete(r)} className="btn-ghost" aria-label="Delete">
+                  <IconDelete size={18} />
+                </button>
+              )}
+            </div>
+          </div>
             <div className="recipe-body">
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
               <h3>{highlight(r.title, query)}</h3>
-              <div className="recipe-card-actions">
-                {authed && onEdit && <button onClick={() => onEdit(r)} className="btn-ghost" aria-label="Edit"><IconEdit /></button>}
-                {authed && onDelete && <button onClick={() => onDelete(r)} className="btn-ghost" aria-label="Delete"><IconDelete /></button>}
-              </div>
             </div>
             <p>{highlight(r.description, query) || r.description}</p>
             {/* Attribution */}
