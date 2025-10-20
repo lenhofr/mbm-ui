@@ -68,6 +68,36 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query, a
               </div>
             </div>
             <p>{highlight(r.description, query) || r.description}</p>
+            {/* Attribution */}
+            <div style={{fontSize:12, color:'var(--muted)'}}>
+              {(() => {
+                const createdBy = (r as any).createdByName as string | undefined
+                const updatedBy = (r as any).updatedByName as string | undefined
+                const createdAt = (r as any).createdAt as number | undefined
+                const updatedAt = (r as any).updatedAt as number | undefined
+                function rel(ts?: number) {
+                  if (!ts) return ''
+                  try {
+                    const d = new Date(ts * 1000)
+                    const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+                    const diff = Math.round((d.getTime() - Date.now()) / 1000)
+                    const abs = Math.abs(diff)
+                    const mins = Math.round(diff / 60)
+                    const hours = Math.round(diff / 3600)
+                    const days = Math.round(diff / 86400)
+                    if (abs < 60) return rtf.format(diff, 'second')
+                    if (abs < 3600) return rtf.format(mins, 'minute')
+                    if (abs < 86400) return rtf.format(hours, 'hour')
+                    return rtf.format(days, 'day')
+                  } catch { return '' }
+                }
+                if (updatedAt && updatedBy && createdAt && createdBy && updatedAt !== createdAt) {
+                  return <span>by {createdBy} · updated {rel(updatedAt)} by {updatedBy}</span>
+                }
+                if (createdAt && createdBy) return <span>by {createdBy} · {rel(createdAt)}</span>
+                return null
+              })()}
+            </div>
             {r.tags?.length ? (
               <div className="tag-list">
                 {r.tags.map(t => (
