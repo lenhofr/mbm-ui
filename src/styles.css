@@ -192,9 +192,9 @@ main{display:flex;gap:20px;align-items:flex-start}
   box-shadow: 0 8px 20px rgba(0,0,0,0.08);
 }
 
-/* Always show overlay on touch devices (no hover) */
+/* Mobile/touch: hide overlay actions entirely */
 @media (hover: none) and (pointer: coarse) {
-  .recipe-card-actions { opacity: 1 }
+  .recipe-card-actions--overlay { display: none !important }
 }
 
 /* Normalize icon sizes in card action buttons */
