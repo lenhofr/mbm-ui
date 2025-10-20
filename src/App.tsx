@@ -10,6 +10,7 @@ import LoginModal from './components/LoginModal'
 import { IconSignIn, IconSignOut, IconPlus } from './icons/Icons'
 import { useCognitoAuth } from './hooks/useCognitoAuth'
 import InstallPrompt from './components/InstallPrompt'
+import CompleteProfile from './components/CompleteProfile'
 
 export type Recipe = {
   id: string
@@ -26,7 +27,17 @@ export type Recipe = {
 export default function App() {
   const auth = useCognitoAuth()
   const authed = auth.isAuthed
+  const displayName = ((): string | undefined => {
+    try {
+      // nickname should be present in ID token payload after update
+      const token = (auth as any).idToken as string | undefined
+      if (!token) return undefined
+      const payload = JSON.parse(atob(token.split('.')[1] || ''))
+      return payload?.nickname as string | undefined
+    } catch { return undefined }
+  })()
   const [showLogin, setShowLogin] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
   const [recipes, setRecipes] = useState<Recipe[]>([])
 
   // Load initial recipes from storage on mount
@@ -46,8 +57,23 @@ export default function App() {
     }
   }, [])
 
+  // Prompt to complete profile if signed in and no display name
+  useEffect(() => {
+    if (authed && !displayName) {
+      setShowProfile(true)
+    } else {
+      setShowProfile(false)
+    }
+  }, [authed, displayName])
+
   async function addRecipe(r: Omit<Recipe, 'id'>) {
-    const created = await storage.createRecipe(r)
+    const created = await storage.createRecipe({
+      ...r,
+      // capture attribution locally for now (remote API can also stamp server-side)
+      tags: r.tags,
+      description: r.description,
+      title: r.title,
+    })
     setRecipes(s => [created, ...s])
   }
 
@@ -56,7 +82,9 @@ export default function App() {
   async function updateRecipe(r: Omit<Recipe, 'id'>, id?: string) {
     if (!id) return
     try {
-      const updated = await storage.updateRecipe(id, r)
+      const updated = await storage.updateRecipe(id, {
+        ...r,
+      })
       setRecipes(s => s.map(item => (item.id === id ? updated : item)))
       setEditing(null)
     } catch (e) {
@@ -297,6 +325,15 @@ export default function App() {
 
         </div>
   </div>
+      {/* Complete profile prompt when missing nickname */}
+      <CompleteProfile
+        visible={!!showProfile}
+        onClose={() => setShowProfile(false)}
+        onSaved={() => {
+          // refresh auth to get updated ID token with nickname
+          auth.refresh()
+        }}
+      />
 
   <main>
         <section className="right" style={{width:'100%'}}>
