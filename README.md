@@ -2,6 +2,8 @@
 
 Meals by Maggie — React/Vite Single Page Application (SPA) with AWS static hosting (S3 + CloudFront) managed by Terraform.
 
+See also: docs/architecture.md for a visual overview of the system.
+
 ## Quickstart
 
 Prereqs
