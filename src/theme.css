@@ -106,21 +106,35 @@ html.modal-open, body.modal-open {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Subtle blur adds depth in PWA; graceful fallback if unsupported */
   background: rgba(12,10,12,0.35);
+  -webkit-backdrop-filter: saturate(160%) blur(6px);
+  backdrop-filter: saturate(160%) blur(6px);
+  /* Respect safe areas so rounded modals don't kiss the edges/notch */
   padding: 1rem;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 1rem);
+  padding-right: calc(env(safe-area-inset-right, 0px) + 1rem);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+  padding-left: calc(env(safe-area-inset-left, 0px) + 1rem);
   z-index: 1000;
   overscroll-behavior: contain;
 }
 .modal {
   width: 100%;
   max-width: 760px;
+  /* Give the modal a proper surface; avoids see-through edges on iOS */
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  background-clip: padding-box;
   border-radius: calc(var(--radius) + 0.25rem);
   padding: 1rem 1rem 0.75rem 1rem;
   box-shadow: var(--shadow-card);
   position: relative;
   color: hsl(var(--card-foreground));
-  max-height: 90vh;
+  /* Reliable viewport sizing across iOS PWA and browsers */
+  max-height: min(90svh, 90vh);
   overflow: auto;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 .modal:focus { outline: none; }
@@ -128,8 +142,9 @@ html.modal-open, body.modal-open {
 .modal-header { margin-bottom: 0.35rem; }
 .modal-close {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  /* Keep the close button clear of notches/home indicator in PWA */
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: calc(env(safe-area-inset-right, 0px) + 12px);
   border: none;
   background: hsl(var(--card));
   width: 36px; height: 36px;
@@ -153,7 +168,7 @@ textarea { min-height: 92px; }
 .grid-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
 
 /* Cook / view modal specific styling */
-.cook-modal { max-width: 900px; max-height: 90vh; overflow:auto; padding: 1rem; -webkit-overflow-scrolling: touch; }
+.cook-modal { max-width: 900px; max-height: min(90svh, 90vh); overflow:auto; padding: 1rem; -webkit-overflow-scrolling: touch; }
 /* Sticky actions-only bar; placed at top of modal content */
 .cook-actions-sticky { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 6px); display: block; width: max-content; margin-left: auto; padding: 0; background: transparent; z-index: 5; }
 .cook-title { margin: 0; font-size: 1.25rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -172,7 +187,7 @@ textarea { min-height: 92px; }
 .cook-mode-btn:hover { background: hsl(var(--muted-bg)); }
 
 /* Active cook-mode: fullscreen, larger type, hide decorative image */
-.cook-modal.cook-mode-active { max-width: none; width: 100%; height: 100vh; max-height: none; border-radius: 0; padding: 1.25rem 1.5rem; }
+.cook-modal.cook-mode-active { max-width: none; width: 100%; height: 100svh; max-height: none; border-radius: 0; padding: 1.25rem 1.5rem; padding-top: calc(env(safe-area-inset-top, 0px) + 1.25rem); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.25rem); }
 .cook-modal.cook-mode-active .cook-image { display: none; }
 .cook-modal.cook-mode-active .cook-content { font-size: 1.15rem; line-height: 1.6 }
 .cook-modal.cook-mode-active .cook-tags { display: none; }
@@ -220,7 +235,20 @@ textarea { min-height: 92px; }
 @media (max-width: 640px) {
   .modal { padding: 1rem }
   .grid-two { grid-template-columns: 1fr; }
-  .modal { max-width: 520px }
+  .modal { max-width: 520px; max-height: min(90svh, 90vh) }
+}
+
+/* Dark-scheme backdrop balance (less milky) */
+@media (prefers-color-scheme: dark) {
+  .modal-backdrop { background: rgba(8,8,10,0.45); }
+}
+
+/* Standalone (PWA) mode: ensure safe-area padding even if browser bars are gone */
+@media (display-mode: standalone) {
+  .modal-backdrop {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 1rem);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+  }
 }
 
 /* Amplify UI theming to align with app colors */
