@@ -82,19 +82,27 @@ Then in DevTools, toggle `.debug-overflow` on suspects via the element panel.
 - Test small viewports and rotate
 - Verify no left/right panning occurs
 
-## Repo-specific checklist
+## Repo-specific checklist (updated)
 
 - Global page overflow
-  - [ ] Ensure `html, body { overflow-x: clip; }` (with hidden fallback) is in `src/styles.css`
+  - [x] Ensure `html, body { overflow-x: clip; }` (with hidden fallback) is in `src/styles.css` (also added `overscroll-behavior-x: none`)
 - Flex/Grid containers
-  - [ ] Add `min-width: 0` to `.recipe-list`, `.recipe-card`, `.recipe-body`, `.left`, `.right`, and any custom rows/containers
+  - [x] Add `min-width: 0` to `.recipe-list`, `.recipe-card`, `.recipe-body`, `.left`, `.right`, and any custom rows/containers; also added a defensive `:where(main, .container, .row, .grid) > * { min-width: 0 }`
 - Media
-  - [ ] Keep `img, svg, video, canvas { max-width: 100%; height: auto }`
+  - [x] Keep `img, svg, video, canvas { max-width: 100%; height: auto }`
 - Overlay actions
-  - [ ] `.recipe-image { overflow: hidden }` and the overlay `.recipe-card-actions--overlay` is positioned from the top/right, not using negative offsets
-  - [ ] On touch devices, we already hide the overlay: `@media (hover: none) and (pointer: coarse) { .recipe-card-actions--overlay { display: none } }`
+  - [x] `.recipe-image { overflow: hidden }` and the overlay `.recipe-card-actions--overlay` is positioned from the top/right, not using negative offsets
+  - [x] On touch devices, we already hide the overlay: `@media (hover: none) and (pointer: coarse) { .recipe-card-actions--overlay { display: none } }`
 - Full-bleed sections
-  - [ ] Avoid `100vw`; prefer `width: 100%`
+  - [x] Avoid `100vw`; prefer `width: 100%` — replaced `width: min(92vw, 900px)` with `min(100%, 900px)` and `.cook-fullscreen` from `98vw` to `100%` to prevent viewport scrollbar-induced overflow.
+
+Changes implemented in this PR:
+
+- html/body: `overflow-x: clip` with `hidden` fallback and `overscroll-behavior-x: none`
+- Defensive `min-width: 0` on common flex/grid containers and children
+- `overflow-wrap: anywhere; word-break: break-word` on common content wrappers
+- `pre, code, table` constrained to `max-width: 100%` with `overflow-x: auto`
+- Avoided `vw` widths in cook modal and fullscreen variants
 
 ## Optional: defensive utility snippet
 
