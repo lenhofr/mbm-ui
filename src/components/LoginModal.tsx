@@ -55,7 +55,7 @@ export default function LoginModal({ visible, onClose }: Props) {
         </div>
         <div style={{ padding: '6px 2px 10px' }}>
           <Authenticator
-            signUpAttributes={[ 'email' ]}
+            signUpAttributes={[ 'email', 'nickname' ]}
             formFields={{
               signUp: {
                 'custom:invite': {
@@ -64,9 +64,15 @@ export default function LoginModal({ visible, onClose }: Props) {
                   isRequired: true,
                   order: 1,
                 },
-                email: { order: 2 },
-                password: { order: 3 },
-                confirm_password: { order: 4 },
+                nickname: {
+                  label: 'Display name',
+                  placeholder: 'What should we call you?',
+                  isRequired: false,
+                  order: 2,
+                },
+                email: { order: 3 },
+                password: { order: 4 },
+                confirm_password: { order: 5 },
               },
             }}
             components={{
