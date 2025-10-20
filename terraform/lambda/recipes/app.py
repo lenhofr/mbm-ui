@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+import time
 import boto3
 from botocore.exceptions import ClientError
 
@@ -95,6 +96,20 @@ def handler(event, context):
     if norm_path.endswith('/') and norm_path != '/':
         norm_path = norm_path.rstrip('/')
 
+    # Helper: extract identity from Cognito JWT claims (via API Gateway HTTP API authorizer)
+    def get_identity():
+        claims = (((event or {}).get('requestContext') or {}).get('authorizer') or {}).get('jwt', {}).get('claims', {})
+        sub = claims.get('sub') or claims.get('cognito:username')
+        email = claims.get('email')
+        nickname = claims.get('nickname')
+        # Derive a friendly display name
+        name = nickname or ((email.split('@')[0]) if email and '@' in email else None) or sub or 'user'
+        return {
+            'sub': sub,
+            'email': email,
+            'name': name,
+        }
+
     # Recipes
     if route_key in (
         'GET /recipes',
@@ -130,7 +145,19 @@ def handler(event, context):
             try:
                 body = json.loads(event.get('body') or '{}')
                 recipe_id = str(uuid.uuid4())
-                item = {'recipeId': recipe_id, **body}
+                ident = get_identity()
+                now = int(time.time())
+                # Stamp attribution and timestamps
+                item = {
+                    'recipeId': recipe_id,
+                    **body,
+                    'createdAt': now,
+                    'createdBySub': ident.get('sub'),
+                    'createdByName': ident.get('name'),
+                    'updatedAt': now,
+                    'updatedBySub': ident.get('sub'),
+                    'updatedByName': ident.get('name'),
+                }
                 table.put_item(Item=item)
                 return response(201, map_recipe_out(item))
             except ClientError as e:
@@ -142,7 +169,28 @@ def handler(event, context):
                 return response(400, {'message': 'Missing id'})
             try:
                 body = json.loads(event.get('body') or '{}')
-                item = {'recipeId': recipe_id, **body}
+                ident = get_identity()
+                now = int(time.time())
+
+                # Load existing to preserve created* fields if present
+                existing = table.get_item(Key={'recipeId': recipe_id}).get('Item') or {}
+                created_at = existing.get('createdAt') or now
+                created_by_sub = existing.get('createdBySub')
+                created_by_name = existing.get('createdByName')
+
+                item = {
+                    'recipeId': recipe_id,
+                    **existing,
+                    **body,
+                    # preserve original creation metadata
+                    'createdAt': created_at,
+                    'createdBySub': created_by_sub,
+                    'createdByName': created_by_name,
+                    # update modification metadata
+                    'updatedAt': now,
+                    'updatedBySub': ident.get('sub'),
+                    'updatedByName': ident.get('name'),
+                }
                 table.put_item(Item=item)
                 return response(200, map_recipe_out(item))
             except ClientError as e:
