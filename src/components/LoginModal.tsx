@@ -17,8 +17,15 @@ export default function LoginModal({ visible, onClose }: Props) {
     const w = window as any
     w.__modalCount = (w.__modalCount || 0) + 1
     if (w.__modalCount === 1) {
+      const y = window.scrollY || document.documentElement.scrollTop || 0
+      w.__scrollYBeforeModal = y
       document.documentElement.classList.add('modal-open')
       document.body.classList.add('modal-open')
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${y}px`
+      document.body.style.left = '0'
+      document.body.style.right = '0'
+      document.body.style.width = '100%'
     }
   }
   function unlockScroll() {
@@ -27,6 +34,14 @@ export default function LoginModal({ visible, onClose }: Props) {
     if (w.__modalCount === 0) {
       document.documentElement.classList.remove('modal-open')
       document.body.classList.remove('modal-open')
+      const y = typeof w.__scrollYBeforeModal === 'number' ? w.__scrollYBeforeModal : Math.max(0, -(parseInt(document.body.style.top || '0', 10) || 0))
+      document.body.style.position = ''
+      document.body.style.top = ''
+      document.body.style.left = ''
+      document.body.style.right = ''
+      document.body.style.width = ''
+      window.scrollTo(0, y)
+      w.__scrollYBeforeModal = undefined
     }
   }
   React.useEffect(() => {

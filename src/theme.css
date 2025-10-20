@@ -55,7 +55,13 @@ h1, h2, h3, h4, h5, h6, .cook-title, .hero-title {
   font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
 }
 /* Prevent background scroll when a modal is open */
-html.modal-open, body.modal-open { overflow: hidden; height: 100%; }
+/* Stronger background scroll lock for iOS Safari / PWA */
+html.modal-open, body.modal-open {
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+  overscroll-behavior: contain;
+}
 
 /* Utility classes used by the Hero component */
 .hero-card {
