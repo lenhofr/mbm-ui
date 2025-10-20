@@ -22,6 +22,22 @@ Tests
 npm test
 ```
 
+Quick iOS Safari overflow check (WebKit)
+```bash
+# one-time: install the WebKit engine
+npm run browser:install-webkit
+
+# build the app and run the overflow detector across iPhone 12/SE portrait+landscape
+npm run build
+npm run test:ios-overflow
+```
+What it does:
+- Serves the built app from `dist/` on localhost.
+- Launches WebKit with iPhone device profiles and loads the SPA.
+- Checks `documentElement` and `body` for horizontal overflow and lists any top offenders.
+- Opens a recipe card and toggles cook mode if present to exercise modals.
+The script is at `scripts/ios-overflow-check.mjs`.
+
 Build & preview
 ```bash
 npm run build
