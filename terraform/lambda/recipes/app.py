@@ -1,5 +1,6 @@
 import os
 import json
+from decimal import Decimal
 import uuid
 import time
 import boto3
@@ -14,10 +15,25 @@ def get_dynamodb():
     return boto3.resource('dynamodb', region_name=region)
 
 
+def _to_jsonable(obj):
+    """Recursively convert DynamoDB Decimals and nested structures to JSON-serializable types."""
+    if isinstance(obj, Decimal):
+        # Preserve integers as int, otherwise use float
+        try:
+            return int(obj) if obj % 1 == 0 else float(obj)
+        except Exception:
+            return float(obj)
+    if isinstance(obj, dict):
+        return {k: _to_jsonable(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_to_jsonable(v) for v in obj]
+    return obj
+
+
 def response(status_code, body):
     return {
         'statusCode': status_code,
-        'body': json.dumps(body),
+        'body': json.dumps(_to_jsonable(body)),
         'headers': {'Content-Type': 'application/json'}
     }
 
@@ -95,6 +111,13 @@ def handler(event, context):
         norm_path = norm_path.replace('//', '/')
     if norm_path.endswith('/') and norm_path != '/':
         norm_path = norm_path.rstrip('/')
+
+    # Emit a lightweight log line for quick diagnostics in CloudWatch
+    try:
+        region = os.environ.get('AWS_REGION', 'us-east-1')
+        print(f"recipes lambda: method={method} route_key={route_key} raw_path={raw_path} table={RECIPES_TABLE} region={region}")
+    except Exception:
+        pass
 
     # Helper: extract identity from Cognito JWT claims (via API Gateway HTTP API authorizer)
     def get_identity():
