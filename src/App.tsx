@@ -383,6 +383,12 @@ export default function App() {
     {authed && (
       <>
         <span aria-hidden>{' '}·{' '}</span>
+        {displayName && (
+          <>
+            <span>Signed in as {displayName}</span>
+            <span aria-hidden>{' '}·{' '}</span>
+          </>
+        )}
         <button className="footer-link" onClick={() => auth.signOut()} aria-label="Log out">Logout</button>
       </>
     )}

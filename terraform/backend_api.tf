@@ -302,7 +302,8 @@ resource "aws_cognito_user_pool" "mbm" {
     require_uppercase = true
   }
 
-  auto_verified_attributes = ["email"]
+  # Disable email verification - invite code provides sufficient security
+  auto_verified_attributes = []
 
   # Custom attribute to capture invite code
   schema {
