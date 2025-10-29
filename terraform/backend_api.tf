@@ -305,9 +305,6 @@ resource "aws_cognito_user_pool" "mbm" {
   # Disable email verification - invite code provides sufficient security
   auto_verified_attributes = []
 
-  # Explicitly set username attributes to avoid phone number requirements
-  username_attributes = ["email"]
-
   # Disable MFA to prevent SMS verification
   mfa_configuration = "OFF"
 
