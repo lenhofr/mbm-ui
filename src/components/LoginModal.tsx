@@ -70,7 +70,7 @@ export default function LoginModal({ visible, onClose }: Props) {
         </div>
         <div style={{ padding: '6px 2px 10px' }}>
           <Authenticator
-            signUpAttributes={[ 'email', 'nickname' ]}
+            signUpAttributes={['email', 'nickname'] as any}
             formFields={{
               signUp: {
                 'custom:invite': {
@@ -88,26 +88,6 @@ export default function LoginModal({ visible, onClose }: Props) {
                 email: { order: 3 },
                 password: { order: 4 },
                 confirm_password: { order: 5 },
-              },
-            }}
-            services={{
-              async handleSignUp(formData: any) {
-                // Override default signup to skip verification
-                const { signUp } = await import('aws-amplify/auth');
-                return signUp({
-                  username: formData.email || formData.username,
-                  password: formData.password,
-                  options: {
-                    userAttributes: {
-                      email: formData.email || formData.username,
-                      nickname: formData.nickname,
-                      'custom:invite': formData['custom:invite'],
-                    },
-                    autoSignIn: {
-                      enabled: true,
-                    },
-                  },
-                });
               },
             }}
             components={{

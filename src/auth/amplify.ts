@@ -27,16 +27,6 @@ Amplify.configure({
       // region is optional; inferred from userPoolId if omitted
       // @ts-ignore - region is supported but optional in v6
       region: region,
-      // Explicitly disable all verification methods
-      signUpVerificationMethod: undefined,
-      userAttributes: {
-        email: {
-          required: false,
-        },
-        phone_number: {
-          required: false,
-        },
-      },
       loginWith: {
         // enable email as primary login input; adjust if you use username/phone
         email: true,
