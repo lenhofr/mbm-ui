@@ -302,19 +302,8 @@ resource "aws_cognito_user_pool" "mbm" {
     require_uppercase = true
   }
 
-  # Disable email verification - invite code provides sufficient security
-  auto_verified_attributes = []
-
-  # Disable MFA to prevent SMS verification
-  mfa_configuration = "OFF"
-
-  # Disable account recovery to prevent SMS verification triggers
-  account_recovery_setting {
-    recovery_mechanism {
-      name     = "verified_email"
-      priority = 1
-    }
-  }
+  # Enable email verification now that SES production access is approved
+  auto_verified_attributes = ["email"]
 
   # Custom attribute to capture invite code
   schema {
@@ -333,14 +322,20 @@ resource "aws_cognito_user_pool" "mbm" {
     pre_sign_up = aws_lambda_function.cognito_pre_signup.arn
   }
 
-  # Email configuration kept for potential future use
-  # (currently not used since auto_verified_attributes = [])
+  # Send verification and other emails via SES using our domain
   email_configuration {
     email_sending_account  = "DEVELOPER"
     from_email_address     = "Meals by Maggie <no-reply@mealsbymaggie.com>"
     reply_to_email_address = "hello@mealsbymaggie.com"
     # Use SESv2 domain identity ARN
     source_arn = aws_sesv2_email_identity.mbm_domain.arn
+  }
+
+  # Brand the verification email (code option) with personalized messaging
+  verification_message_template {
+    default_email_option = "CONFIRM_WITH_CODE"
+    email_subject        = "Welcome to Meals by Maggie! Please verify your email"
+    email_message        = "Hi {nickname}! 👋\n\nWelcome to Meals by Maggie! We're excited to have you join our cooking community.\n\nPlease enter this verification code to complete your account setup:\n\n{####}\n\nThis code will expire in 24 hours. If you didn't create this account, you can safely ignore this email.\n\nHappy cooking!\nThe Meals by Maggie Team"
   }
 }
 
