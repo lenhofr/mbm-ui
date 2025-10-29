@@ -331,6 +331,15 @@ resource "aws_cognito_user_pool" "mbm" {
     source_arn = aws_sesv2_email_identity.mbm_domain.arn
   }
 
+  # Ensure SES domain and DKIM are fully configured before creating user pool
+  depends_on = [
+    aws_sesv2_email_identity.mbm_domain,
+    aws_route53_record.ses_dkim,
+    aws_sesv2_email_identity_mail_from_attributes.mbm_mail_from,
+    aws_route53_record.ses_mail_from_mx,
+    aws_route53_record.ses_mail_from_txt
+  ]
+
   # Brand the verification email (code option) with personalized messaging
   verification_message_template {
     default_email_option = "CONFIRM_WITH_CODE"
