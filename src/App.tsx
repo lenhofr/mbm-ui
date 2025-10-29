@@ -385,7 +385,7 @@ export default function App() {
         <span aria-hidden>{' '}·{' '}</span>
         {displayName && (
           <>
-            <span>Signed in as {displayName}</span>
+            <span>Hi {displayName}!</span>
             <span aria-hidden>{' '}·{' '}</span>
           </>
         )}
