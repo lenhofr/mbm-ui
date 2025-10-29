@@ -305,6 +305,9 @@ resource "aws_cognito_user_pool" "mbm" {
   # Disable email verification - invite code provides sufficient security
   auto_verified_attributes = []
 
+  # Disable MFA to prevent SMS verification
+  mfa_configuration = "OFF"
+
   # Custom attribute to capture invite code
   schema {
     attribute_data_type      = "String"
@@ -322,20 +325,14 @@ resource "aws_cognito_user_pool" "mbm" {
     pre_sign_up = aws_lambda_function.cognito_pre_signup.arn
   }
 
-  # Send verification and other emails via SES using our domain
+  # Email configuration kept for potential future use
+  # (currently not used since auto_verified_attributes = [])
   email_configuration {
     email_sending_account  = "DEVELOPER"
     from_email_address     = "Meals by Maggie <no-reply@mealsbymaggie.com>"
     reply_to_email_address = "hello@mealsbymaggie.com"
     # Use SESv2 domain identity ARN
     source_arn = aws_sesv2_email_identity.mbm_domain.arn
-  }
-
-  # Brand the verification email (code option)
-  verification_message_template {
-    default_email_option = "CONFIRM_WITH_CODE"
-    email_subject        = "Meals by Maggie verification code"
-    email_message        = "Your confirmation code is {####}"
   }
 }
 

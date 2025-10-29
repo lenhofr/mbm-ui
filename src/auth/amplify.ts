@@ -27,7 +27,8 @@ Amplify.configure({
       // region is optional; inferred from userPoolId if omitted
       // @ts-ignore - region is supported but optional in v6
       region: region,
-      signUpVerificationMethod: 'code',
+      // Remove signUpVerificationMethod to allow server-side configuration
+      // signUpVerificationMethod: 'code',
       loginWith: {
         // enable email as primary login input; adjust if you use username/phone
         email: true,
