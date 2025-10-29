@@ -331,11 +331,11 @@ resource "aws_cognito_user_pool" "mbm" {
     source_arn = aws_sesv2_email_identity.mbm_domain.arn
   }
 
-  # Brand the verification email (code option)
+  # Brand the verification email (code option) with personalized messaging
   verification_message_template {
     default_email_option = "CONFIRM_WITH_CODE"
-    email_subject        = "Meals by Maggie verification code"
-    email_message        = "Your confirmation code is {####}"
+    email_subject        = "Welcome to Meals by Maggie! Please verify your email"
+    email_message        = "Hi {nickname}! 👋\n\nWelcome to Meals by Maggie! We're excited to have you join our cooking community.\n\nPlease enter this verification code to complete your account setup:\n\n{####}\n\nThis code will expire in 24 hours. If you didn't create this account, you can safely ignore this email.\n\nHappy cooking!\nThe Meals by Maggie Team"
   }
 }
 
