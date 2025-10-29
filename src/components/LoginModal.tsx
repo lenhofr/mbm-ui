@@ -70,7 +70,7 @@ export default function LoginModal({ visible, onClose }: Props) {
         </div>
         <div style={{ padding: '6px 2px 10px' }}>
           <Authenticator
-            signUpAttributes={[ 'email', 'nickname' ]}
+            signUpAttributes={['email', 'nickname'] as any}
             formFields={{
               signUp: {
                 'custom:invite': {
