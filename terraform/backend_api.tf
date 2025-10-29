@@ -308,6 +308,14 @@ resource "aws_cognito_user_pool" "mbm" {
   # Disable MFA to prevent SMS verification
   mfa_configuration = "OFF"
 
+  # Disable account recovery to prevent SMS verification triggers
+  account_recovery_setting {
+    recovery_mechanism {
+      name     = "verified_email"
+      priority = 1
+    }
+  }
+
   # Custom attribute to capture invite code
   schema {
     attribute_data_type      = "String"
