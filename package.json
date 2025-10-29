@@ -8,6 +8,7 @@
     "preview": "vite preview --port 4173",
     "test": "vitest --run",
     "test:ios-overflow": "node scripts/ios-overflow-check.mjs",
+    "verify:images": "node scripts/verify-images.mjs",
     "browser:install-webkit": "playwright install webkit",
     "icons": "node scripts/generate-icons.mjs",
     "invites:seed": "node scripts/seed-invites.mjs",

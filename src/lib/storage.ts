@@ -141,6 +141,18 @@ export function createStorage(): Storage {
   const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
   const base = (viteBase || legacyBase || '').trim()
   if (base) return new RemoteAdapter(base)
+  // In production builds without a configured API base, warn and fall back to LocalAdapter
+  try {
+    const isProd = Boolean((import.meta as any).env?.PROD)
+    const host = typeof window !== 'undefined' ? window.location.hostname : 'unknown'
+    const isLocalhost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(host)
+    if (isProd && !isLocalhost) {
+      // eslint-disable-next-line no-console
+      console.warn('[storage] No VITE_API_BASE configured at build time; using LocalAdapter. Server recipes will not load.')
+    }
+  } catch {
+    // noop
+  }
   return new LocalAdapter()
 }
 

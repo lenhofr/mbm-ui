@@ -91,6 +91,10 @@ VITE_COGNITO_REDIRECT_URI=http://localhost:5173/
 
 Reads (GET) remain public; writes (POST/PUT/DELETE) require an authenticated session and will send an Authorization header.
 
+Production builds note:
+- Vite inlines env vars at build time. Ensure your CI/CD sets `VITE_API_BASE` (and other `VITE_…` vars) in the environment when running `npm run build`.
+- If `VITE_API_BASE` is missing in a production build, the app falls back to local storage and you won't see server recipes. A console warning will be emitted to aid diagnosis.
+
 ## Architecture & roadmap (original, preserved)
 
 Here’s a high-level plan to deploy a Single Page Application (SPA) for storing recipes, pictures, and ratings on AWS using S3, CloudFront, and Lambda:

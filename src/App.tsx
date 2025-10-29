@@ -39,6 +39,7 @@ export default function App() {
   const [showLogin, setShowLogin] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // Load initial recipes from storage on mount
   useEffect(() => {
@@ -49,7 +50,8 @@ export default function App() {
         if (mounted && items && items.length) setRecipes(items)
         // If storage is empty, we could seed with defaults; keep empty for now
       } catch (e) {
-        // ignore and leave recipes empty
+        // Capture error for visibility (helps diagnose prod API/config issues)
+        if (mounted) setLoadError((e as Error)?.message || 'load-failed')
       }
     })()
     return () => {
@@ -325,6 +327,31 @@ export default function App() {
 
         </div>
   </div>
+      {/* Config and load-state hint: show when running without API base or when initial load failed */}
+      {(() => {
+        const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
+        const isProd = Boolean((import.meta as any).env?.PROD)
+        const host = typeof window !== 'undefined' ? window.location.hostname : ''
+        const isLocalhost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(host)
+        const noRemoteApi = !viteBase && isProd && !isLocalhost
+        if (!noRemoteApi && !loadError) return null
+        const message = noRemoteApi
+          ? 'Remote API base is not configured for this build; using local storage (no server recipes).'
+          : 'Failed to load recipes from server. Please try again.'
+        return (
+          <div role="status" aria-live="polite" style={{
+            maxWidth:1040,
+            margin:'0 auto 16px',
+            padding:'12px 16px',
+            borderRadius:8,
+            border:'1px solid var(--muted-border, #ddd)',
+            background:'var(--muted-bg, #fafafa)',
+            color:'var(--muted-fg, #555)'
+          }}>
+            <span style={{fontWeight:600}}>Heads up:</span> {message}
+          </div>
+        )
+      })()}
       {/* Complete profile prompt when missing nickname */}
       <CompleteProfile
         visible={!!showProfile}
