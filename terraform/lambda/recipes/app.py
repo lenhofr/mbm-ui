@@ -3,6 +3,7 @@ import json
 from decimal import Decimal
 import uuid
 import time
+import base64
 import boto3
 from botocore.exceptions import ClientError
 
@@ -121,12 +122,58 @@ def handler(event, context):
 
     # Helper: extract identity from Cognito JWT claims (via API Gateway HTTP API authorizer)
     def get_identity():
-        claims = (((event or {}).get('requestContext') or {}).get('authorizer') or {}).get('jwt', {}).get('claims', {})
-        sub = claims.get('sub') or claims.get('cognito:username')
+        rc = (event or {}).get('requestContext') or {}
+        auth_ctx = (rc.get('authorizer') or {})
+        claims = (auth_ctx.get('jwt') or {}).get('claims') or auth_ctx.get('claims') or {}
+
+        # Fallback: decode JWT from Authorization header without verification.
+        # API Gateway already enforced the JWT authorizer for protected routes, so we only use this
+        # to extract display attributes (nickname/email/etc.).
+        if not claims:
+            try:
+                authz = (event.get('headers') or {}).get('authorization') or (event.get('headers') or {}).get('Authorization')
+                if authz and isinstance(authz, str) and authz.lower().startswith('bearer '):
+                    token = authz.split(' ', 1)[1].strip()
+                    parts = token.split('.')
+                    if len(parts) == 3:
+                        payload_b64 = parts[1]
+                        # Base64url decode
+                        rem = len(payload_b64) % 4
+                        if rem:
+                            payload_b64 += '=' * (4 - rem)
+                        payload_json = base64.urlsafe_b64decode(payload_b64.encode('utf-8')).decode('utf-8')
+                        claims = json.loads(payload_json)
+            except Exception:
+                # Ignore failures; we'll fall back to defaults
+                pass
+
+        # Pull out common user identifiers from either ID or Access token
+        sub = (claims.get('sub')
+               or claims.get('cognito:username')
+               or claims.get('username'))
         email = claims.get('email')
-        nickname = claims.get('nickname')
-        # Derive a friendly display name
-        name = nickname or ((email.split('@')[0]) if email and '@' in email else None) or sub or 'user'
+
+        # Prefer friendly names if present
+        nickname = (claims.get('nickname')
+                    or claims.get('preferred_username')
+                    or claims.get('name'))
+        given = claims.get('given_name')
+        family = claims.get('family_name')
+
+        friendly_from_email = None
+        if email and isinstance(email, str) and '@' in email:
+            friendly_from_email = email.split('@')[0]
+
+        # Derive display name by precedence
+        name = (
+            nickname
+            or (f"{given} {family}".strip() if given or family else None)
+            or friendly_from_email
+            or (claims.get('cognito:username') or claims.get('username'))
+            or sub
+            or 'user'
+        )
+
         return {
             'sub': sub,
             'email': email,

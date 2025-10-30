@@ -12,6 +12,7 @@ export default function DetailsModal({
   initialRecipe,
   onCook,
   onLogin,
+  currentUserName,
 }: {
   visible: boolean
   onClose: () => void
@@ -19,6 +20,7 @@ export default function DetailsModal({
   initialRecipe?: Partial<Recipe> | null
   onCook?: (r: Recipe) => void
   onLogin?: () => void
+  currentUserName?: string
 }) {
   const auth = useCognitoAuth()
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -350,10 +352,16 @@ export default function DetailsModal({
           {initialRecipe && (initialRecipe as any).createdAt && (
             <div style={{fontSize:12,color:'var(--muted)'}}>
               {(() => {
-                const createdBy = (initialRecipe as any).createdByName as string | undefined
-                const updatedBy = (initialRecipe as any).updatedByName as string | undefined
+                const createdByRaw = (initialRecipe as any).createdByName as string | undefined
+                const updatedByRaw = (initialRecipe as any).updatedByName as string | undefined
                 const createdAt = (initialRecipe as any).createdAt as number | undefined
                 const updatedAt = (initialRecipe as any).updatedAt as number | undefined
+                const sanitizeName = (name?: string) => {
+                  if (!name || name.toLowerCase() === 'user') return currentUserName || name
+                  return name
+                }
+                const createdBy = sanitizeName(createdByRaw)
+                const updatedBy = sanitizeName(updatedByRaw)
                 function rel(ts?: number) {
                   if (!ts) return ''
                   try {
