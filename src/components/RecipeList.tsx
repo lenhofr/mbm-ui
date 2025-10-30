@@ -10,7 +10,7 @@ function highlight(text: string | undefined, q: string | undefined) {
   return parts.map((p, i) => (re.test(p) ? <mark key={i} className="search-highlight">{p}</mark> : <span key={i}>{p}</span>))
 }
 
-export default function RecipeList({ recipes, onEdit, onDelete, onView, query, authed, onLogin, currentUserName }: { recipes: Recipe[]; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void; onView?: (r: Recipe) => void; query?: string; authed?: boolean; onLogin?: () => void; currentUserName?: string }) {
+export default function RecipeList({ recipes, onEdit, onDelete, onView, query, authed, onLogin, currentUserName, currentUserSub }: { recipes: Recipe[]; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void; onView?: (r: Recipe) => void; query?: string; authed?: boolean; onLogin?: () => void; currentUserName?: string; currentUserSub?: string }) {
   if (recipes.length === 0) return (
     <div>
       No recipes yet — add one!
@@ -83,14 +83,19 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query, a
               {(() => {
                 const createdByRaw = (r as any).createdByName as string | undefined
                 const updatedByRaw = (r as any).updatedByName as string | undefined
+                const createdBySub = (r as any).createdBySub as string | undefined
+                const updatedBySub = (r as any).updatedBySub as string | undefined
                 const createdAt = (r as any).createdAt as number | undefined
                 const updatedAt = (r as any).updatedAt as number | undefined
-                const sanitizeName = (name?: string) => {
-                  if (!name || name.toLowerCase() === 'user') return currentUserName || name
-                  return name
+                const deriveName = (name: string | undefined, sub: string | undefined): string | undefined => {
+                  if (name && name.toLowerCase() !== 'user') return name
+                  // Only substitute viewer's nickname if the record belongs to them
+                  if (currentUserSub && sub && sub === currentUserSub && currentUserName) return currentUserName
+                  // Otherwise, omit the name (don't show "user")
+                  return undefined
                 }
-                const createdBy = sanitizeName(createdByRaw)
-                const updatedBy = sanitizeName(updatedByRaw)
+                const createdBy = deriveName(createdByRaw, createdBySub)
+                const updatedBy = deriveName(updatedByRaw, updatedBySub)
                 function rel(ts?: number) {
                   if (!ts) return ''
                   try {
@@ -107,10 +112,16 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query, a
                     return rtf.format(days, 'day')
                   } catch { return '' }
                 }
-                if (updatedAt && updatedBy && createdAt && createdBy && updatedAt !== createdAt) {
-                  return <span>by {createdBy} · updated {rel(updatedAt)} by {updatedBy}</span>
+                if (updatedAt && createdAt && updatedAt !== createdAt) {
+                  if (createdBy && updatedBy) return <span>by {createdBy} · updated {rel(updatedAt)} by {updatedBy}</span>
+                  if (createdBy) return <span>by {createdBy} · updated {rel(updatedAt)}</span>
+                  if (updatedBy) return <span>updated {rel(updatedAt)} by {updatedBy}</span>
+                  return <span>updated {rel(updatedAt)}</span>
                 }
-                if (createdAt && createdBy) return <span>by {createdBy} · {rel(createdAt)}</span>
+                if (createdAt) {
+                  if (createdBy) return <span>by {createdBy} · {rel(createdAt)}</span>
+                  return <span>{rel(createdAt)}</span>
+                }
                 return null
               })()}
             </div>

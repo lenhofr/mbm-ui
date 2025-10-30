@@ -36,6 +36,14 @@ export default function App() {
       return payload?.nickname as string | undefined
     } catch { return undefined }
   })()
+    const currentUserSub = (() => {
+      try {
+        const token = (auth as any).idToken as string | undefined
+        if (!token) return undefined
+        const payload = JSON.parse(atob(token.split('.')[1] || ''))
+        return (payload?.sub || payload?.['cognito:username']) as string | undefined
+      } catch { return undefined }
+    })()
   const [showLogin, setShowLogin] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [recipes, setRecipes] = useState<Recipe[]>([])
@@ -338,6 +346,7 @@ export default function App() {
   <main>
         <section className="right" style={{width:'100%'}}>
           <RecipeList
+          currentUserSub={currentUserSub}
             recipes={filtered}
             onEdit={authed ? startEdit : undefined}
             onDelete={authed ? requestDelete : undefined}
@@ -351,11 +360,21 @@ export default function App() {
       </main>
 
     {editing && (
-  <DetailsModal visible={true} onClose={() => setEditing(null)} onSave={updateRecipe} initialRecipe={editing} onCook={startView} onLogin={() => setShowLogin(true)} currentUserName={displayName} />
+      <DetailsModal
+        visible={true}
+        onClose={() => setEditing(null)}
+        onSave={updateRecipe}
+        initialRecipe={editing}
+        onCook={startView}
+  onLogin={() => setShowLogin(true)}
+        currentUserName={displayName}
+        currentUserSub={currentUserSub}
+      />
     )}
 
       {showAddModal && (
         <DetailsModal
+         currentUserSub={currentUserSub}
           visible={true}
           onClose={() => setShowAddModal(false)}
           onSave={(r) => { addRecipe(r); setShowAddModal(false) }}
