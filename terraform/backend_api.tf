@@ -325,7 +325,7 @@ resource "aws_cognito_user_pool" "mbm" {
   # Send verification and other emails via SES using our domain
   email_configuration {
     email_sending_account  = "DEVELOPER"
-    from_email_address     = "Meals by Maggie <no-reply@mealsbymaggie.com>"
+    from_email_address     = "Meals by Maggie <no-reply@mail.mealsbymaggie.com>"
     reply_to_email_address = "hello@mealsbymaggie.com"
     # Use SESv2 domain identity ARN
     source_arn = aws_sesv2_email_identity.mbm_domain.arn
