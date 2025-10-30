@@ -10,7 +10,7 @@ function highlight(text: string | undefined, q: string | undefined) {
   return parts.map((p, i) => (re.test(p) ? <mark key={i} className="search-highlight">{p}</mark> : <span key={i}>{p}</span>))
 }
 
-export default function RecipeList({ recipes, onEdit, onDelete, onView, query, authed, onLogin }: { recipes: Recipe[]; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void; onView?: (r: Recipe) => void; query?: string; authed?: boolean; onLogin?: () => void }) {
+export default function RecipeList({ recipes, onEdit, onDelete, onView, query, authed, onLogin, currentUserName }: { recipes: Recipe[]; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void; onView?: (r: Recipe) => void; query?: string; authed?: boolean; onLogin?: () => void; currentUserName?: string }) {
   if (recipes.length === 0) return (
     <div>
       No recipes yet — add one!
@@ -81,10 +81,16 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query, a
             {/* Attribution */}
             <div style={{fontSize:12, color:'var(--muted)'}}>
               {(() => {
-                const createdBy = (r as any).createdByName as string | undefined
-                const updatedBy = (r as any).updatedByName as string | undefined
+                const createdByRaw = (r as any).createdByName as string | undefined
+                const updatedByRaw = (r as any).updatedByName as string | undefined
                 const createdAt = (r as any).createdAt as number | undefined
                 const updatedAt = (r as any).updatedAt as number | undefined
+                const sanitizeName = (name?: string) => {
+                  if (!name || name.toLowerCase() === 'user') return currentUserName || name
+                  return name
+                }
+                const createdBy = sanitizeName(createdByRaw)
+                const updatedBy = sanitizeName(updatedByRaw)
                 function rel(ts?: number) {
                   if (!ts) return ''
                   try {

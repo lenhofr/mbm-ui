@@ -345,12 +345,13 @@ export default function App() {
             query={debouncedQuery}
             authed={authed}
             onLogin={() => setShowLogin(true)}
+            currentUserName={displayName}
           />
         </section>
       </main>
 
     {editing && (
-  <DetailsModal visible={true} onClose={() => setEditing(null)} onSave={updateRecipe} initialRecipe={editing} onCook={startView} onLogin={() => setShowLogin(true)} />
+  <DetailsModal visible={true} onClose={() => setEditing(null)} onSave={updateRecipe} initialRecipe={editing} onCook={startView} onLogin={() => setShowLogin(true)} currentUserName={displayName} />
     )}
 
       {showAddModal && (
@@ -360,6 +361,7 @@ export default function App() {
           onSave={(r) => { addRecipe(r); setShowAddModal(false) }}
           initialRecipe={{ title: '', description: '' }}
           onLogin={() => setShowLogin(true)}
+          currentUserName={displayName}
         />
       )}
 
