@@ -13,6 +13,7 @@ export default function DetailsModal({
   onCook,
   onLogin,
   currentUserName,
+  currentUserSub,
 }: {
   visible: boolean
   onClose: () => void
@@ -21,6 +22,7 @@ export default function DetailsModal({
   onCook?: (r: Recipe) => void
   onLogin?: () => void
   currentUserName?: string
+  currentUserSub?: string
 }) {
   const auth = useCognitoAuth()
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -354,14 +356,17 @@ export default function DetailsModal({
               {(() => {
                 const createdByRaw = (initialRecipe as any).createdByName as string | undefined
                 const updatedByRaw = (initialRecipe as any).updatedByName as string | undefined
+                const createdBySub = (initialRecipe as any).createdBySub as string | undefined
+                const updatedBySub = (initialRecipe as any).updatedBySub as string | undefined
                 const createdAt = (initialRecipe as any).createdAt as number | undefined
                 const updatedAt = (initialRecipe as any).updatedAt as number | undefined
-                const sanitizeName = (name?: string) => {
-                  if (!name || name.toLowerCase() === 'user') return currentUserName || name
-                  return name
+                const deriveName = (name: string | undefined, sub: string | undefined): string | undefined => {
+                  if (name && name.toLowerCase() !== 'user') return name
+                  if (currentUserSub && sub && sub === currentUserSub && currentUserName) return currentUserName
+                  return undefined
                 }
-                const createdBy = sanitizeName(createdByRaw)
-                const updatedBy = sanitizeName(updatedByRaw)
+                const createdBy = deriveName(createdByRaw, createdBySub)
+                const updatedBy = deriveName(updatedByRaw, updatedBySub)
                 function rel(ts?: number) {
                   if (!ts) return ''
                   try {
@@ -378,10 +383,16 @@ export default function DetailsModal({
                     return rtf.format(days, 'day')
                   } catch { return '' }
                 }
-                if (updatedAt && updatedBy && createdAt && createdBy && updatedAt !== createdAt) {
-                  return <span>by {createdBy} · updated {rel(updatedAt)} by {updatedBy}</span>
+                if (updatedAt && createdAt && updatedAt !== createdAt) {
+                  if (createdBy && updatedBy) return <span>by {createdBy} · updated {rel(updatedAt)} by {updatedBy}</span>
+                  if (createdBy) return <span>by {createdBy} · updated {rel(updatedAt)}</span>
+                  if (updatedBy) return <span>updated {rel(updatedAt)} by {updatedBy}</span>
+                  return <span>updated {rel(updatedAt)}</span>
                 }
-                if (createdAt && createdBy) return <span>by {createdBy} · {rel(createdAt)}</span>
+                if (createdAt) {
+                  if (createdBy) return <span>by {createdBy} · {rel(createdAt)}</span>
+                  return <span>{rel(createdAt)}</span>
+                }
                 return null
               })()}
             </div>
