@@ -9,7 +9,7 @@ import { storage } from './lib/storage'
 import LoginModal from './components/LoginModal'
 import { IconSignIn, IconSignOut, IconPlus } from './icons/Icons'
 import { useCognitoAuth } from './hooks/useCognitoAuth'
-import InstallPrompt from './components/InstallPrompt'
+
 import CompleteProfile from './components/CompleteProfile'
 
 export type Recipe = {
@@ -234,8 +234,6 @@ export default function App() {
       <Hero
         onAdd={authed && recipes.length === 0 ? () => setShowAddModal(true) : undefined}
       />
-
-  <InstallPrompt />
 
   {/* Search bar placed under the hero */}
   <div style={{maxWidth:1040, margin:'0 auto 16px', padding:'0 20px'}}>
