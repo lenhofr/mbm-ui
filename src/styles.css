@@ -338,20 +338,6 @@ pre, code, .code, table, .table-scroll { max-width: 100%; overflow-x: auto }
 /* Remove tap highlight for a native feel */
 *{ -webkit-tap-highlight-color: transparent }
 
-/* Install banner */
-.install-banner{ position: sticky; top: calc(var(--safe-top) + 8px); z-index: 80; display:flex; justify-content:center; padding: 0 16px }
-.install-banner__content{ background: linear-gradient(180deg, hsl(var(--card)), hsl(var(--muted-bg))); border:1px solid hsl(var(--border)); box-shadow: 0 10px 24px rgba(0,0,0,0.08); border-radius: 14px; padding: 10px 12px; display:flex; align-items:center; gap: 10px; width: min(100%, 980px) }
-.install-banner__text{ display:flex; flex-direction:column; gap: 2px }
-.install-banner__sub{ color: var(--muted); font-size: 13px }
-.install-banner__dismiss{ margin-left: auto }
-.install-banner__ios summary{ list-style: none; cursor: pointer }
-.install-banner__ios summary::-webkit-details-marker{ display:none }
-.install-banner__steps{ padding: 8px 0 0 0; color: var(--muted); font-size: 14px }
-/* Prevent internal horizontal overflow in very small viewports */
-.install-banner__steps { max-width: 100%; overflow-x: hidden }
-.install-banner__steps ol { list-style-position: inside; padding-left: 1rem; margin: 0 }
-.install-banner__steps li { max-width: 100%; }
-
 @media (max-width: 800px){
   main{flex-direction:column}
   .right{order:2}
