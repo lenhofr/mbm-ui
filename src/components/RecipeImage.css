@@ -24,6 +24,7 @@
   font-weight: 600;
 }
 
+/* Spin animation for image loading indicator */
 @keyframes spin {
   from {
     transform: rotate(0deg);

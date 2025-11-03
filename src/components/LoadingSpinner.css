@@ -7,6 +7,7 @@
   gap: 16px;
   padding: 40px 20px;
   min-height: 200px;
+  animation: fadeIn 0.3s ease-in;
 }
 
 .loading-spinner {
@@ -32,11 +33,6 @@
   to {
     transform: rotate(360deg);
   }
-}
-
-/* Add a subtle fade-in effect */
-.loading-spinner-container {
-  animation: fadeIn 0.3s ease-in;
 }
 
 @keyframes fadeIn {
