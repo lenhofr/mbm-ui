@@ -9,6 +9,7 @@ import { storage } from './lib/storage'
 import LoginModal from './components/LoginModal'
 import { IconSignIn, IconSignOut, IconPlus } from './icons/Icons'
 import { useCognitoAuth } from './hooks/useCognitoAuth'
+import LoadingSpinner from './components/LoadingSpinner'
 
 import CompleteProfile from './components/CompleteProfile'
 
@@ -47,6 +48,7 @@ export default function App() {
   const [showLogin, setShowLogin] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [isLoadingRecipes, setIsLoadingRecipes] = useState(true)
 
   // Load initial recipes from storage on mount
   useEffect(() => {
@@ -54,10 +56,14 @@ export default function App() {
     ;(async () => {
       try {
         const items = await storage.listRecipes()
-        if (mounted && items && items.length) setRecipes(items)
+        if (mounted) {
+          if (items && items.length) setRecipes(items)
+          setIsLoadingRecipes(false)
+        }
         // If storage is empty, we could seed with defaults; keep empty for now
       } catch (e) {
         // ignore and leave recipes empty
+        if (mounted) setIsLoadingRecipes(false)
       }
     })()
     return () => {
@@ -343,17 +349,21 @@ export default function App() {
 
   <main>
         <section className="right" style={{width:'100%'}}>
-          <RecipeList
-          currentUserSub={currentUserSub}
-            recipes={filtered}
-            onEdit={authed ? startEdit : undefined}
-            onDelete={authed ? requestDelete : undefined}
-            onView={startView}
-            query={debouncedQuery}
-            authed={authed}
-            onLogin={() => setShowLogin(true)}
-            currentUserName={displayName}
-          />
+          {isLoadingRecipes ? (
+            <LoadingSpinner size={56} message="Loading your recipes..." />
+          ) : (
+            <RecipeList
+            currentUserSub={currentUserSub}
+              recipes={filtered}
+              onEdit={authed ? startEdit : undefined}
+              onDelete={authed ? requestDelete : undefined}
+              onView={startView}
+              query={debouncedQuery}
+              authed={authed}
+              onLogin={() => setShowLogin(true)}
+              currentUserName={displayName}
+            />
+          )}
         </section>
       </main>
 

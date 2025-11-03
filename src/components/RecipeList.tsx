@@ -1,6 +1,7 @@
 import React from 'react'
 import type { Recipe } from '../App'
 import { IconEdit, IconDelete } from '../icons/Icons'
+import RecipeImage from './RecipeImage'
 
 function highlight(text: string | undefined, q: string | undefined) {
   if (!text) return null
@@ -31,34 +32,37 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query, a
           if (target.closest('button') || target.closest('a')) return
           onView && onView(r)
         }}>
-      <div className="recipe-image">{
-              r.image ? <img src={(() => {
-              const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
-              const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
-              const apiBase = (viteBase || legacyBase || '').trim()
-              const img = r.image as string
-              // If stored value is a key (no scheme), proxy through API to get a fresh redirect
-              if (!/^(https?:|data:|blob:)/i.test(img || '') && apiBase) {
-                return `${apiBase}/images/${encodeURIComponent(img)}`
-              }
-              // If it's a presigned S3 URL, try to extract the key and use API route
-              try {
-                const u = new URL(img)
-                const host = u.hostname
-                const isAws = /amazonaws\.com$/i.test(host)
-                const hasSig = u.search.includes('X-Amz-')
-                if (apiBase && isAws && hasSig) {
-                  let key = u.pathname.replace(/^\//, '')
-                  // path-style: s3.amazonaws.com/bucket/key -> drop first segment
-                  if (/^s3[.-]([^/]+\.)?amazonaws\.com$/i.test(host)) {
-                    const firstSlash = key.indexOf('/')
-                    if (firstSlash > 0) key = key.slice(firstSlash + 1)
-                  }
-                  return `${apiBase}/images/${encodeURIComponent(key)}`
+      <div className="recipe-image">
+            <RecipeImage 
+              src={r.image ? (() => {
+                const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
+                const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
+                const apiBase = (viteBase || legacyBase || '').trim()
+                const img = r.image as string
+                // If stored value is a key (no scheme), proxy through API to get a fresh redirect
+                if (!/^(https?:|data:|blob:)/i.test(img || '') && apiBase) {
+                  return `${apiBase}/images/${encodeURIComponent(img)}`
                 }
-              } catch {}
-              return img
-            })()} alt={r.title} /> : <div className="placeholder">No Image</div>}
+                // If it's a presigned S3 URL, try to extract the key and use API route
+                try {
+                  const u = new URL(img)
+                  const host = u.hostname
+                  const isAws = /amazonaws\.com$/i.test(host)
+                  const hasSig = u.search.includes('X-Amz-')
+                  if (apiBase && isAws && hasSig) {
+                    let key = u.pathname.replace(/^\//, '')
+                    // path-style: s3.amazonaws.com/bucket/key -> drop first segment
+                    if (/^s3[.-]([^/]+\.)?amazonaws\.com$/i.test(host)) {
+                      const firstSlash = key.indexOf('/')
+                      if (firstSlash > 0) key = key.slice(firstSlash + 1)
+                    }
+                    return `${apiBase}/images/${encodeURIComponent(key)}`
+                  }
+                } catch {}
+                return img
+              })() : undefined}
+              alt={r.title}
+            />
             {/* Overlay actions at top-right of image */}
             <div className="recipe-card-actions recipe-card-actions--overlay" onClick={(e) => e.stopPropagation()}>
               {authed && onEdit && (

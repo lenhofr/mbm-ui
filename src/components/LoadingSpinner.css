@@ -1,0 +1,49 @@
+/* Loading spinner with smooth rotation and themed colors */
+.loading-spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px 20px;
+  min-height: 200px;
+}
+
+.loading-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: hsl(var(--brand-fg));
+  animation: spin 1s linear infinite;
+}
+
+.loading-message {
+  margin: 0;
+  color: hsl(var(--muted-fg));
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Add a subtle fade-in effect */
+.loading-spinner-container {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
