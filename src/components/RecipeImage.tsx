@@ -25,6 +25,8 @@ export default function RecipeImage({ src, alt }: RecipeImageProps) {
       <img
         src={src}
         alt={alt}
+  loading="lazy"
+  decoding="async"
         onLoad={() => setIsLoading(false)}
         onError={() => {
           setIsLoading(false)
