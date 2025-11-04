@@ -105,7 +105,12 @@ def handler(event, context):
             # Shorter presign TTL to limit exposure (was 3600s)
             upload_url = s3.generate_presigned_url(
                 ClientMethod='put_object',
-                Params={'Bucket': IMAGES_BUCKET, 'Key': key},
+                Params={
+                    'Bucket': IMAGES_BUCKET,
+                    'Key': key,
+                    'ContentType': content_type,
+                    'CacheControl': 'public, max-age=31536000, immutable',
+                },
                 ExpiresIn=300
             )
             # Generate a presigned POST as a more compatible path for some mobile browsers

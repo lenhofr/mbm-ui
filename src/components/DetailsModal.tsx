@@ -146,6 +146,40 @@ export default function DetailsModal({
     return new File([blob], base + '.jpeg', { type: 'image/jpeg' })
   }
 
+  // Prefer WebP when available; fall back to JPEG. Smaller max dimension and tuned quality for faster loads.
+  async function resizeToBest(file: File, maxDim = 1024, jpegQuality = 0.78, webpQuality = 0.8): Promise<File> {
+    const img = await decodeToImage(file)
+    const canvas = document.createElement('canvas')
+    let { width, height } = img
+    if (width > maxDim || height > maxDim) {
+      const scale = Math.min(maxDim / width, maxDim / height)
+      width = Math.max(1, Math.round(width * scale))
+      height = Math.max(1, Math.round(height * scale))
+    }
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Canvas 2D not available')
+    ctx.drawImage(img, 0, 0, width, height)
+
+    const canWebp = (() => {
+      try {
+        return canvas.toDataURL('image/webp').startsWith('data:image/webp')
+      } catch {
+        return false
+      }
+    })()
+
+    const type = canWebp ? 'image/webp' : 'image/jpeg'
+    const quality = canWebp ? webpQuality : jpegQuality
+    const blob: Blob = await new Promise((resolve, reject) =>
+      canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), type, quality)
+    )
+    const base = file.name.replace(/\.(heic|heif|jpeg|jpg|png|webp)$/i, '') || 'photo'
+    const ext = canWebp ? '.webp' : '.jpeg'
+    return new File([blob], base + ext, { type })
+  }
+
   useEffect(() => {
     setImagePreview(initialRecipe?.image ?? null)
     setServings(initialRecipe?.servings ?? '')
@@ -260,13 +294,13 @@ export default function DetailsModal({
           const uploadResp = await fetch(data.postUrl, { method: 'POST', body: form })
           if (!uploadResp.ok) {
             // Fall back to PUT if POST failed for any reason
-            const putResp = await fetch(data.uploadUrl, { method: 'PUT', body: imageFile, headers: { 'Content-Type': imageFile.type } })
+            const putResp = await fetch(data.uploadUrl, { method: 'PUT', body: imageFile, headers: { 'Content-Type': imageFile.type, 'Cache-Control': 'public, max-age=31536000, immutable' } })
             if (!putResp.ok) throw new Error(`PUT upload failed: ${putResp.status}`)
           }
           imageUrl = data.key
         } else {
           // Fallback: simple presigned PUT
-          const putResp = await fetch(data.uploadUrl, { method: 'PUT', body: imageFile, headers: { 'Content-Type': imageFile.type } })
+          const putResp = await fetch(data.uploadUrl, { method: 'PUT', body: imageFile, headers: { 'Content-Type': imageFile.type, 'Cache-Control': 'public, max-age=31536000, immutable' } })
           if (!putResp.ok) throw new Error(`PUT upload failed: ${putResp.status}`)
           imageUrl = data.key
         }
@@ -436,13 +470,13 @@ export default function DetailsModal({
               const f = e.target.files?.[0] ?? null
               if (!f) { setImageFile(null); setImagePreview(initialRecipe?.image ?? null); return }
               try {
-                // Always convert to a web-friendly, resized JPEG for faster loads
-                const toProcess = isHeic(f) ? f : f
-                const jpeg = await resizeToJpeg(toProcess, 1600, 0.82)
-                setImageFile(jpeg)
+                // Convert to a web-friendly, resized image (WebP if supported, else JPEG)
+                const toProcess = f
+                const smaller = await resizeToBest(toProcess, 1024, 0.78, 0.8)
+                setImageFile(smaller)
                 const reader = new FileReader()
                 reader.onload = () => setImagePreview(String(reader.result))
-                reader.readAsDataURL(jpeg)
+                reader.readAsDataURL(smaller)
               } catch (err) {
                 if (isHeic(f)) {
                   setImageWarning('This photo appears to be HEIC, which is not widely supported on the web. Please choose a JPEG/PNG image or change iOS Camera to “Most Compatible”.')
