@@ -15,7 +15,8 @@
     "tf:fmt:check": "terraform fmt -recursive -check",
     "install-hooks": "mkdir -p .githooks && cp scripts/pre-commit.sh .githooks/pre-commit && chmod +x .githooks/pre-commit && git config core.hooksPath .githooks",
     "scaffold:spa": "node scripts/scaffold-spa.mjs",
-    "backfill:names": "node scripts/backfill-recipe-names.mjs"
+    "backfill:names": "node scripts/backfill-recipe-names.mjs",
+    "images:optimize": "node scripts/optimize-s3-images.mjs"
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.12.0",
@@ -26,6 +27,7 @@
     "react-dom": "18.2.0"
   },
   "devDependencies": {
+  "@aws-sdk/client-s3": "3.913.0",
     "@aws-sdk/client-dynamodb": "3.913.0",
     "@aws-sdk/client-cognito-identity-provider": "3.913.0",
     "@aws-sdk/lib-dynamodb": "3.913.0",
