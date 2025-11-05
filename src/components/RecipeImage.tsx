@@ -32,7 +32,7 @@ export default function RecipeImage({ src, alt }: RecipeImageProps) {
           setIsLoading(false)
           setHasError(true)
         }}
-        style={{ display: isLoading ? 'none' : 'block' }}
+        style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.3s ease-in-out' }}
       />
     </>
   )
