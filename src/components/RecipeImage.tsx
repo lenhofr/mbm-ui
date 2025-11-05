@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { CircleNotch } from 'phosphor-react'
+import CookSpinner from './CookSpinner'
 import './RecipeImage.css'
 
 export type RecipeImageProps = {
@@ -19,7 +20,8 @@ export default function RecipeImage({ src, alt }: RecipeImageProps) {
     <>
       {isLoading && (
         <div className="recipe-image-loading">
-          <CircleNotch size={32} weight="bold" />
+          {/* Fun cook-themed spinner; fallback notch if needed */}
+          <CookSpinner size={28} />
         </div>
       )}
       <img

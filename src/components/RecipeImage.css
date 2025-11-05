@@ -9,9 +9,11 @@
   align-items: center;
   justify-content: center;
   color: hsl(var(--brand-fg));
-  animation: spin 1s linear infinite;
   background: linear-gradient(135deg, hsl(var(--card)), hsl(var(--muted-bg)));
 }
+
+/* Only spin the icon, not the whole overlay */
+.recipe-image-loading svg { animation: spin 1s linear infinite; }
 
 .recipe-image-placeholder {
   width: 100%;
