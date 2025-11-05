@@ -17,7 +17,8 @@
     "scaffold:spa": "node scripts/scaffold-spa.mjs",
     "backfill:names": "node scripts/backfill-recipe-names.mjs",
     "images:optimize": "node scripts/optimize-s3-images.mjs",
-    "ios:open": "npx playwright open --device=\"iPhone 15 Pro\" --browser=webkit http://localhost:5173"
+    "ios:open": "npx playwright open --device=\"iPhone 15 Pro\" --browser=webkit http://localhost:5173",
+    "ios:open:pwa": "node scripts/ios-open-pwa.mjs"
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.12.0",
