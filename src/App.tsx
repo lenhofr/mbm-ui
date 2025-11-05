@@ -7,7 +7,7 @@ import Hero from './components/Hero'
 import Fuse from 'fuse.js'
 import { storage } from './lib/storage'
 import LoginModal from './components/LoginModal'
-import { IconSignIn, IconSignOut, IconPlus } from './icons/Icons'
+import { IconSignIn, IconSignOut, IconPlus, IconPlusCircle } from './icons/Icons'
 import { useCognitoAuth } from './hooks/useCognitoAuth'
 import LoadingSpinner from './components/LoadingSpinner'
 
@@ -49,6 +49,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false)
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isLoadingRecipes, setIsLoadingRecipes] = useState(true)
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null)
 
   // Load initial recipes from storage on mount
   useEffect(() => {
@@ -59,11 +60,19 @@ export default function App() {
         if (mounted) {
           if (items && items.length) setRecipes(items)
           setIsLoadingRecipes(false)
+          setLoadErrorMessage(null)
         }
         // If storage is empty, we could seed with defaults; keep empty for now
       } catch (e) {
-        // ignore and leave recipes empty
-        if (mounted) setIsLoadingRecipes(false)
+        // Show a friendly kitchen-themed error
+        if (mounted) {
+          setIsLoadingRecipes(false)
+          const msgs = [
+            "Something's burning in the kitchen. We're on it!",
+            'A kitchen mishap! Please try again in a moment.'
+          ]
+          setLoadErrorMessage(msgs[Math.floor(Math.random() * msgs.length)])
+        }
       }
     })()
     return () => {
@@ -243,7 +252,8 @@ export default function App() {
 
   {/* Search bar placed under the hero */}
   <div style={{maxWidth:1040, margin:'0 auto 16px', padding:'0 20px'}}>
-        <label style={{display:'block', marginBottom:8, color:'var(--muted)'}} htmlFor="recipe-search">Recipe Collection</label>
+    {/* Keep an accessible label but hide it visually for a cleaner look */}
+    <label className="sr-only" htmlFor="recipe-search">Your Recipe Box</label>
         <div style={{display:'flex',gap:12,alignItems:'center', flexWrap:'wrap'}}>
           <div style={{position:'relative',flex:1, minWidth:0}}>
             <span className="search-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><circle cx="11" cy="11" r="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></span>
@@ -256,7 +266,7 @@ export default function App() {
               autoCapitalize="off"
               autoCorrect="off"
               spellCheck={false}
-              placeholder="Search by title, tag, ingredient or instruction..."
+              placeholder="Search your recipe box by title, tag, ingredient, or instruction…"
               value={query}
               onChange={(e) => {
                 const v = e.target.value
@@ -321,12 +331,19 @@ export default function App() {
                     {/* Inline New Recipe button */}
           <div style={{ display: 'flex', gap: 12 }}>
             {authed && (
-              <button type="button" className="primary" onClick={() => setShowAddModal(true)}>
-                <span aria-hidden style={{display:'inline-flex',alignItems:'center',marginRight:8}}>
-                  <IconPlus size={18} weight="regular" />
-                </span>
-                New Recipe
-              </button>
+              <>
+                {/* Desktop / tablet: text button */}
+                <button type="button" className="primary hide-on-mobile" onClick={() => setShowAddModal(true)}>
+                  <span aria-hidden style={{display:'inline-flex',alignItems:'center',marginRight:8}}>
+                    <IconPlus size={18} weight="regular" />
+                  </span>
+                  New Recipe
+                </button>
+                {/* Mobile: compact icon-only button to save space (neutral card style to avoid bright block) */}
+                <button type="button" className="auth-cta show-on-mobile" aria-label="Add recipe" title="Add recipe" onClick={() => setShowAddModal(true)}>
+                  <span className="auth-icon auth-icon--lg" aria-hidden><IconPlusCircle size={24} weight="regular" /></span>
+                </button>
+              </>
             )}
             {authed ? null : (
               <button className="auth-cta" onClick={() => setShowLogin(true)} aria-label="Log in">
@@ -350,7 +367,15 @@ export default function App() {
   <main>
         <section className="right" style={{width:'100%'}}>
           {isLoadingRecipes ? (
-            <LoadingSpinner size={56} message="Loading your recipes..." />
+            <LoadingSpinner size={56} message="Simmering..." />
+          ) : loadErrorMessage ? (
+            <div style={{maxWidth:720,margin:'24px auto',padding:'0 16px'}} role="alert">
+              <h3 className="text-primary" style={{marginTop:0}}>Oops!</h3>
+              <p style={{color:'var(--muted)'}}>{loadErrorMessage}</p>
+              <div style={{marginTop:12}}>
+                <button className="secondary" onClick={() => { setIsLoadingRecipes(true); setLoadErrorMessage(null); /* retry */ (async () => { try { const items = await storage.listRecipes(); setRecipes(items || []); } catch {} finally { setIsLoadingRecipes(false) } })() }}>Try again</button>
+              </div>
+            </div>
           ) : (
             <RecipeList
             currentUserSub={currentUserSub}
@@ -392,7 +417,7 @@ export default function App() {
         />
       )}
 
-      <ConfirmDialog visible={!!deleting} title="Delete recipe" message={`Delete "${deleting?.title}"?`} onCancel={() => setDeleting(null)} onConfirm={confirmDelete} />
+  <ConfirmDialog visible={!!deleting} title="Are you sure you want to 86 this recipe?" message={`Delete "${deleting?.title}"?`} onCancel={() => setDeleting(null)} onConfirm={confirmDelete} />
 
   {viewing && (
         <CookModal

@@ -338,7 +338,7 @@ export default function DetailsModal({
   if (!visible || !modalRoot) return null
 
   return createPortal(
-    <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="details-title" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div
         className="modal bg-gradient-card border-none shadow-floating"
         ref={modalRef}
@@ -381,57 +381,17 @@ export default function DetailsModal({
         }}
         onTouchCancel={() => { touchStart.current = null; shouldClose.current = false; snapBack() }}
       >
-  {/* grabber removed per design */}
-        <button className="modal-close" aria-label="Close" onClick={onClose}><IconClose size={20} /></button>
-        <div className="modal-header">
-          <h3 className="text-primary">Recipe details</h3>
-          {initialRecipe && (initialRecipe as any).createdAt && (
-            <div style={{fontSize:12,color:'var(--muted)'}}>
-              {(() => {
-                const createdByRaw = (initialRecipe as any).createdByName as string | undefined
-                const updatedByRaw = (initialRecipe as any).updatedByName as string | undefined
-                const createdBySub = (initialRecipe as any).createdBySub as string | undefined
-                const updatedBySub = (initialRecipe as any).updatedBySub as string | undefined
-                const createdAt = (initialRecipe as any).createdAt as number | undefined
-                const updatedAt = (initialRecipe as any).updatedAt as number | undefined
-                const deriveName = (name: string | undefined, sub: string | undefined): string | undefined => {
-                  if (name && name.toLowerCase() !== 'user') return name
-                  if (currentUserSub && sub && sub === currentUserSub && currentUserName) return currentUserName
-                  return undefined
-                }
-                const createdBy = deriveName(createdByRaw, createdBySub)
-                const updatedBy = deriveName(updatedByRaw, updatedBySub)
-                function rel(ts?: number) {
-                  if (!ts) return ''
-                  try {
-                    const d = new Date(ts * 1000)
-                    const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
-                    const diff = Math.round((d.getTime() - Date.now()) / 1000)
-                    const abs = Math.abs(diff)
-                    const mins = Math.round(diff / 60)
-                    const hours = Math.round(diff / 3600)
-                    const days = Math.round(diff / 86400)
-                    if (abs < 60) return rtf.format(diff, 'second')
-                    if (abs < 3600) return rtf.format(mins, 'minute')
-                    if (abs < 86400) return rtf.format(hours, 'hour')
-                    return rtf.format(days, 'day')
-                  } catch { return '' }
-                }
-                if (updatedAt && createdAt && updatedAt !== createdAt) {
-                  if (createdBy && updatedBy) return <span>by {createdBy} · updated {rel(updatedAt)} by {updatedBy}</span>
-                  if (createdBy) return <span>by {createdBy} · updated {rel(updatedAt)}</span>
-                  if (updatedBy) return <span>updated {rel(updatedAt)} by {updatedBy}</span>
-                  return <span>updated {rel(updatedAt)}</span>
-                }
-                if (createdAt) {
-                  if (createdBy) return <span>by {createdBy} · {rel(createdAt)}</span>
-                  return <span>{rel(createdAt)}</span>
-                }
-                return null
-              })()}
-            </div>
-          )}
+        {/* Sticky actions-only bar matching cook modal styling (close only here) */}
+        <div className="cook-actions-sticky" aria-label="Edit actions">
+          <div className="cook-toolbar-actions">
+            <button className="cook-close-fab" aria-label="Close edit view" onClick={onClose}>
+              <IconClose size={18} weight="regular" />
+            </button>
+          </div>
         </div>
+        {/* Accessible heading retained without visible title */}
+        <h2 id="details-title" className="sr-only">Recipe details</h2>
+        {/* Metadata removed per design to keep edit UI focused */}
         {errors.title && <div className="error">{errors.title}</div>}
 
         <label className="form-field">
@@ -529,7 +489,7 @@ export default function DetailsModal({
         {uploadError && <div className="error" role="alert">{uploadError}</div>}
 
         <div className="modal-actions">
-          <button type="button" className="primary" onClick={() => save()} disabled={!auth.isAuthed || uploading} title={!auth.isAuthed ? 'Log in to save' : undefined}>{uploading ? 'Uploading…' : 'Save recipe'}</button>
+          <button type="button" className="primary" onClick={() => save()} disabled={!auth.isAuthed || uploading} title={!auth.isAuthed ? 'Log in to save' : undefined}>{uploading ? 'Uploading…' : 'Save to Recipe Box'}</button>
           <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React from 'react'
+import { IconClose } from '../icons/Icons'
 import { Authenticator } from '@aws-amplify/ui-react'
 import { Hub } from 'aws-amplify/utils'
 import '@aws-amplify/ui-react/styles.css'
@@ -59,15 +60,15 @@ export default function LoginModal({ visible, onClose }: Props) {
     return unsubscribe
   }, [onClose])
 
-  const headerTitle = 'Sign in'
+  const headerTitle = 'Welcome back to the kitchen!'
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
   <div className="modal auth-modal" style={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}>
         <div className="modal-header">
           <h2 style={{ margin: 0 }}>{headerTitle}</h2>
-          <button className="btn-ghost" onClick={onClose} aria-label="Close" title="Close" style={{marginLeft:'auto'}}>
-            ✕
+          <button className="icon-btn" onClick={onClose} aria-label="Close" title="Close" style={{marginLeft:'auto'}}>
+            <IconClose size={18} weight="regular" />
           </button>
         </div>
         <div style={{ padding: '6px 2px 10px' }}>
@@ -82,8 +83,8 @@ export default function LoginModal({ visible, onClose }: Props) {
                   order: 1,
                 },
                 nickname: {
-                  label: 'Display name',
-                  placeholder: 'What should we call you?',
+                  label: 'What should we call you in the kitchen?',
+                  placeholder: 'Enter your user name',
                   isRequired: false,
                   order: 2,
                 },

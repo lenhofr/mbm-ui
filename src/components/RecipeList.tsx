@@ -66,7 +66,7 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query, a
             {/* Overlay actions at top-right of image */}
             <div className="recipe-card-actions recipe-card-actions--overlay" onClick={(e) => e.stopPropagation()}>
               {authed && onEdit && (
-                <button onClick={() => onEdit(r)} className="btn-ghost" aria-label="Edit">
+                <button onClick={() => onEdit(r)} className="btn-ghost" aria-label="Tweak the flavor" title="Tweak the flavor">
                   <IconEdit size={18} />
                 </button>
               )}

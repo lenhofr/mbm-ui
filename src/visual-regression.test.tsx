@@ -9,7 +9,7 @@ describe('visual regression (lightweight)', () => {
   it('renders the app hero and search with themed classes', () => {
     render(<App />)
     // Hero container should exist
-    expect(screen.getByText(/Recipe Collection/i)).toBeInTheDocument()
+    expect(screen.getByText(/Meals by Maggie/i)).toBeInTheDocument()
     // Search input present
     const search = screen.getByLabelText(/Search recipes/i)
     expect(search).toBeInTheDocument()

@@ -153,6 +153,10 @@ html.modal-open, body.modal-open {
   z-index: 2;
 }
 
+/* Non-sticky, minimal top row used by Details modal when title is hidden */
+.modal-top { display:flex; align-items:center; justify-content:flex-end; padding: 6px 0 4px 0; margin-bottom: 4px; background: transparent; position: static; border-bottom: none; }
+.details-meta { font-size: 12px; color: hsl(var(--muted-fg)); margin-bottom: 6px; }
+
 /* In the Auth (Amplify) modal, avoid sticky header to prevent covering tabs in iOS PWA */
 .auth-modal .modal-header { position: static; top: auto; z-index: auto; }
 /* Ensure Amplify tabs, if present, sit clearly below the header */
@@ -191,13 +195,30 @@ textarea { min-height: 92px; }
 .cook-title { margin: 0; font-size: 1.25rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cook-title { color: hsl(var(--brand-fg)); }
 .cook-toolbar-actions { display:flex; gap:8px; align-items:center; background: hsl(var(--card)); padding: 6px; border-radius: 12px; box-shadow: 0 8px 22px rgba(0,0,0,0.08); }
-.cook-close-fab { position: static; border: none; background: hsl(var(--card)); width: 36px; height: 36px; display:inline-grid; place-items:center; border-radius: 10px; font-size: 1rem; cursor: pointer; box-shadow: 0 8px 22px rgba(0,0,0,0.08); }
+.cook-close-fab, .icon-btn { position: static; border: none; background: hsl(var(--card)); width: 36px; height: 36px; display:inline-grid; place-items:center; border-radius: 10px; font-size: 1rem; cursor: pointer; box-shadow: 0 8px 22px rgba(0,0,0,0.08); color: hsl(var(--foreground)); }
 .cook-toolbar-actions button:focus { outline: none }
 .cook-toolbar-actions button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px }
-.cook-close-fab:hover { background: hsl(var(--muted-bg)); }
+.cook-close-fab:hover, .icon-btn:hover { background: hsl(var(--muted-bg)); }
+.icon-btn:focus { outline: none }
+.icon-btn:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px }
+/* Large icon button variant (48px) for primary actions on mobile */
+.icon-btn-lg { width: 48px; height: 48px; border-radius: 12px; }
+/* Accent color helper for icons */
+.icon-accent { color: hsl(var(--primary)); }
+
+/* Icon-only action (transparent surface) used for mobile "Add recipe" */
+.icon-only { -webkit-tap-highlight-color: transparent; width: 56px; height: 56px; display: inline-grid; place-items: center; background: transparent; border: none; color: hsl(var(--primary)); border-radius: 12px; box-shadow: none; cursor: pointer; }
+.icon-only svg { display: block }
+.icon-only:hover { background: hsl(var(--muted-bg)); }
+.icon-only:focus { outline: none }
+.icon-only:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; background: hsl(var(--muted-bg)); }
 .cook-edit-btn { border: none; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); width: 36px; height: 36px; display:inline-grid; place-items:center; border-radius: 10px; font-size: 0.95rem; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
 .cook-edit-btn svg { width:18px; height:18px; }
 .cook-edit-btn:hover { filter: brightness(0.98); }
+/* Generic primary icon button to reuse outside cook modal */
+.icon-btn-primary { border: none; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); width: 36px; height: 36px; display:inline-grid; place-items:center; border-radius: 10px; font-size: 0.95rem; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+.icon-btn-primary svg { width:18px; height:18px; }
+.icon-btn-primary:hover { filter: brightness(0.98); }
 /* Cook mode toggle */
 .cook-mode-btn { border: none; background: transparent; color: hsl(var(--foreground)); width: 36px; height: 36px; display:inline-grid; place-items:center; border-radius: 8px; font-size: 0.95rem; cursor: pointer; }
 .cook-mode-btn svg { width:18px; height:18px; }
@@ -236,6 +257,10 @@ textarea { min-height: 92px; }
   .cook-modal .cook-image { display:block }
   .cook-modal .cook-content { padding-top: 54px; }
 }
+
+/* Responsive helpers */
+@media (max-width: 640px) { .hide-on-mobile { display: none !important; } }
+@media (min-width: 641px) { .show-on-mobile { display: none !important; } }
 
 /* Align labels + inputs in-line for denser appearance on medium+ screens */
 @media (min-width: 720px) {
