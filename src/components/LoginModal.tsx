@@ -64,9 +64,11 @@ export default function LoginModal({ visible, onClose }: Props) {
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
     <div className="modal" style={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}>
-        <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         <div className="modal-header">
           <h2 style={{ margin: 0 }}>{headerTitle}</h2>
+          <button className="btn-ghost" onClick={onClose} aria-label="Close" title="Close" style={{marginLeft:'auto'}}>
+            ✕
+          </button>
         </div>
         <div style={{ padding: '6px 2px 10px' }}>
           <Authenticator

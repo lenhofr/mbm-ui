@@ -139,7 +139,19 @@ html.modal-open, body.modal-open {
 }
 .modal:focus { outline: none; }
 /* grabber styles removed per design */
-.modal-header { margin-bottom: 0.35rem; }
+.modal-header { 
+  position: sticky; 
+  top: calc(env(safe-area-inset-top, 0px) + 0px);
+  display: flex; 
+  align-items: center; 
+  gap: 8px;
+  justify-content: space-between; 
+  padding: 8px 0; 
+  margin-bottom: 8px;
+  background: hsl(var(--card));
+  border-bottom: 1px solid hsl(var(--border));
+  z-index: 2;
+}
 .modal-close {
   position: absolute;
   /* Keep the close button clear of notches/home indicator in PWA */
@@ -170,7 +182,7 @@ textarea { min-height: 92px; }
 /* Cook / view modal specific styling */
 .cook-modal { max-width: 900px; max-height: min(90svh, 90vh); overflow:auto; padding: 1rem; -webkit-overflow-scrolling: touch; }
 /* Sticky actions-only bar; placed at top of modal content */
-.cook-actions-sticky { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 6px); display: block; width: max-content; margin-left: auto; padding: 0; background: transparent; z-index: 5; }
+.cook-actions-sticky { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 2px); display: block; width: max-content; margin-left: auto; padding: 0; background: transparent; z-index: 5; }
 .cook-title { margin: 0; font-size: 1.25rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cook-title { color: hsl(var(--brand-fg)); }
 .cook-toolbar-actions { display:flex; gap:8px; align-items:center; background: hsl(var(--card)); padding: 6px; border-radius: 12px; box-shadow: 0 8px 22px rgba(0,0,0,0.08); }
@@ -198,6 +210,12 @@ textarea { min-height: 92px; }
 .cook-summary { flex: 1 1 auto; min-width: 0; }
 .cook-meta { color: hsl(var(--muted-fg)); font-weight:600; font-size:0.95rem; margin-top: 2px }
 .cook-content h2 { font-size: 1.5rem; margin:0; }
+
+/* Tighten default fullscreen cook padding so the toolbar sits closer to the top on mobile */
+.cook-fullscreen {
+  padding: 10px 12px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+}
 .cook-content h3 { font-size: 1.05rem; margin: 0.6rem 0 0.4rem 0 }
 .cook-content p { color: hsl(var(--foreground)); margin: 0.35rem 0 }
 .cook-tags { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px }
