@@ -176,12 +176,12 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
               <IconCookMode size={20} weight="regular" />
             </button>
             {onEdit && (
-              <button className="cook-edit-btn" title="Edit recipe" aria-label="Edit recipe" onClick={() => onEdit(recipe as Recipe)}>
+              <button className="cook-edit-btn" title="Tweak the flavor" aria-label="Tweak the flavor" onClick={() => onEdit(recipe as Recipe)}>
                 <IconEdit size={20} weight="regular" />
               </button>
             )}
             <button className="cook-close-fab" aria-label="Close cook view" onClick={onClose}>
-              <IconClose size={20} weight="regular" />
+              <IconClose size={18} weight="regular" />
             </button>
           </div>
         </div>

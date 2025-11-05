@@ -57,8 +57,8 @@ export default function CompleteProfile({ visible, onClose, onSaved }: Props) {
         </div>
         <form onSubmit={save} style={{ padding: '6px 2px 10px' }}>
           <label>
-            Display name
-            <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="What should we call you?" />
+          What should we call you in the kitchen?
+          <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="What should we call you in the kitchen?" />
           </label>
           {error && <p style={{ color: 'var(--destructive)' }}>{error}</p>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
