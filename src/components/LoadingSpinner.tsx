@@ -1,4 +1,4 @@
-import { CircleNotch } from 'phosphor-react'
+import CookSpinner from './CookSpinner'
 import './LoadingSpinner.css'
 
 export type LoadingSpinnerProps = {
@@ -10,7 +10,7 @@ export default function LoadingSpinner({ size = 48, message = 'Loading...' }: Lo
   return (
     <div className="loading-spinner-container">
       <div className="loading-spinner">
-        <CircleNotch size={size} weight="bold" />
+        <CookSpinner size={size} />
       </div>
       {message && <p className="loading-message">{message}</p>}
     </div>

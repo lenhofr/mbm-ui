@@ -15,7 +15,6 @@
   align-items: center;
   justify-content: center;
   color: hsl(var(--brand-fg));
-  animation: spin 1s linear infinite;
 }
 
 .loading-message {
