@@ -1,0 +1,7 @@
+.cook-spinner { display:inline-grid; place-items:center; color: hsl(var(--brand-fg)); }
+.cook-spinner-pot { display:grid; place-items:center; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.12)); animation: cook-bob 1.15s ease-in-out infinite; }
+
+@keyframes cook-bob {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-2px) rotate(2deg); }
+}
