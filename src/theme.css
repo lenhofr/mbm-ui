@@ -152,6 +152,11 @@ html.modal-open, body.modal-open {
   border-bottom: 1px solid hsl(var(--border));
   z-index: 2;
 }
+
+/* In the Auth (Amplify) modal, avoid sticky header to prevent covering tabs in iOS PWA */
+.auth-modal .modal-header { position: static; top: auto; z-index: auto; }
+/* Ensure Amplify tabs, if present, sit clearly below the header */
+.auth-modal .amplify-tabs { margin-top: 4px; }
 .modal-close {
   position: absolute;
   /* Keep the close button clear of notches/home indicator in PWA */
