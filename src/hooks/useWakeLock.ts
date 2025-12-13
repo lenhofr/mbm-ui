@@ -41,9 +41,11 @@ export function useWakeLock(active: boolean) {
       if (wakeLockRef.current) {
         try {
           await wakeLockRef.current.release()
-          wakeLockRef.current = null
         } catch (err) {
           console.warn('Wake Lock release failed:', err)
+        } finally {
+          // Always clear the ref, even if release fails
+          wakeLockRef.current = null
         }
       }
     }
@@ -54,7 +56,7 @@ export function useWakeLock(active: boolean) {
       // Re-request wake lock when document becomes visible again
       // (wake lock is automatically released when tab becomes hidden)
       const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible' && active) {
+        if (document.visibilityState === 'visible' && active && !wakeLockRef.current) {
           requestWakeLock()
         }
       }
