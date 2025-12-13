@@ -11,6 +11,12 @@ import { useEffect, useRef } from 'react'
  */
 export function useWakeLock(active: boolean) {
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+  const activeRef = useRef(active)
+
+  // Keep activeRef in sync with active prop
+  useEffect(() => {
+    activeRef.current = active
+  }, [active])
 
   useEffect(() => {
     // Check if Wake Lock API is supported
@@ -56,7 +62,7 @@ export function useWakeLock(active: boolean) {
       // Re-request wake lock when document becomes visible again
       // (wake lock is automatically released when tab becomes hidden)
       const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible' && active && !wakeLockRef.current) {
+        if (document.visibilityState === 'visible' && activeRef.current && !wakeLockRef.current) {
           requestWakeLock()
         }
       }

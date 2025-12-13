@@ -98,7 +98,7 @@ describe('useWakeLock', () => {
     renderHook(() => useWakeLock(true))
 
     // Give the async request time to complete
-    await new Promise(resolve => setTimeout(resolve, 10))
+    await new Promise(resolve => setTimeout(resolve, 0))
 
     expect(warnSpy).toHaveBeenCalledWith(
       'Wake Lock request failed:',
