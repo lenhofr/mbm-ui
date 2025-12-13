@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import type { Recipe } from '../App'
 import { IconCookMode, IconEdit, IconClose } from '../icons/Icons'
+import { useWakeLock } from '../hooks/useWakeLock'
 
 export default function CookModal({ visible, onClose, recipe, onEdit }: { visible: boolean; onClose: () => void; recipe?: Recipe | null; onEdit?: (r: Recipe) => void }) {
   const root = (typeof document !== 'undefined' && document.getElementById('modal-root')) || null
@@ -14,6 +15,9 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
   const touchStart = React.useRef<{ x: number; y: number; scrollTop: number } | null>(null)
   const shouldClose = React.useRef(false)
   const maxFollow = 40 // px of visual follow before we consider dismissal
+
+  // Use wake lock to keep screen on when cook mode is active
+  useWakeLock(cookMode)
 
   function setTranslate(y: number) {
     if (!modalRef.current) return
