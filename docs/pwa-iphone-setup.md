@@ -75,6 +75,6 @@ To test the PWA experience:
 
 ## Resources
 
-- [Apple Web Apps Documentation](https://developer.apple.com/documentation/webkit/safari_web_extensions)
+- [Apple: Configuring Web Applications](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html)
 - [Viewport meta tag reference](https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag)
 - [CSS env() for safe areas](https://developer.mozilla.org/en-US/docs/Web/CSS/env)
