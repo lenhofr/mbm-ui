@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { Recipe } from '../App'
 import { useCognitoAuth } from '../hooks/useCognitoAuth'
+import { useScrollLock } from '../hooks/useScrollLock'
+import { getApiBase } from '../lib/env'
 import { IconClose } from '../icons/Icons'
 
 // Replaced file content with a clean, minimal DetailsModal implementation
@@ -18,7 +20,7 @@ export default function DetailsModal({
   visible: boolean
   onClose: () => void
   onSave: (r: Omit<Recipe, 'id'>, id?: string) => void
-  initialRecipe?: Partial<Recipe> | null
+  initialRecipe?: (Partial<Recipe> & { id?: string }) | null
   onCook?: (r: Recipe) => void
   onLogin?: () => void
   currentUserName?: string
@@ -62,43 +64,7 @@ export default function DetailsModal({
     setTimeout(() => { if (el) el.style.transition = '' }, 180)
   }
 
-  // Manage scroll locking with a simple global counter to support multiple modals
-  function lockScroll() {
-    if (typeof window === 'undefined') return
-    const w = window as any
-    w.__modalCount = (w.__modalCount || 0) + 1
-    if (w.__modalCount === 1) {
-      const y = window.scrollY || document.documentElement.scrollTop || 0
-      w.__scrollYBeforeModal = y
-      document.documentElement.classList.add('modal-open')
-      document.body.classList.add('modal-open')
-      // Fixed-body technique to prevent background scroll in iOS Safari/PWA
-      document.body.style.position = 'fixed'
-      document.body.style.top = `-${y}px`
-      document.body.style.left = '0'
-      document.body.style.right = '0'
-      document.body.style.width = '100%'
-    }
-  }
-  function unlockScroll() {
-    if (typeof window === 'undefined') return
-    const w = window as any
-    w.__modalCount = Math.max(0, (w.__modalCount || 0) - 1)
-    if (w.__modalCount === 0) {
-      document.documentElement.classList.remove('modal-open')
-      document.body.classList.remove('modal-open')
-      const y = typeof w.__scrollYBeforeModal === 'number' ? w.__scrollYBeforeModal : Math.max(0, -(parseInt(document.body.style.top || '0', 10) || 0))
-      // Restore normal flow
-      document.body.style.position = ''
-      document.body.style.top = ''
-      document.body.style.left = ''
-      document.body.style.right = ''
-      document.body.style.width = ''
-      // Restore scroll position
-      window.scrollTo(0, y)
-      w.__scrollYBeforeModal = undefined
-    }
-  }
+  useScrollLock(visible)
 
   useEffect(() => {
     if (!imageFile) return
@@ -192,12 +158,10 @@ export default function DetailsModal({
     setDescription(initialRecipe?.description ?? '')
     setImageFile(null)
     if (visible) {
-      lockScroll()
       lastFocused.current = document.activeElement as HTMLElement | null
       // Focus the modal container to avoid auto-opening the keyboard on iOS
       setTimeout(() => modalRef.current?.focus(), 0)
     } else {
-      unlockScroll()
       setTimeout(() => lastFocused.current?.focus?.(), 0)
     }
   }, [visible, initialRecipe])
@@ -268,9 +232,7 @@ export default function DetailsModal({
     const ingredients = parseIngredients(ingredientsText)
     const instructions = parseInstructions(instructionsText)
     let imageUrl = imagePreview
-    const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
-    const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
-    const apiBase = (viteBase || legacyBase || '').trim()
+    const apiBase = getApiBase()
     if (imageFile && apiBase) {
       try {
         setUploadError(null)
@@ -324,16 +286,9 @@ export default function DetailsModal({
       ingredients: ingredients.length ? ingredients : undefined,
       instructions: instructions.length ? instructions : undefined,
       servings: servings || undefined,
-    }, (initialRecipe as any)?.id)
+    }, initialRecipe?.id)
     onClose()
   }
-
-  useEffect(() => {
-    return () => {
-      // ensure scroll unlock on unmount
-      unlockScroll()
-    }
-  }, [])
 
   if (!visible || !modalRoot) return null
 
@@ -452,9 +407,7 @@ export default function DetailsModal({
           <div className="image-preview-wrap">
             <img
               src={((): string => {
-                const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
-                const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
-                const apiBase = (viteBase || legacyBase || '').trim()
+                const apiBase = getApiBase()
                 if (!/^(https?:|data:|blob:)/i.test(imagePreview || '') && apiBase) return `${apiBase}/images/${encodeURIComponent(imagePreview)}`
                 return imagePreview || ''
               })()}

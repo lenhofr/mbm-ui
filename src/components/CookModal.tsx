@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { Recipe } from '../App'
 import { IconCookMode, IconEdit, IconClose } from '../icons/Icons'
 import { useWakeLock } from '../hooks/useWakeLock'
+import { useScrollLock } from '../hooks/useScrollLock'
 
 export default function CookModal({ visible, onClose, recipe, onEdit }: { visible: boolean; onClose: () => void; recipe?: Recipe | null; onEdit?: (r: Recipe) => void }) {
   const root = (typeof document !== 'undefined' && document.getElementById('modal-root')) || null
@@ -18,6 +19,7 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
 
   // Use wake lock to keep screen on when cook mode is active
   useWakeLock(cookMode)
+  useScrollLock(visible)
 
   function setTranslate(y: number) {
     if (!modalRef.current) return
@@ -33,50 +35,11 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
     setTimeout(() => { if (el) el.style.transition = '' }, 180)
   }
 
-  // Manage scroll locking with a simple global counter to support multiple modals safely
-  function lockScroll() {
-    if (typeof window === 'undefined') return
-    const w = window as any
-    w.__modalCount = (w.__modalCount || 0) + 1
-    if (w.__modalCount === 1) {
-      const y = window.scrollY || document.documentElement.scrollTop || 0
-      w.__scrollYBeforeModal = y
-      document.documentElement.classList.add('modal-open')
-      document.body.classList.add('modal-open')
-      document.body.style.position = 'fixed'
-      document.body.style.top = `-${y}px`
-      document.body.style.left = '0'
-      document.body.style.right = '0'
-      document.body.style.width = '100%'
-    }
-  }
-  function unlockScroll() {
-    if (typeof window === 'undefined') return
-    const w = window as any
-    w.__modalCount = Math.max(0, (w.__modalCount || 0) - 1)
-    if (w.__modalCount === 0) {
-      document.documentElement.classList.remove('modal-open')
-      document.body.classList.remove('modal-open')
-      const y = typeof w.__scrollYBeforeModal === 'number' ? w.__scrollYBeforeModal : Math.max(0, -(parseInt(document.body.style.top || '0', 10) || 0))
-      document.body.style.position = ''
-      document.body.style.top = ''
-      document.body.style.left = ''
-      document.body.style.right = ''
-      document.body.style.width = ''
-      window.scrollTo(0, y)
-      w.__scrollYBeforeModal = undefined
-    }
-  }
-
   useEffect(() => {
     if (visible) {
-      lockScroll()
       // save last focus and move focus to the dialog container (avoid focusing toolbar buttons)
       lastFocused.current = document.activeElement as HTMLElement | null
       setTimeout(() => { modalRef.current?.focus() }, 0)
-    } else {
-      // when hidden, release scroll lock
-      unlockScroll()
     }
   }, [visible])
 
@@ -109,8 +72,6 @@ export default function CookModal({ visible, onClose, recipe, onEdit }: { visibl
     return () => {
       // restore focus when modal unmounts
       setTimeout(() => lastFocused.current?.focus?.(), 0)
-  // ensure scroll is unlocked if unmounting while visible
-  unlockScroll()
     }
   }, [])
 
