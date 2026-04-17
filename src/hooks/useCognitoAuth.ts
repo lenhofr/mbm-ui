@@ -23,12 +23,12 @@ export function useCognitoAuth() {
   const refresh = useCallback(async () => {
     try {
       const session = await fetchAuthSession()
-  const id = session.tokens?.idToken?.payload as any
-      const email = id?.email as string | undefined
-      const sub = id?.sub as string | undefined
-  const idToken = session.tokens?.idToken?.toString()
-  const accessToken = session.tokens?.accessToken?.toString()
-  setState({ isAuthed: !!session.tokens, loading: false, user: { email, sub }, idToken, accessToken })
+      const payload = session.tokens?.idToken?.payload
+      const email = payload?.email as string | undefined
+      const sub = payload?.sub as string | undefined
+      const idToken = session.tokens?.idToken?.toString()
+      const accessToken = session.tokens?.accessToken?.toString()
+      setState({ isAuthed: !!session.tokens, loading: false, user: { email, sub }, idToken, accessToken })
     } catch (e) {
       setState({ isAuthed: false, loading: false })
     }

@@ -1,9 +1,10 @@
 // Storage abstraction for recipes. Provides a local adapter (localStorage/in-memory)
-// and a RemoteAdapter stub for future HTTP-backed storage.
+// and a RemoteAdapter for HTTP-backed storage.
 
 import type { Recipe } from '../App'
 import '../auth/amplify'
 import { fetchAuthSession } from 'aws-amplify/auth'
+import { getApiBase } from './env'
 
 export type Storage = {
   listRecipes: () => Promise<Recipe[]>
@@ -88,17 +89,19 @@ class RemoteAdapter implements Storage {
     }
   }
 
-  async listRecipes() {
-    const res = await fetch(`${this.base}/recipes`)
+  async listRecipes(): Promise<Recipe[]> {
+    const authHeaders = await this.getAuthHeader()
+    const res = await fetch(`${this.base}/recipes`, { headers: authHeaders })
     if (!res.ok) throw new Error('network')
-    return res.json()
+    return res.json() as Promise<Recipe[]>
   }
 
-  async getRecipe(id: string) {
-    const res = await fetch(`${this.base}/recipes/${encodeURIComponent(id)}`)
+  async getRecipe(id: string): Promise<Recipe | null> {
+    const authHeaders = await this.getAuthHeader()
+    const res = await fetch(`${this.base}/recipes/${encodeURIComponent(id)}`, { headers: authHeaders })
     if (res.status === 404) return null
     if (!res.ok) throw new Error('network')
-    return res.json()
+    return res.json() as Promise<Recipe>
   }
 
   async createRecipe(r: Omit<Recipe, 'id'>) {
@@ -136,10 +139,7 @@ class RemoteAdapter implements Storage {
 
 // Factory: pick adapter based on environment
 export function createStorage(): Storage {
-  // Prefer Vite env, fall back to REACT_APP if present in non-browser contexts
-  const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
-  const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
-  const base = (viteBase || legacyBase || '').trim()
+  const base = getApiBase()
   if (base) return new RemoteAdapter(base)
   return new LocalAdapter()
 }

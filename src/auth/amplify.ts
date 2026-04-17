@@ -12,7 +12,6 @@ const env = (import.meta as any).env
 
 const userPoolId = env.VITE_COGNITO_USER_POOL_ID as string | undefined
 const userPoolClientId = env.VITE_COGNITO_USER_POOL_WEB_CLIENT_ID as string | undefined
-const region = (env.VITE_COGNITO_REGION as string | undefined) || (userPoolId ? userPoolId.split('_')[0].split('-').slice(0,3).join('-') : undefined)
 
 if (!userPoolId || !userPoolClientId) {
   // eslint-disable-next-line no-console
@@ -24,9 +23,6 @@ Amplify.configure({
     Cognito: {
       userPoolId: userPoolId ?? '',
       userPoolClientId: userPoolClientId ?? '',
-      // region is optional; inferred from userPoolId if omitted
-      // @ts-ignore - region is supported but optional in v6
-      region: region,
       signUpVerificationMethod: 'code',
       loginWith: {
         // enable email as primary login input; adjust if you use username/phone

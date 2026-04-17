@@ -2,13 +2,16 @@ import React from 'react'
 import type { Recipe } from '../App'
 import { IconEdit, IconDelete } from '../icons/Icons'
 import RecipeImage from './RecipeImage'
+import { getApiBase } from '../lib/env'
 
 function highlight(text: string | undefined, q: string | undefined) {
   if (!text) return null
   if (!q) return text
   const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig')
   const parts = text.split(re)
-  return parts.map((p, i) => (re.test(p) ? <mark key={i} className="search-highlight">{p}</mark> : <span key={i}>{p}</span>))
+  // Use content + index as key: index alone is unstable when the list changes,
+  // but content alone can collide; combining both is cheap and correct here.
+  return parts.map((p, i) => (re.test(p) ? <mark key={`${i}-${p}`} className="search-highlight">{p}</mark> : <span key={`${i}-${p}`}>{p}</span>))
 }
 
 export default function RecipeList({ recipes, onEdit, onDelete, onView, query, authed, onLogin, currentUserName, currentUserSub }: { recipes: Recipe[]; onEdit?: (r: Recipe) => void; onDelete?: (r: Recipe) => void; onView?: (r: Recipe) => void; query?: string; authed?: boolean; onLogin?: () => void; currentUserName?: string; currentUserSub?: string }) {
@@ -33,11 +36,9 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query, a
           onView && onView(r)
         }}>
       <div className="recipe-image">
-            <RecipeImage 
+            <RecipeImage
               src={r.image ? (() => {
-                const viteBase = (import.meta as any).env?.VITE_API_BASE as string | undefined
-                const legacyBase = (typeof process !== 'undefined' && (process as any).env?.REACT_APP_API_BASE) as string | undefined
-                const apiBase = (viteBase || legacyBase || '').trim()
+                const apiBase = getApiBase()
                 const img = r.image as string
                 // If stored value is a key (no scheme), proxy through API to get a fresh redirect
                 if (!/^(https?:|data:|blob:)/i.test(img || '') && apiBase) {
@@ -85,12 +86,12 @@ export default function RecipeList({ recipes, onEdit, onDelete, onView, query, a
             {/* Attribution */}
             <div style={{fontSize:12, color:'var(--muted)'}}>
               {(() => {
-                const createdByRaw = (r as any).createdByName as string | undefined
-                const updatedByRaw = (r as any).updatedByName as string | undefined
-                const createdBySub = (r as any).createdBySub as string | undefined
-                const updatedBySub = (r as any).updatedBySub as string | undefined
-                const createdAt = (r as any).createdAt as number | undefined
-                const updatedAt = (r as any).updatedAt as number | undefined
+                const createdByRaw = r.createdByName
+                const updatedByRaw = r.updatedByName
+                const createdBySub = r.createdBySub
+                const updatedBySub = r.updatedBySub
+                const createdAt = r.createdAt
+                const updatedAt = r.updatedAt
                 const deriveName = (name: string | undefined, sub: string | undefined): string | undefined => {
                   if (name && name.toLowerCase() !== 'user') return name
                   // Only substitute viewer's nickname if the record belongs to them

@@ -4,6 +4,7 @@ import { Authenticator } from '@aws-amplify/ui-react'
 import { Hub } from 'aws-amplify/utils'
 import '@aws-amplify/ui-react/styles.css'
 import '../auth/amplify'
+import { useScrollLock } from '../hooks/useScrollLock'
 
 type Props = {
   visible: boolean
@@ -11,46 +12,9 @@ type Props = {
 }
 
 export default function LoginModal({ visible, onClose }: Props) {
-  if (!visible) return null
+  useScrollLock(visible)
 
-  // Use a global counter to manage scroll lock across multiple modals
-  function lockScroll() {
-    const w = window as any
-    w.__modalCount = (w.__modalCount || 0) + 1
-    if (w.__modalCount === 1) {
-      const y = window.scrollY || document.documentElement.scrollTop || 0
-      w.__scrollYBeforeModal = y
-      document.documentElement.classList.add('modal-open')
-      document.body.classList.add('modal-open')
-      document.body.style.position = 'fixed'
-      document.body.style.top = `-${y}px`
-      document.body.style.left = '0'
-      document.body.style.right = '0'
-      document.body.style.width = '100%'
-    }
-  }
-  function unlockScroll() {
-    const w = window as any
-    w.__modalCount = Math.max(0, (w.__modalCount || 0) - 1)
-    if (w.__modalCount === 0) {
-      document.documentElement.classList.remove('modal-open')
-      document.body.classList.remove('modal-open')
-      const y = typeof w.__scrollYBeforeModal === 'number' ? w.__scrollYBeforeModal : Math.max(0, -(parseInt(document.body.style.top || '0', 10) || 0))
-      document.body.style.position = ''
-      document.body.style.top = ''
-      document.body.style.left = ''
-      document.body.style.right = ''
-      document.body.style.width = ''
-      window.scrollTo(0, y)
-      w.__scrollYBeforeModal = undefined
-    }
-  }
-  React.useEffect(() => {
-    lockScroll()
-    return () => {
-      unlockScroll()
-    }
-  }, [])
+  if (!visible) return null
 
   // Auto-close the modal after a successful sign-in using Amplify Hub events
   React.useEffect(() => {

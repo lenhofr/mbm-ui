@@ -23,61 +23,60 @@ export type Recipe = {
   servings?: string
   cookTime?: string
   instructions?: string[]
+  // Attribution fields stamped by the backend
+  createdByName?: string
+  updatedByName?: string
+  createdBySub?: string
+  updatedBySub?: string
+  createdAt?: number
+  updatedAt?: number
+}
+
+/** Safely decode a JWT payload without any external library. */
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const part = token.split('.')[1]
+    if (!part) return null
+    return JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/')))
+  } catch {
+    return null
+  }
 }
 
 export default function App() {
   const auth = useCognitoAuth()
   const authed = auth.isAuthed
-  const displayName = ((): string | undefined => {
-    try {
-      // nickname should be present in ID token payload after update
-      const token = (auth as any).idToken as string | undefined
-      if (!token) return undefined
-      const payload = JSON.parse(atob(token.split('.')[1] || ''))
-      return payload?.nickname as string | undefined
-    } catch { return undefined }
-  })()
-    const currentUserSub = (() => {
-      try {
-        const token = (auth as any).idToken as string | undefined
-        if (!token) return undefined
-        const payload = JSON.parse(atob(token.split('.')[1] || ''))
-        return (payload?.sub || payload?.['cognito:username']) as string | undefined
-      } catch { return undefined }
-    })()
+  const jwtPayload = auth.idToken ? decodeJwtPayload(auth.idToken) : null
+  const displayName = jwtPayload?.nickname as string | undefined
+  const currentUserSub = (jwtPayload?.sub ?? jwtPayload?.['cognito:username']) as string | undefined
   const [showLogin, setShowLogin] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isLoadingRecipes, setIsLoadingRecipes] = useState(true)
   const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null)
 
+  async function loadRecipes() {
+    setIsLoadingRecipes(true)
+    setLoadErrorMessage(null)
+    try {
+      const items = await storage.listRecipes()
+      if (items && items.length) setRecipes(items)
+    } catch (e) {
+      console.error('Failed to load recipes', e)
+      const msgs = [
+        "Something's burning in the kitchen. We're on it!",
+        'A kitchen mishap! Please try again in a moment.'
+      ]
+      setLoadErrorMessage(msgs[Math.floor(Math.random() * msgs.length)])
+    } finally {
+      setIsLoadingRecipes(false)
+    }
+  }
+
   // Load initial recipes from storage on mount
   useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const items = await storage.listRecipes()
-        if (mounted) {
-          if (items && items.length) setRecipes(items)
-          setIsLoadingRecipes(false)
-          setLoadErrorMessage(null)
-        }
-        // If storage is empty, we could seed with defaults; keep empty for now
-      } catch (e) {
-        // Show a friendly kitchen-themed error
-        if (mounted) {
-          setIsLoadingRecipes(false)
-          const msgs = [
-            "Something's burning in the kitchen. We're on it!",
-            'A kitchen mishap! Please try again in a moment.'
-          ]
-          setLoadErrorMessage(msgs[Math.floor(Math.random() * msgs.length)])
-        }
-      }
-    })()
-    return () => {
-      mounted = false
-    }
+    loadRecipes()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Prompt to complete profile if signed in and no display name
@@ -111,7 +110,7 @@ export default function App() {
       setRecipes(s => s.map(item => (item.id === id ? updated : item)))
       setEditing(null)
     } catch (e) {
-      // handle error (e.g., show toast). For now, ignore
+      console.error('Failed to update recipe', e)
     }
   }
 
@@ -140,7 +139,7 @@ export default function App() {
       setRecipes(s => s.filter(r => r.id !== deleting.id))
       setDeleting(null)
     } catch (e) {
-      // ignore for now
+      console.error('Failed to delete recipe', e)
     }
   }
 
@@ -213,12 +212,12 @@ export default function App() {
     } else {
       tokens.forEach(token => {
         const m = token.match(/^(\w+):(.*)$/)
-  let res: any[] = []
+        let res: Rec[] = []
         if (m) {
           const field = m[1].toLowerCase()
           const val = m[2]
           if (field === 'tag' || field === 't') {
-            res = records.filter(r => (r.tags || []).some((tg: string) => tg.toLowerCase().includes(val.toLowerCase())))
+            res = records.filter(r => (r.tags || []).some(tg => tg.toLowerCase().includes(val.toLowerCase())))
           } else if (field === 'ing' || field === 'ingredient') {
             res = records.filter(r => r.ingredientsText.toLowerCase().includes(val.toLowerCase()))
           } else {
@@ -228,7 +227,7 @@ export default function App() {
         } else {
           res = fuse.search(token).map(x => x.item)
         }
-        resultSets.push(new Set(res.map((r: any) => r.id)))
+        resultSets.push(new Set(res.map(r => r.id)))
       })
     }
 
@@ -373,7 +372,7 @@ export default function App() {
               <h3 className="text-primary" style={{marginTop:0}}>Oops!</h3>
               <p style={{color:'var(--muted)'}}>{loadErrorMessage}</p>
               <div style={{marginTop:12}}>
-                <button className="secondary" onClick={() => { setIsLoadingRecipes(true); setLoadErrorMessage(null); /* retry */ (async () => { try { const items = await storage.listRecipes(); setRecipes(items || []); } catch {} finally { setIsLoadingRecipes(false) } })() }}>Try again</button>
+                <button className="secondary" onClick={loadRecipes}>Try again</button>
               </div>
             </div>
           ) : (
