@@ -3,6 +3,7 @@ import json
 from decimal import Decimal
 import uuid
 import time
+# v2 — includes AI recipe extraction handler
 import base64
 import urllib.request
 from html.parser import HTMLParser
