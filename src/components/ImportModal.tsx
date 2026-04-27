@@ -105,11 +105,11 @@ export default function ImportModal({ visible, authHeader, onClose, onImported }
   if (!visible || !modalRoot) return null
 
   return createPortal(
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Import recipe" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="modal-content" style={{ maxWidth: 480 }}>
-        <div className="modal-header">
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Import recipe" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal" style={{ maxWidth: 480 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
           <h2 style={{ margin: 0, fontSize: '1.2rem' }}>Import Recipe</h2>
-          <button className="close-btn" aria-label="Close" onClick={onClose}>×</button>
+          <button className="close-btn" aria-label="Close" onClick={onClose} style={{ marginLeft: 'auto' }}>×</button>
         </div>
 
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border, #e0e0e0)' }}>
