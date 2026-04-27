@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import RecipeList from './components/RecipeList'
 import DetailsModal from './components/DetailsModal'
+import ImportModal from './components/ImportModal'
 import ConfirmDialog from './components/ConfirmDialog'
 import CookModal from './components/CookModal'
 import Hero from './components/Hero'
@@ -121,6 +122,8 @@ export default function App() {
   const [viewing, setViewing] = useState<Recipe | null>(null)
 
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+  const [importedRecipe, setImportedRecipe] = useState<Omit<Recipe, 'id'> | null>(null)
 
   function startView(recipe: Recipe) {
     setViewing(recipe)
@@ -331,7 +334,10 @@ export default function App() {
           <div style={{ display: 'flex', gap: 12 }}>
             {authed && (
               <>
-                {/* Desktop / tablet: text button */}
+                {/* Desktop / tablet: text buttons */}
+                <button type="button" className="secondary hide-on-mobile" onClick={() => setShowImport(true)}>
+                  Import
+                </button>
                 <button type="button" className="primary hide-on-mobile" onClick={() => setShowAddModal(true)}>
                   <span aria-hidden style={{display:'inline-flex',alignItems:'center',marginRight:8}}>
                     <IconPlus size={18} weight="regular" />
@@ -426,6 +432,25 @@ export default function App() {
       onEdit={authed ? (r) => { setEditing(r); setViewing(null) } : undefined}
         />
       )}
+
+    <ImportModal
+      visible={showImport}
+      authHeader={auth.authHeader}
+      onClose={() => setShowImport(false)}
+      onImported={recipe => { setShowImport(false); setImportedRecipe(recipe) }}
+    />
+
+    {importedRecipe && (
+      <DetailsModal
+        visible={true}
+        currentUserSub={currentUserSub}
+        onClose={() => setImportedRecipe(null)}
+        onSave={(r) => { addRecipe(r); setImportedRecipe(null) }}
+        initialRecipe={importedRecipe}
+        onLogin={() => setShowLogin(true)}
+        currentUserName={displayName}
+      />
+    )}
 
     {showLogin && !authed ? (
       <LoginModal visible={true} onClose={() => setShowLogin(false)} />
