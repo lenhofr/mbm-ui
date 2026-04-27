@@ -1,0 +1,152 @@
+name: Terraform AI Account
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main ]
+    paths:
+      - 'terraform/ai_account/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'terraform/ai_account/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (AI account)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AI_ACCOUNT_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AI_ACCOUNT_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Terraform Format Check
+        working-directory: terraform/ai_account
+        run: |
+          echo 'Running terraform fmt check...'
+          if ! terraform fmt -check -recursive; then
+            echo ''
+            echo '❌ terraform fmt found unformatted files. Run: terraform fmt -recursive'
+            exit 1
+          fi
+
+      - name: Terraform Init
+        working-directory: terraform/ai_account
+        run: |
+          set -o pipefail
+          terraform init -input=false 2>&1 | tee init.log
+          echo "INIT_EXIT_CODE=${PIPESTATUS[0]}" >> $GITHUB_ENV
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi
+
+      - name: Terraform Validate
+        working-directory: terraform/ai_account
+        run: |
+          set -o pipefail
+          terraform validate 2>&1 | tee validate.log
+          echo "VALIDATE_EXIT_CODE=${PIPESTATUS[0]}" >> $GITHUB_ENV
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: terraform/ai_account
+        run: |
+          set -o pipefail
+          terraform plan -input=false -no-color -out=tfplan 2>&1 | tee plan_raw.log
+          PLAN_EXIT=${PIPESTATUS[0]}
+          if [ $PLAN_EXIT -eq 0 ]; then
+            terraform show -no-color tfplan > plan.txt
+          fi
+          echo "PLAN_EXIT_CODE=$PLAN_EXIT" >> $GITHUB_ENV
+          exit $PLAN_EXIT
+
+      - name: Comment Plan or Error on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const readIfExists = p => fs.existsSync(p) ? fs.readFileSync(p,'utf8') : null;
+            const planTxt = readIfExists('terraform/ai_account/plan.txt');
+            const planRaw = readIfExists('terraform/ai_account/plan_raw.log');
+            const planExit = process.env.PLAN_EXIT_CODE;
+            let body;
+            if (planExit && parseInt(planExit) !== 0) {
+              body = 'AI Account Terraform Plan Failed ❌\n```\n' + (planRaw ? planRaw.slice(0,60000) : 'Plan error (log missing)') + '\n```';
+            } else if (planTxt) {
+              const noChanges = /No changes\. Infrastructure is up-to-date\./.test(planTxt);
+              const truncated = planTxt.length > 60000 ? planTxt.substring(0,60000) + '\n... (truncated)' : planTxt;
+              body = (noChanges ? 'AI Account Terraform Plan: No changes ✅' : 'AI Account Terraform Plan (preview)') + '\n```\n' + truncated + '\n```';
+            } else {
+              body = 'AI Account Terraform plan did not produce a plan.txt and no error log was captured.';
+            }
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+  apply:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (AI account)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AI_ACCOUNT_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AI_ACCOUNT_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Terraform Init
+        working-directory: terraform/ai_account
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        working-directory: terraform/ai_account
+        id: tfapply
+        run: |
+          set -o pipefail
+          terraform apply -input=false -auto-approve 2>&1 | tee tfapply.log
+          exit_code=${PIPESTATUS[0]}
+          if [ "$exit_code" -eq 0 ]; then
+            echo "apply_status=success" >> $GITHUB_OUTPUT
+          else
+            echo "apply_status=failure" >> $GITHUB_OUTPUT
+            exit $exit_code
+          fi
+          echo "tf_summary<<EOF" >> $GITHUB_OUTPUT
+          tail -n 200 tfapply.log >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### AI Account Terraform Apply" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: **${{ steps.tfapply.outputs.apply_status || 'unknown' }}**" >> $GITHUB_STEP_SUMMARY

@@ -8,7 +8,7 @@ on:
       - 'public/**'
       - 'package.json'
       - 'vite.config.ts'
-      - 'terraform/**'
+      - 'terraform/app_account/**'
   workflow_dispatch:
 
 permissions:
@@ -44,11 +44,11 @@ jobs:
           terraform_version: 1.7.5
 
       - name: Terraform Init
-        working-directory: terraform
+        working-directory: terraform/app_account
         run: terraform init -input=false
 
       - name: Terraform Apply
-        working-directory: terraform
+        working-directory: terraform/app_account
         id: tfapply
         run: |
           set -o pipefail
@@ -65,7 +65,7 @@ jobs:
 
       - name: Get outputs
         id: tfout
-        working-directory: terraform
+        working-directory: terraform/app_account
         run: |
           # adapt to available outputs in terraform/envs/*; using common names from this repo
           if terraform output -raw site_bucket >/dev/null 2>&1; then echo "site_bucket=$(terraform output -raw site_bucket)" >> $GITHUB_OUTPUT; fi
