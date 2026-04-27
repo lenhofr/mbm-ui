@@ -13,11 +13,11 @@ type Props = {
   onImported: (recipe: Omit<Recipe, 'id'>) => void
 }
 
-const SUPPORTED_TYPES: Record<string, string> = {
-  'image/jpeg': 'image/jpeg',
-  'image/png': 'image/png',
-  'image/gif': 'image/gif',
-  'image/webp': 'image/webp',
+const SUPPORTED_TYPES: Record<string, boolean> = {
+  'image/jpeg': true,
+  'image/png': true,
+  'image/gif': true,
+  'image/webp': true,
 }
 
 const MAX_BYTES = 2_500_000
@@ -59,8 +59,8 @@ export default function ImportModal({ visible, authHeader, onClose, onImported }
   useScrollLock(visible)
   const [mode, setMode] = useState<Mode>('url')
   const [url, setUrl] = useState('')
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [previews, setPreviews] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const urlInputRef = useRef<HTMLInputElement>(null)
@@ -69,8 +69,8 @@ export default function ImportModal({ visible, authHeader, onClose, onImported }
   useEffect(() => {
     if (visible) {
       setUrl('')
-      setImageFile(null)
-      setImagePreview(null)
+      setImageFiles([])
+      setPreviews([])
       setError(null)
       setMode('url')
     }
@@ -83,15 +83,23 @@ export default function ImportModal({ visible, authHeader, onClose, onImported }
   }, [visible, mode])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null
-    if (!file) return
-    if (!SUPPORTED_TYPES[file.type]) {
-      setError('Unsupported file type. Please use JPEG, PNG, GIF, or WebP.')
-      return
+    const files = Array.from(e.target.files ?? [])
+    const valid = files.filter(f => SUPPORTED_TYPES[f.type])
+    if (valid.length < files.length) {
+      setError('Some files were skipped — only JPEG, PNG, GIF, and WebP are supported.')
+    } else {
+      setError(null)
     }
-    setError(null)
-    setImageFile(file)
-    setImagePreview(URL.createObjectURL(file))
+    if (valid.length === 0) return
+    setImageFiles(prev => [...prev, ...valid])
+    setPreviews(prev => [...prev, ...valid.map(f => URL.createObjectURL(f))])
+    e.target.value = ''
+  }
+
+  function removeImage(idx: number) {
+    URL.revokeObjectURL(previews[idx])
+    setImageFiles(prev => prev.filter((_, i) => i !== idx))
+    setPreviews(prev => prev.filter((_, i) => i !== idx))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -104,9 +112,9 @@ export default function ImportModal({ visible, authHeader, onClose, onImported }
         if (!url.trim()) return
         body = { type: 'url', url: url.trim() }
       } else {
-        if (!imageFile) return
-        const { base64, mediaType } = await compressImage(imageFile)
-        body = { type: 'image', data: base64, mediaType }
+        if (imageFiles.length === 0) return
+        const compressed = await Promise.all(imageFiles.map(compressImage))
+        body = { type: 'image', images: compressed.map(({ base64, mediaType }) => ({ data: base64, mediaType })) }
       }
 
       const res = await fetch(`${getApiBase()}/ai/extract-recipe`, {
@@ -125,7 +133,7 @@ export default function ImportModal({ visible, authHeader, onClose, onImported }
     }
   }
 
-  const canSubmit = !loading && (mode === 'url' ? !!url.trim() : !!imageFile)
+  const canSubmit = !loading && (mode === 'url' ? !!url.trim() : imageFiles.length > 0)
 
   const modalRoot = typeof document !== 'undefined' ? document.getElementById('modal-root') : null
   if (!visible || !modalRoot) return null
@@ -182,41 +190,53 @@ export default function ImportModal({ visible, authHeader, onClose, onImported }
           ) : (
             <>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                Recipe image
+                Recipe image{imageFiles.length !== 1 ? 's' : ''}{' '}
+                <span style={{ fontWeight: 400, color: 'var(--muted, #666)', fontSize: '0.85rem' }}>
+                  (add front &amp; back of a recipe card)
+                </span>
               </label>
-              <div
+
+              {previews.length > 0 && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                  {previews.map((src, i) => (
+                    <div key={i} style={{ position: 'relative' }}>
+                      <img src={src} alt={`Image ${i + 1}`} style={{ height: 80, width: 80, objectFit: 'cover', borderRadius: 6, display: 'block' }} />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(i)}
+                        aria-label={`Remove image ${i + 1}`}
+                        style={{
+                          position: 'absolute', top: -6, right: -6,
+                          background: 'var(--primary, #c0392b)', color: '#fff',
+                          border: 'none', borderRadius: '50%',
+                          width: 20, height: 20, fontSize: 12, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          lineHeight: 1,
+                        }}
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
-                style={{
-                  border: '2px dashed var(--border, #ccc)',
-                  borderRadius: 8,
-                  padding: 20,
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  marginBottom: 16,
-                  background: 'var(--surface, #fafafa)',
-                }}
+                disabled={loading}
+                className="secondary"
+                style={{ width: '100%', marginBottom: 12 }}
               >
-                {imagePreview ? (
-                  <img src={imagePreview} alt="Preview" style={{ maxHeight: 180, maxWidth: '100%', borderRadius: 4 }} />
-                ) : (
-                  <p style={{ margin: 0, color: 'var(--muted, #666)', fontSize: '0.9rem' }}>
-                    Tap to choose a photo (JPEG, PNG, WebP, GIF)
-                  </p>
-                )}
-              </div>
+                {imageFiles.length === 0 ? 'Choose photo(s)' : 'Add another photo'}
+              </button>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/gif,image/webp"
+                multiple
                 onChange={handleFileChange}
                 disabled={loading}
                 style={{ display: 'none' }}
               />
-              {imageFile && (
-                <p style={{ fontSize: '0.85rem', color: 'var(--muted, #666)', marginBottom: 16 }}>
-                  {imageFile.name} ({(imageFile.size / 1024).toFixed(0)} KB)
-                </p>
-              )}
             </>
           )}
 

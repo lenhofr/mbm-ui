@@ -101,21 +101,20 @@ def _parse_bedrock_json(raw):
         return {"error": "model returned non-JSON", "raw": raw}
 
 
-def _extract_from_image(data_b64, media_type):
-    image_bytes = base64.b64decode(data_b64)
-    fmt = media_type.split("/")[-1].lower()
-    if fmt == "jpg":
-        fmt = "jpeg"
+def _extract_from_image(images):
+    """images: list of {"data": base64_str, "mediaType": "image/jpeg"|...}"""
+    content = []
+    for img in images:
+        fmt = img["mediaType"].split("/")[-1].lower()
+        if fmt == "jpg":
+            fmt = "jpeg"
+        content.append({"image": {"format": fmt, "source": {"bytes": base64.b64decode(img["data"])}}})
+    noun = "these images" if len(images) > 1 else "this image"
+    content.append({"text": f"Extract the recipe from {noun}."})
     resp = get_bedrock().converse(
         modelId=BEDROCK_MODEL,
         system=[{"text": AI_SYSTEM_PROMPT}],
-        messages=[{
-            "role": "user",
-            "content": [
-                {"image": {"format": fmt, "source": {"bytes": image_bytes}}},
-                {"text": "Extract the recipe from this image."},
-            ],
-        }],
+        messages=[{"role": "user", "content": content}],
         inferenceConfig={"maxTokens": 2048},
     )
     return _parse_bedrock_json(resp["output"]["message"]["content"][0]["text"])
@@ -443,11 +442,10 @@ def handler(event, context):
             body = json.loads(event.get('body') or '{}')
             extract_type = body.get('type')
             if extract_type == 'image':
-                data = body.get('data')
-                media_type = body.get('mediaType', 'image/jpeg')
-                if not data:
-                    return response(400, {'error': 'Missing data field for image extraction'})
-                result = _extract_from_image(data, media_type)
+                images = body.get('images') or []
+                if not images:
+                    return response(400, {'error': 'Missing images field for image extraction'})
+                result = _extract_from_image(images)
             elif extract_type == 'url':
                 url = body.get('url', '').strip()
                 if not url:
