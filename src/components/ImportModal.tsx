@@ -73,7 +73,7 @@ export default function ImportModal({ visible, authHeader, onClose, onImported }
       setImageFiles([])
       setPreviews([])
       setError(null)
-      setMode('url')
+      setMode('image')
     }
   }, [visible])
 
@@ -148,7 +148,7 @@ export default function ImportModal({ visible, authHeader, onClose, onImported }
         </div>
 
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border, #e0e0e0)' }}>
-          {(['url', 'image'] as Mode[]).map(m => (
+          {(['image', 'url'] as Mode[]).map(m => (
             <button
               key={m}
               type="button"
