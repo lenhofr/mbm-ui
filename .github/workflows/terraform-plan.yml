@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
     branches: [ main ]
     paths:
-      - 'terraform/**'
+      - 'terraform/app_account/**'
 
 permissions:
   contents: read
@@ -33,7 +33,7 @@ jobs:
           terraform_version: 1.7.5
 
       - name: Terraform Format Check
-        working-directory: terraform
+        working-directory: terraform/app_account
         run: |
           echo 'Running terraform fmt check...'
           if ! terraform fmt -check -recursive; then
@@ -43,7 +43,7 @@ jobs:
           fi
 
       - name: Terraform Init
-        working-directory: terraform
+        working-directory: terraform/app_account
         run: |
           set -o pipefail
           terraform init -input=false 2>&1 | tee init.log
@@ -51,7 +51,7 @@ jobs:
           if [ ${PIPESTATUS[0]} -ne 0 ]; then exit 1; fi
 
       - name: Terraform Validate
-        working-directory: terraform
+        working-directory: terraform/app_account
         run: |
           set -o pipefail
           terraform validate 2>&1 | tee validate.log
@@ -60,7 +60,7 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        working-directory: terraform
+        working-directory: terraform/app_account
         run: |
           set -o pipefail
           terraform plan -input=false -no-color -out=tfplan 2>&1 | tee plan_raw.log
@@ -79,8 +79,8 @@ jobs:
           script: |
             const fs = require('fs');
             const readIfExists = p => fs.existsSync(p) ? fs.readFileSync(p,'utf8') : null;
-            const planTxt = readIfExists('terraform/plan.txt');
-            const planRaw = readIfExists('terraform/plan_raw.log');
+            const planTxt = readIfExists('terraform/app_account/plan.txt');
+            const planRaw = readIfExists('terraform/app_account/plan_raw.log');
             const initLog = readIfExists('terraform/init.log');
             const validateLog = readIfExists('terraform/validate.log');
             const planExit = process.env.PLAN_EXIT_CODE;
