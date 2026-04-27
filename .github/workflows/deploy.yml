@@ -59,9 +59,9 @@ jobs:
           else
             echo "apply_status=failure" >> $GITHUB_OUTPUT
           fi
-          echo "tf_summary<<EOF" >> $GITHUB_OUTPUT
+          echo "tf_summary<<TF_OUTPUT_DELIM" >> $GITHUB_OUTPUT
           tail -n 200 tfapply.log >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "TF_OUTPUT_DELIM" >> $GITHUB_OUTPUT
 
       - name: Get outputs
         id: tfout
