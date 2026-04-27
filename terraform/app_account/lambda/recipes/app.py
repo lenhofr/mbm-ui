@@ -214,6 +214,8 @@ def handler(event, context):
                 route_key = f'{method} /recipes/{{id}}'
             elif path == '/ratings' and method in ('GET', 'POST'):
                 route_key = f'{method} /ratings'
+            elif path == '/ai/extract-recipe' and method == 'POST':
+                route_key = 'POST /ai/extract-recipe'
 
     # If route_key provided but unexpected (e.g., path has trailing slash), re-derive a normalized key
     expected = {
@@ -461,4 +463,4 @@ def handler(event, context):
             print(f"extract-recipe error: {e}")
             return response(500, {'error': str(e)})
 
-    return response(400, {'message': 'Unsupported operation', 'route_key': route_key, 'method': method, 'path': raw_path})
+    return response(400, {'message': 'Unsupported operation'})
