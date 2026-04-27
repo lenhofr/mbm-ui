@@ -9,7 +9,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "tf-state-common-217354297026-us-east-1"
+    bucket = "tf-state-923988301699-us-east-1"
     key    = "mbm-bedrock/terraform.tfstate"
     region = "us-east-1"
   }
