@@ -8,7 +8,7 @@ import Hero from './components/Hero'
 import Fuse from 'fuse.js'
 import { storage } from './lib/storage'
 import LoginModal from './components/LoginModal'
-import { IconSignIn, IconSignOut, IconPlus, IconPlusCircle } from './icons/Icons'
+import { IconSignIn, IconSignOut, IconPlus, IconPlusCircle, IconImport } from './icons/Icons'
 import { useCognitoAuth } from './hooks/useCognitoAuth'
 import LoadingSpinner from './components/LoadingSpinner'
 
@@ -344,7 +344,10 @@ export default function App() {
                   </span>
                   New Recipe
                 </button>
-                {/* Mobile: compact icon-only button to save space (neutral card style to avoid bright block) */}
+                {/* Mobile: icon-only buttons */}
+                <button type="button" className="auth-cta show-on-mobile" aria-label="Import recipe" title="Import recipe" onClick={() => setShowImport(true)}>
+                  <span className="auth-icon auth-icon--lg" aria-hidden><IconImport size={24} weight="regular" /></span>
+                </button>
                 <button type="button" className="auth-cta show-on-mobile" aria-label="Add recipe" title="Add recipe" onClick={() => setShowAddModal(true)}>
                   <span className="auth-icon auth-icon--lg" aria-hidden><IconPlusCircle size={24} weight="regular" /></span>
                 </button>
