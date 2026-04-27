@@ -461,4 +461,4 @@ def handler(event, context):
             print(f"extract-recipe error: {e}")
             return response(500, {'error': str(e)})
 
-    return response(400, {'message': 'Unsupported operation'})
+    return response(400, {'message': 'Unsupported operation', 'route_key': route_key, 'method': method, 'path': raw_path})
