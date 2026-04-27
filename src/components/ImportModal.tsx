@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { getApiBase } from '../lib/env'
 import type { Recipe } from '../App'
@@ -88,7 +89,7 @@ export default function ImportModal({ visible, authHeader, onClose, onImported }
         body: JSON.stringify(body),
       })
       const result = await res.json()
-      if (!res.ok) throw new Error(result?.error || `HTTP ${res.status}`)
+      if (!res.ok) throw new Error(result?.error || result?.message || `HTTP ${res.status}`)
       if (result?.error) throw new Error(result.error)
       onImported(result)
     } catch (err: unknown) {
@@ -100,9 +101,10 @@ export default function ImportModal({ visible, authHeader, onClose, onImported }
 
   const canSubmit = !loading && (mode === 'url' ? !!url.trim() : !!imageFile)
 
-  if (!visible) return null
+  const modalRoot = typeof document !== 'undefined' ? document.getElementById('modal-root') : null
+  if (!visible || !modalRoot) return null
 
-  return (
+  return createPortal(
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Import recipe" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal-content" style={{ maxWidth: 480 }}>
         <div className="modal-header">
@@ -204,6 +206,7 @@ export default function ImportModal({ visible, authHeader, onClose, onImported }
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    modalRoot
   )
 }
