@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useScrollLock } from '../hooks/useScrollLock'
 import { getApiBase } from '../lib/env'
+import LoadingSpinner from './LoadingSpinner'
 import type { Recipe } from '../App'
 
 type Mode = 'url' | 'image'
@@ -57,7 +58,7 @@ function compressImage(file: File): Promise<{ base64: string; mediaType: string 
 
 export default function ImportModal({ visible, authHeader, onClose, onImported }: Props) {
   useScrollLock(visible)
-  const [mode, setMode] = useState<Mode>('url')
+  const [mode, setMode] = useState<Mode>('image')
   const [url, setUrl] = useState('')
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
@@ -244,12 +245,14 @@ export default function ImportModal({ visible, authHeader, onClose, onImported }
             <p style={{ color: 'var(--error, #c00)', marginBottom: 16, fontSize: '0.9rem' }}>{error}</p>
           )}
 
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-            <button type="button" className="secondary" onClick={onClose} disabled={loading}>Cancel</button>
-            <button type="submit" className="primary" disabled={!canSubmit}>
-              {loading ? 'Importing…' : 'Import'}
-            </button>
-          </div>
+          {loading ? (
+            <LoadingSpinner message="Simmering…" size={40} />
+          ) : (
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button type="button" className="secondary" onClick={onClose}>Cancel</button>
+              <button type="submit" className="primary" disabled={!canSubmit}>Import</button>
+            </div>
+          )}
         </form>
       </div>
     </div>,
