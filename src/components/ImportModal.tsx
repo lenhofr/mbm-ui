@@ -8,7 +8,7 @@ type Mode = 'url' | 'image'
 
 type Props = {
   visible: boolean
-  authHeader: () => Record<string, string>
+  authHeader: (prefer?: 'id' | 'access') => Record<string, string | undefined>
   onClose: () => void
   onImported: (recipe: Omit<Recipe, 'id'>) => void
 }
