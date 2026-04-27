@@ -20,12 +20,38 @@ const SUPPORTED_TYPES: Record<string, string> = {
   'image/webp': 'image/webp',
 }
 
-function fileToBase64(file: File): Promise<string> {
+const MAX_BYTES = 2_500_000
+const MAX_DIMENSION = 1568
+
+function compressImage(file: File): Promise<{ base64: string; mediaType: string }> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve((reader.result as string).split(',')[1])
-    reader.onerror = reject
-    reader.readAsDataURL(file)
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      let { width, height } = img
+      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+        const scale = MAX_DIMENSION / Math.max(width, height)
+        width = Math.round(width * scale)
+        height = Math.round(height * scale)
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, width, height)
+      for (const quality of [0.85, 0.75, 0.60, 0.45]) {
+        const dataUrl = canvas.toDataURL('image/jpeg', quality)
+        const base64 = dataUrl.split(',')[1]
+        if (base64.length * 0.75 <= MAX_BYTES) {
+          resolve({ base64, mediaType: 'image/jpeg' })
+          return
+        }
+      }
+      reject(new Error('Could not compress image under 2.5MB'))
+    }
+    img.onerror = reject
+    img.src = url
   })
 }
 
@@ -79,8 +105,8 @@ export default function ImportModal({ visible, authHeader, onClose, onImported }
         body = { type: 'url', url: url.trim() }
       } else {
         if (!imageFile) return
-        const data = await fileToBase64(imageFile)
-        body = { type: 'image', data, mediaType: imageFile.type }
+        const { base64, mediaType } = await compressImage(imageFile)
+        body = { type: 'image', data: base64, mediaType }
       }
 
       const res = await fetch(`${getApiBase()}/ai/extract-recipe`, {
