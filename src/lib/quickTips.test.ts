@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { TIPS, TIP_CATEGORIES, matchTip, searchTips } from './quickTips'
 
-const egg = TIPS.find(t => t.id === 'boiled-eggs')!
+const egg = TIPS.find(t => t.id === 'eggs')!
 
 describe('quick tips data', () => {
   it('has 12 tips with unique ids in known categories', () => {
@@ -12,9 +12,9 @@ describe('quick tips data', () => {
 
   it('keeps the USDA safe temps from the spec', () => {
     const rows = Object.fromEntries(TIPS.find(t => t.id === 'safe-temps')!.rows!)
-    expect(rows['All poultry']).toBe('165°F')
+    expect(rows['Poultry, any cut or ground']).toBe('165°F')
     expect(rows['Ground beef, pork, lamb']).toBe('160°F')
-    expect(rows['Beef, pork, lamb steaks, chops, roasts']).toBe('145°F + 3 min rest')
+    expect(rows['Steaks, chops, roasts']).toBe('145°F + 3 min rest')
     expect(rows['Fish & shellfish']).toBe('145°F')
     expect(rows['Egg dishes']).toBe('160°F')
     expect(rows['Leftovers & casseroles']).toBe('165°F')
@@ -33,12 +33,12 @@ describe('matchTip', () => {
     expect(matchTip(egg, 'how long to boil eggs')).toBe(true)
   })
 
-  it('"egg" only finds the eggs tip (no keyword like "veggies" sneaking in)', () => {
-    expect(searchTips('egg').map(t => t.id)).toEqual(['boiled-eggs'])
+  it('"egg" only finds the eggs tip', () => {
+    expect(searchTips('egg').map(t => t.id)).toEqual(['eggs'])
   })
 
   it('searchTips trims and lowercases', () => {
-    expect(searchTips('  EGG ').map(t => t.id)).toContain('boiled-eggs')
+    expect(searchTips('  EGG ').map(t => t.id)).toContain('eggs')
     expect(searchTips('')).toHaveLength(12)
   })
 })
