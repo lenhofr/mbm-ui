@@ -1,4 +1,4 @@
-const CACHE = 'mbm-ui-sw-v2'
+const CACHE = 'mbm-ui-sw-v3'
 
 self.addEventListener('install', (event) => {
   self.skipWaiting()
@@ -21,6 +21,21 @@ self.addEventListener('fetch', (event) => {
   } catch (_) {
     return
   }
+  // Page loads: network-first so a deploy shows up on the next launch of the
+  // home-screen app; fall back to the cached shell when offline.
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      fetch(req).then(res => {
+        if (res && res.ok) {
+          const copy = res.clone()
+          caches.open(CACHE).then(c => c.put('/index.html', copy))
+        }
+        return res
+      }).catch(() => caches.match('/index.html'))
+    )
+    return
+  }
+  // Hashed assets, fonts, icons: stale-while-revalidate.
   event.respondWith(
     caches.open(CACHE).then(async cache => {
       const cached = await cache.match(req)

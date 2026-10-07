@@ -9,13 +9,6 @@ import { buildIndex, searchRecipes, topTags } from '../lib/search'
 import type { Recipe } from '../types'
 import './HomeScreen.css'
 
-type Layout = 'grid' | 'list'
-const LAYOUT_KEY = 'mbm:layout'
-
-function readLayout(): Layout {
-  try { return window.localStorage.getItem(LAYOUT_KEY) === 'list' ? 'list' : 'grid' } catch { return 'grid' }
-}
-
 function meta(r: Recipe) {
   return [r.cookTime, r.tags?.[0]?.toLowerCase()].filter(Boolean).join(' · ')
 }
@@ -27,7 +20,6 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
   const [query, setQuery] = useState('')
   const [debounced, setDebounced] = useState('')
   const [tag, setTag] = useState('all')
-  const [layout, setLayout] = useState<Layout>(readLayout)
   const [account, setAccount] = useState(false)
 
   useEffect(() => {
@@ -45,12 +37,6 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
       (tag === 'all' || (r.tags || []).some(t => t.toLowerCase() === tag)) &&
       (!hits || hits.has(r.id)))
   }, [recipes, index, debounced, tag, favoritesOnly, favorites])
-
-  function toggleLayout() {
-    const next = layout === 'grid' ? 'list' : 'grid'
-    setLayout(next)
-    try { window.localStorage.setItem(LAYOUT_KEY, next) } catch {}
-  }
 
   const open = (r: Recipe) => navigate(`/recipe/${encodeURIComponent(r.id)}`)
   const initial = (app.displayName || app.auth.user?.email || '?').charAt(0).toUpperCase()
@@ -109,12 +95,7 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
           </div>
         ) : (
           <>
-            <div className="count-row">
-              <span className="count">{list.length} {list.length === 1 ? 'recipe' : 'recipes'}</span>
-              <button type="button" className="layout-btn" onClick={toggleLayout} aria-label={layout === 'grid' ? 'Show as list' : 'Show as grid'}>
-                <Icon name={layout === 'grid' ? 'list' : 'grid'} size={20} />
-              </button>
-            </div>
+            <div className="count">{list.length} {list.length === 1 ? 'recipe' : 'recipes'}</div>
             {list.length === 0 ? (
               <div className="empty">
                 <p>
@@ -127,20 +108,6 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
                     <Icon name="plus" size={18} weight="bold" />Add a recipe
                   </button>
                 )}
-              </div>
-            ) : layout === 'list' ? (
-              <div className="rlist">
-                {list.map(r => (
-                  <button type="button" key={r.id} className="rrow" onClick={() => open(r)}>
-                    <RecipeThumb title={r.title} image={r.image} className="sq" />
-                    <div className="rrow-body">
-                      <div className="rtitle">{r.title}</div>
-                      {r.description && <div className="rdesc">{r.description}</div>}
-                      <div className="rmeta">{meta(r)}</div>
-                    </div>
-                    {favorites.has(r.id) && <Icon name="heart" size={16} filled color="var(--pink)" />}
-                  </button>
-                ))}
               </div>
             ) : (
               <div className="rgrid">

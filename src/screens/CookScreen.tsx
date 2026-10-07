@@ -30,11 +30,24 @@ function fmtDuration(min: number) {
   return min >= 60 ? `${Math.round(min / 6) / 10} hr` : `${min} min`
 }
 
-function chime() {
-  try { navigator.vibrate?.([300, 150, 300, 150, 300]) } catch {}
+// iOS only lets audio start from a user tap, so the context is created/resumed when
+// the timer is started and reused when it rings. iOS has no Vibration API.
+let audioCtx: AudioContext | null = null
+
+function unlockAudio() {
   try {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    const ctx = new Ctx()
+    audioCtx = audioCtx || new Ctx()
+    if (audioCtx.state === 'suspended') audioCtx.resume()
+  } catch {}
+}
+
+function chime() {
+  try { navigator.vibrate?.([300, 150, 300, 150, 300]) } catch {}
+  const ctx = audioCtx
+  if (!ctx) return
+  try {
+    if (ctx.state === 'suspended') ctx.resume()
     ;[0, 0.35, 0.7].forEach(t => {
       const o = ctx.createOscillator()
       const g = ctx.createGain()
@@ -46,7 +59,6 @@ function chime() {
       o.start(ctx.currentTime + t)
       o.stop(ctx.currentTime + t + 0.32)
     })
-    setTimeout(() => ctx.close(), 1500)
   } catch {}
 }
 
@@ -84,11 +96,13 @@ function Cook({ r }: { r: Recipe }) {
     setI(Math.max(0, Math.min(n - 1, i + d)))
   }
   const startTimer = (minutes: number) => {
+    unlockAudio()
     chimed.current = false
     setTimer({ step: i, total: minutes * 60, endAt: Date.now() + minutes * 60000, pausedLeft: minutes * 60 })
   }
   const togglePause = () => {
     if (!timer) return
+    unlockAudio()
     setTimer(timer.endAt ? { ...timer, endAt: null, pausedLeft: left } : { ...timer, endAt: Date.now() + timer.pausedLeft * 1000 })
   }
 
