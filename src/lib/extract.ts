@@ -13,12 +13,13 @@ export class UnreadableError extends Error {}
 export async function extractRecipe(
   input: ExtractInput,
   authHeaders: Record<string, string | undefined>,
-  signal?: AbortSignal,
+  opts: { knownTags?: string[]; signal?: AbortSignal } = {},
 ): Promise<ExtractResult> {
+  const { knownTags = [], signal } = opts
   let body: object
-  if (input.kind === 'link') body = { type: 'url', url: input.url }
-  else if (input.kind === 'text') body = { type: 'text', text: input.text }
-  else body = { type: 'image', images: await Promise.all(input.files.map(f => compressForExtract(f))) }
+  if (input.kind === 'link') body = { type: 'url', url: input.url, knownTags }
+  else if (input.kind === 'text') body = { type: 'text', text: input.text, knownTags }
+  else body = { type: 'image', source: input.kind, images: await Promise.all(input.files.map(f => compressForExtract(f))), knownTags }
 
   const res = await fetch(`${getApiBase()}/ai/extract-recipe`, {
     method: 'POST',
@@ -28,7 +29,7 @@ export async function extractRecipe(
   })
   const result = (await res.json().catch(() => ({}))) as ExtractResult & { message?: string }
   if (!res.ok) throw new Error(result?.error || result?.message || `HTTP ${res.status}`)
-  if (result.readable === false || result.error === 'no recipe found') throw new UnreadableError(result.error || 'unreadable')
+  if (result.readable === false) throw new UnreadableError(result.error || 'unreadable')
   if (result.error) throw new Error(result.error)
   return result
 }
