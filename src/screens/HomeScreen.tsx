@@ -1,16 +1,99 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../state/AppContext'
 import { Icon } from '../icons/Icons'
 import { RecipeThumb } from '../components/ui'
 import Sheet from '../components/ui/Sheet'
+import QuickView from '../components/QuickView'
 import CookSpinner from '../components/CookSpinner'
 import { buildIndex, searchRecipes, topTags } from '../lib/search'
 import type { Recipe } from '../types'
 import './HomeScreen.css'
 
-function meta(r: Recipe) {
-  return [r.cookTime, r.tags?.[0]?.toLowerCase()].filter(Boolean).join(' · ')
+const LONG_PRESS_MS = 450
+
+function RecipeCard({ r, fav, onOpen, onQuickView, onToggleFav }: {
+  r: Recipe
+  fav: boolean
+  onOpen: () => void
+  onQuickView: () => void
+  onToggleFav: () => void
+}) {
+  const [pressing, setPressing] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const fired = useRef(false)
+  const start = useRef<{ x: number; y: number } | null>(null)
+  const count = r.ingredients?.length ?? 0
+
+  const cancel = () => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = null
+    start.current = null
+    setPressing(false)
+  }
+  useEffect(() => cancel, [])
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation()
+
+  return (
+    <div
+      className={'rcard' + (pressing ? ' pressing' : '')}
+      onPointerDown={e => {
+        fired.current = false
+        start.current = { x: e.clientX, y: e.clientY }
+        setPressing(true)
+        timer.current = setTimeout(() => {
+          fired.current = true
+          timer.current = null
+          setPressing(false)
+          onQuickView()
+        }, LONG_PRESS_MS)
+      }}
+      onPointerMove={e => {
+        // A finger drifting more than a few px is a scroll, not a press.
+        const s0 = start.current
+        if (s0 && Math.hypot(e.clientX - s0.x, e.clientY - s0.y) > 10) cancel()
+      }}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerCancel={cancel}
+      onContextMenu={e => e.preventDefault()}
+      onClickCapture={e => {
+        // Swallow the click that follows a long-press so it doesn't navigate.
+        if (fired.current) { e.preventDefault(); e.stopPropagation(); fired.current = false }
+      }}
+    >
+      <div className="rcard-img">
+        <button type="button" className="rcard-open" onClick={onOpen} aria-label={r.title}>
+          <RecipeThumb title={r.title} image={r.image} />
+        </button>
+        <button
+          type="button"
+          className={'fav-dot' + (fav ? ' on' : '')}
+          onPointerDown={stop}
+          onClick={onToggleFav}
+          aria-label={fav ? 'Remove from favorites' : 'Add to favorites'}
+          aria-pressed={fav}
+        >
+          <Icon name="heart" size={16} filled={fav} weight="bold" />
+        </button>
+      </div>
+      <div className="rtitle" onClick={onOpen}>{r.title}</div>
+      <div className="rmeta">
+        {r.cookTime}
+        {r.cookTime && count > 0 && ' · '}
+        {count > 0 && (
+          <button
+            type="button"
+            className="ing-link"
+            onPointerDown={stop}
+            onClick={e => { e.stopPropagation(); onQuickView() }}
+          >
+            {count} {count === 1 ? 'ingredient' : 'ingredients'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean }) {
@@ -21,6 +104,7 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
   const [debounced, setDebounced] = useState('')
   const [tag, setTag] = useState('all')
   const [account, setAccount] = useState(false)
+  const [quick, setQuick] = useState<Recipe | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim().toLowerCase()), 200)
@@ -112,24 +196,14 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
             ) : (
               <div className="rgrid">
                 {list.map(r => (
-                  <div key={r.id} className="rcard">
-                    <div className="rcard-img">
-                      <button type="button" className="rcard-open" onClick={() => open(r)} aria-label={r.title}>
-                        <RecipeThumb title={r.title} image={r.image} />
-                      </button>
-                      <button
-                        type="button"
-                        className={'fav-dot' + (favorites.has(r.id) ? ' on' : '')}
-                        onClick={() => toggleFavorite(r.id)}
-                        aria-label={favorites.has(r.id) ? 'Remove from favorites' : 'Add to favorites'}
-                        aria-pressed={favorites.has(r.id)}
-                      >
-                        <Icon name="heart" size={16} filled={favorites.has(r.id)} weight="bold" />
-                      </button>
-                    </div>
-                    <div className="rtitle" onClick={() => open(r)}>{r.title}</div>
-                    <div className="rmeta">{meta(r)}</div>
-                  </div>
+                  <RecipeCard
+                    key={r.id}
+                    r={r}
+                    fav={favorites.has(r.id)}
+                    onOpen={() => open(r)}
+                    onQuickView={() => setQuick(r)}
+                    onToggleFav={() => toggleFavorite(r.id)}
+                  />
                 ))}
               </div>
             )}
@@ -137,6 +211,8 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
         )}
         <div className="tabbar-spacer" />
       </div>
+
+      <QuickView recipe={quick} onClose={() => setQuick(null)} />
 
       <Sheet open={account} onClose={() => setAccount(false)} label="Account">
         <h2 className="sheet-title">{app.displayName ? `Hi ${app.displayName}!` : 'Your account'}</h2>

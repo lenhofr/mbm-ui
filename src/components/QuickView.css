@@ -1,0 +1,9 @@
+.qv-head { display: flex; gap: 14px; align-items: center; }
+.rimg.qv-thumb { width: 64px; height: 64px; border-radius: 14px; flex: none; }
+.rimg.qv-thumb.noimg span { font-size: 30px; }
+.qv-title { font: 600 20px/1.2 Poppins, sans-serif; color: var(--plum); margin: 0; }
+.qv-meta { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.qv-summary { margin: 16px 0 4px; padding: 10px 14px; border-radius: 12px; background: var(--chip); color: var(--plum); font-size: 14.5px; display: flex; align-items: center; gap: 6px; }
+.qv-summary.all { background: var(--ok-bg); color: var(--ok); font-weight: 600; }
+.qv-actions { display: flex; gap: 10px; margin-top: 18px; }
+.mbm .qv-actions .btn { flex: 1; padding: 0 10px; }
