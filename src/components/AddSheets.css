@@ -1,0 +1,23 @@
+.add-opt { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px; border-radius: 20px; background: #fff; border: 1px solid var(--line); margin-bottom: 10px; text-align: left; color: var(--muted); box-sizing: border-box; }
+.add-opt.hero { background: var(--plum); border-color: var(--plum); color: #fff; }
+.add-ic { width: 50px; height: 50px; border-radius: 15px; background: var(--chip); color: var(--plum); display: grid; place-items: center; flex: none; }
+.hero .add-ic { background: rgba(255,255,255,.16); color: #fff; }
+.add-txt { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.add-txt b { font: 600 16px Inter, sans-serif; color: var(--text); }
+.add-txt small { font-size: 13.5px; color: var(--muted); }
+.hero .add-txt b { color: #fff; }
+.hero .add-txt small { color: rgba(255,255,255,.82); }
+.share-tip { display: flex; gap: 10px; align-items: flex-start; padding: 10px 4px 0; font-size: 14px; color: var(--muted); line-height: 1.45; }
+.share-tip b { color: var(--text); }
+.share-tip svg { margin-top: 1px; color: var(--plum); }
+
+.mbm .paste-box { display: block; width: 100%; box-sizing: border-box; border-radius: 16px; border: 1.5px dashed var(--dash); background: #fff; padding: 14px; font: 16px/1.4 Inter, sans-serif; color: var(--text); resize: none; outline: 0; min-height: 112px; margin: 0; }
+.mbm .paste-box:focus { border-style: solid; border-color: var(--plum); }
+.paste-box.shot { display: flex; align-items: center; gap: 14px; }
+.shot-thumb { width: 72px; height: 100px; border-radius: 10px; border: 1px solid var(--line); box-shadow: 0 2px 6px rgba(0,0,0,.08); object-fit: cover; }
+.paste-actions { display: flex; gap: 8px; margin-top: 10px; }
+.mbm .paste-actions .btn { flex: 1; font-size: 14px; height: 46px; padding: 0 10px; }
+.paste-note { font-size: 13.5px; color: var(--muted); margin: 10px 2px 0; line-height: 1.4; }
+.detect { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: #fff; border: 1px solid var(--line); font-size: 15px; color: var(--plum); }
+.detect span { color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.import-btn { margin-top: 14px; }
