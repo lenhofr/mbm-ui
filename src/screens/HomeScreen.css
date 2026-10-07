@@ -32,5 +32,7 @@
 
 .empty { text-align: center; padding: 40px 20px; color: var(--muted); }
 .empty p { margin: 0 0 16px; font-size: 15px; line-height: 1.45; }
-.home-loading { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 60px 0; color: var(--muted); }
+/* Centred in the whole screen (not just below the search bar) so it sits mid-height on phones. */
+.home-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--muted); pointer-events: none; }
+.home-loading p { margin: 0; }
 .tabbar-spacer { height: calc(110px + var(--safe-b)); }
