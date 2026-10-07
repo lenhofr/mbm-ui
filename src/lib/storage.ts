@@ -1,7 +1,7 @@
 // Storage abstraction for recipes. Provides a local adapter (localStorage/in-memory)
 // and a RemoteAdapter for HTTP-backed storage.
 
-import type { Recipe } from '../App'
+import type { Recipe } from '../types'
 import '../auth/amplify'
 import { fetchAuthSession } from 'aws-amplify/auth'
 import { getApiBase } from './env'

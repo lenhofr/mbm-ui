@@ -144,6 +144,16 @@ def _extract_from_url(url):
     return _parse_bedrock_json(resp["output"]["message"]["content"][0]["text"])
 
 
+def _extract_from_text(text):
+    resp = get_bedrock().converse(
+        modelId=BEDROCK_MODEL,
+        system=[{"text": AI_SYSTEM_PROMPT}],
+        messages=[{"role": "user", "content": [{"text": f"Recipe text pasted by the user:\n\n---\n{text[:20000]}"}]}],
+        inferenceConfig={"maxTokens": 2048},
+    )
+    return _parse_bedrock_json(resp["output"]["message"]["content"][0]["text"])
+
+
 def get_dynamodb():
     region = os.environ.get('AWS_REGION', 'us-east-1')
     return boto3.resource('dynamodb', region_name=region)
@@ -451,8 +461,13 @@ def handler(event, context):
                 if not url:
                     return response(400, {'error': 'Missing url field for URL extraction'})
                 result = _extract_from_url(url)
+            elif extract_type == 'text':
+                text = (body.get('text') or '').strip()
+                if not text:
+                    return response(400, {'error': 'Missing text field for text extraction'})
+                result = _extract_from_text(text)
             else:
-                return response(400, {'error': 'type must be "image" or "url"'})
+                return response(400, {'error': 'type must be "image", "url" or "text"'})
             return response(200, result)
         except ClientError as e:
             print(f"Bedrock error: {e}")

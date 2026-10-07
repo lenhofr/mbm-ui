@@ -1,0 +1,6 @@
+.tabbar { position: absolute; left: 0; right: 0; bottom: 0; height: calc(52px + var(--safe-b)); padding: 6px 44px 0; box-sizing: border-box; display: flex; justify-content: space-between; align-items: flex-start; background: rgba(252,245,248,.9); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border-top: 1px solid var(--line); z-index: 10; }
+@supports not (padding: max(0px)) { .tabbar { height: 86px; } }
+.tab-item { background: none; border: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--muted); font: 500 11px Inter, sans-serif; width: 72px; min-height: 44px; padding: 2px 0 0; text-decoration: none; }
+.tab-item.on { color: var(--plum); font-weight: 600; }
+.tab-add { width: 58px; height: 58px; border-radius: 50%; background: var(--plum); color: #fff; border: 0; display: grid; place-items: center; margin-top: -20px; box-shadow: 0 6px 18px rgba(123,36,83,.35); }
+.tab-add:active { transform: scale(.95); }
