@@ -1,10 +1,24 @@
 import React, { useEffect } from 'react'
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AppProvider, useApp } from '../state/AppContext'
 import { AddSheet } from '../components/AddSheets'
 import { ScanReviewScreen } from './ImportScreens'
+
+// Signed in, so "Read recipe" isn't stopped by the login prompt.
+vi.mock('../hooks/useCognitoAuth', () => ({
+  useCognitoAuth: () => ({
+    isAuthed: true, loading: false, user: { sub: 'u1' }, authHeader: () => ({}),
+    signIn: vi.fn(), signOut: vi.fn(), signUp: vi.fn(), confirmSignUp: vi.fn(), refresh: vi.fn(),
+  }),
+}))
+
+function ImportStub() {
+  const app = useApp()
+  useEffect(() => { app.setScanPages([]) }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+  return <div>processing {app.importJob?.kind} {app.importJob?.kind === 'scan' ? app.importJob.files.length : 0}</div>
+}
 
 function OpenAdd() {
   const app = useApp()
@@ -22,11 +36,12 @@ describe('scan flow', () => {
 
   it('Scan opens the camera directly, then the review screen can add the back and retake', async () => {
     const { container } = render(
-      <MemoryRouter initialEntries={['/']}>
+      <MemoryRouter initialEntries={['/']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AppProvider>
           <Routes>
             <Route path="/" element={<OpenAdd />} />
             <Route path="/scan" element={<ScanReviewScreen />} />
+            <Route path="/import" element={<ImportStub />} />
           </Routes>
           <AddSheet />
         </AppProvider>
@@ -49,6 +64,9 @@ describe('scan flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /retake back/i }))
     fireEvent.change(camera(), { target: { files: [photo('back2.jpg')] } })
     expect(screen.getAllByRole('img')).toHaveLength(2)
-    expect(screen.getByRole('button', { name: /read recipe/i })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /read recipe/i }))
+    expect(await screen.findByText('processing scan 2')).toBeInTheDocument()
+    expect(screen.queryByText('home')).not.toBeInTheDocument()
   })
 })
