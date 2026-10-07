@@ -6,6 +6,7 @@ import { Icon } from '../icons/Icons'
 import { GlassButton } from '../components/ui'
 import { UnreadableError, extractRecipe, hostOf } from '../lib/extract'
 import { draftFromExtract } from '../lib/draft'
+import { topTags } from '../lib/search'
 import type { DraftSource } from '../types'
 import './ImportScreens.css'
 
@@ -127,7 +128,7 @@ function Processing({ job }: { job: ImportJob }) {
     const ctrl = new AbortController()
     const source: DraftSource = job.kind
     const label = job.kind === 'link' ? hostOf(job.url) : undefined
-    extractRecipe(job, app.auth.authHeader(), ctrl.signal)
+    extractRecipe(job, app.auth.authHeader(), { knownTags: topTags(app.recipes, 30), signal: ctrl.signal })
       .then(res => {
         app.setPendingDraft(draftFromExtract(res, source, label, job.originals))
         navigate('/new', { replace: true })

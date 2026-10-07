@@ -46,7 +46,7 @@ function FlagBox({ flag, onPick }: { flag: Flag; onPick: (text: string) => void 
 
 type ListKey = 'ingredients' | 'steps'
 
-function Editor({ initial }: { initial: Draft }) {
+export function Editor({ initial }: { initial: Draft }) {
   const app = useApp()
   const navigate = useNavigate()
   const location = useLocation()
@@ -77,6 +77,7 @@ function Editor({ initial }: { initial: Draft }) {
   const open = [...d.ingredients, ...d.steps].filter(r => r.flag && !r.ok).length
   const totalFlags = [...initial.ingredients, ...initial.steps].filter(r => r.flag).length
   const isEdit = d.source === 'edit'
+  const isAi = d.source !== 'edit' && d.source !== 'manual'
 
   const cancel = () => {
     if (location.key !== 'default') navigate(-1)
@@ -146,7 +147,7 @@ function Editor({ initial }: { initial: Draft }) {
       </header>
 
       <div className="scroll">
-        {d.source === 'scan' && (
+        {isAi && (open || totalFlags > 0 || d.source === 'scan') ? (
           <div className={'ai-banner' + (open ? ' warn' : ' ok')}>
             <Icon name={open ? 'spark' : 'check'} size={18} weight={open ? 'regular' : 'bold'} />
             <div>
@@ -160,8 +161,7 @@ function Editor({ initial }: { initial: Draft }) {
               </button>
             )}
           </div>
-        )}
-        {(d.source === 'link' || d.source === 'screenshot' || d.source === 'text') && (
+        ) : isAi ? (
           <div className="ai-banner ok">
             <Icon name="spark" size={18} />
             <div>
@@ -169,7 +169,7 @@ function Editor({ initial }: { initial: Draft }) {
               <small>{d.source === 'link' ? 'We kept the recipe and skipped the rest of the page.' : 'Review it below, then save.'}</small>
             </div>
           </div>
-        )}
+        ) : null}
 
         {error && <div className="editor-error" role="alert">{error}</div>}
 

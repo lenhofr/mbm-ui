@@ -3,12 +3,15 @@ import json
 from decimal import Decimal
 import uuid
 import time
-# v2 — includes AI recipe extraction handler
+import sys
 import base64
-import urllib.request
-from html.parser import HTMLParser
+import urllib.error
 import boto3
 from botocore.exceptions import ClientError
+
+# Make sibling modules importable when this file is loaded by path (tests).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ai_extract  # noqa: E402
 
 RECIPES_TABLE = os.environ.get('RECIPES_TABLE')
 RATINGS_TABLE = os.environ.get('RATINGS_TABLE')
@@ -43,115 +46,6 @@ def get_bedrock():
     elif _bedrock is None:
         _bedrock = boto3.client("bedrock-runtime", region_name=region)
     return _bedrock
-
-
-AI_SYSTEM_PROMPT = """You are a recipe extraction assistant. Extract recipe information and return ONLY a JSON object.
-
-Return a JSON object with these fields (omit any you cannot determine):
-{
-  "title": "string (required)",
-  "description": "short summary string",
-  "tags": ["category", "strings"],
-  "ingredients": [{"name": "string", "amount": "string"}],
-  "servings": "string e.g. '4' or '4-6'",
-  "cookTime": "string e.g. '30 minutes'",
-  "instructions": ["step 1", "step 2"]
-}
-
-Rules:
-- Return ONLY valid JSON. No markdown fences, no explanation.
-- ingredients[].amount is quantity+unit as a string (e.g. "1 cup", "200g"), omit if unknown.
-- instructions are ordered plain strings with no numbering prefix.
-- tags are concise descriptors like ["italian", "pasta", "vegetarian"].
-- Ignore ads, navigation, comments, and unrelated content.
-- If no recipe is present, return {"error": "no recipe found"}."""
-
-
-class _TextExtractor(HTMLParser):
-    SKIP_TAGS = {"script", "style", "noscript", "head", "meta", "link"}
-
-    def __init__(self):
-        super().__init__()
-        self._skip = 0
-        self.chunks = []
-
-    def handle_starttag(self, tag, attrs):
-        if tag.lower() in self.SKIP_TAGS:
-            self._skip += 1
-
-    def handle_endtag(self, tag):
-        if tag.lower() in self.SKIP_TAGS:
-            self._skip = max(0, self._skip - 1)
-
-    def handle_data(self, data):
-        if self._skip == 0:
-            text = data.strip()
-            if text:
-                self.chunks.append(text)
-
-    def get_text(self):
-        return "\n".join(self.chunks)
-
-
-def _parse_bedrock_json(raw):
-    raw = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return {"error": "model returned non-JSON", "raw": raw}
-
-
-def _extract_from_image(images):
-    """images: list of {"data": base64_str, "mediaType": "image/jpeg"|...}"""
-    content = []
-    for img in images:
-        fmt = img["mediaType"].split("/")[-1].lower()
-        if fmt == "jpg":
-            fmt = "jpeg"
-        content.append({"image": {"format": fmt, "source": {"bytes": base64.b64decode(img["data"])}}})
-    noun = "these images" if len(images) > 1 else "this image"
-    content.append({"text": f"Extract the recipe from {noun}."})
-    resp = get_bedrock().converse(
-        modelId=BEDROCK_MODEL,
-        system=[{"text": AI_SYSTEM_PROMPT}],
-        messages=[{"role": "user", "content": content}],
-        inferenceConfig={"maxTokens": 2048},
-    )
-    return _parse_bedrock_json(resp["output"]["message"]["content"][0]["text"])
-
-
-def _extract_from_url(url):
-    req = urllib.request.Request(url, headers={
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "identity",
-    })
-    with urllib.request.urlopen(req, timeout=10) as r:
-        html = r.read().decode("utf-8", errors="replace")
-    parser = _TextExtractor()
-    parser.feed(html)
-    text = parser.get_text()[:20000]
-    resp = get_bedrock().converse(
-        modelId=BEDROCK_MODEL,
-        system=[{"text": AI_SYSTEM_PROMPT}],
-        messages=[{
-            "role": "user",
-            "content": [{"text": f"URL: {url}\n\n---\n{text}"}],
-        }],
-        inferenceConfig={"maxTokens": 2048},
-    )
-    return _parse_bedrock_json(resp["output"]["message"]["content"][0]["text"])
-
-
-def _extract_from_text(text):
-    resp = get_bedrock().converse(
-        modelId=BEDROCK_MODEL,
-        system=[{"text": AI_SYSTEM_PROMPT}],
-        messages=[{"role": "user", "content": [{"text": f"Recipe text pasted by the user:\n\n---\n{text[:20000]}"}]}],
-        inferenceConfig={"maxTokens": 2048},
-    )
-    return _parse_bedrock_json(resp["output"]["message"]["content"][0]["text"])
 
 
 def get_dynamodb():
@@ -450,30 +344,28 @@ def handler(event, context):
     if route_key == 'POST /ai/extract-recipe':
         try:
             body = json.loads(event.get('body') or '{}')
+            known_tags = [t for t in (body.get('knownTags') or []) if isinstance(t, str)][:30]
             extract_type = body.get('type')
             if extract_type == 'image':
-                images = body.get('images') or []
-                if not images:
-                    return response(400, {'error': 'Missing images field for image extraction'})
-                result = _extract_from_image(images)
+                result = ai_extract.extract_from_images(get_bedrock(), BEDROCK_MODEL, body.get('images') or [],
+                                                        source=body.get('source') or 'scan', known_tags=known_tags)
             elif extract_type == 'url':
-                url = body.get('url', '').strip()
-                if not url:
-                    return response(400, {'error': 'Missing url field for URL extraction'})
-                result = _extract_from_url(url)
+                result = ai_extract.extract_from_url(get_bedrock(), BEDROCK_MODEL, (body.get('url') or '').strip(), known_tags=known_tags)
             elif extract_type == 'text':
-                text = (body.get('text') or '').strip()
-                if not text:
-                    return response(400, {'error': 'Missing text field for text extraction'})
-                result = _extract_from_text(text)
+                result = ai_extract.extract_from_text(get_bedrock(), BEDROCK_MODEL, body.get('text') or '', known_tags=known_tags)
             else:
                 return response(400, {'error': 'type must be "image", "url" or "text"'})
             return response(200, result)
+        except ai_extract.ExtractError as e:
+            return response(400, {'error': str(e)})
+        except (urllib.error.URLError, TimeoutError) as e:
+            print(f"extract-recipe fetch error: {e}")
+            return response(502, {'error': "We couldn't open that page"})
         except ClientError as e:
             print(f"Bedrock error: {e}")
-            return response(502, {'error': 'AI service error', 'detail': str(e)})
+            return response(502, {'error': 'AI service error'})
         except Exception as e:
             print(f"extract-recipe error: {e}")
-            return response(500, {'error': str(e)})
+            return response(500, {'error': 'Extraction failed'})
 
     return response(400, {'message': 'Unsupported operation'})
