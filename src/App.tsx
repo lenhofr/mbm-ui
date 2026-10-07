@@ -5,7 +5,7 @@ import HomeScreen from './screens/HomeScreen'
 import DetailScreen from './screens/DetailScreen'
 import CookScreen from './screens/CookScreen'
 import { EditRecipeScreen, NewRecipeScreen } from './screens/EditorScreen'
-import { CameraScreen, ProcessingScreen, ScanFailedScreen } from './screens/ImportScreens'
+import { ScanReviewScreen, ProcessingScreen, ScanFailedScreen } from './screens/ImportScreens'
 import TabBar from './components/TabBar'
 import { AddSheet, PasteSheet } from './components/AddSheets'
 import { Toast } from './components/ui'
@@ -32,7 +32,7 @@ function Shell() {
         <Route path="/recipe/:id/cook" element={<CookScreen />} />
         <Route path="/recipe/:id/edit" element={<EditRecipeScreen />} />
         <Route path="/new" element={<NewRecipeScreen />} />
-        <Route path="/scan" element={<CameraScreen />} />
+        <Route path="/scan" element={<ScanReviewScreen />} />
         <Route path="/import" element={<ProcessingScreen />} />
         <Route path="/import/failed" element={<ScanFailedScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />

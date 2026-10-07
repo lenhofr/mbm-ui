@@ -4,16 +4,19 @@ import Sheet from './ui/Sheet'
 import { Icon } from '../icons/Icons'
 import { useApp } from '../state/AppContext'
 import { detectPaste } from '../lib/extract'
+import CameraInput, { toPage } from './CameraInput'
 import './AddSheets.css'
 
 export function AddSheet() {
   const app = useApp()
   const navigate = useNavigate()
+  const cameraRef = useRef<HTMLInputElement>(null)
   const close = () => app.setSheet(null)
   return (
     <Sheet open={app.sheet === 'add'} onClose={close} label="Add a recipe">
       <h2 className="sheet-title">Add a recipe</h2>
-      <button type="button" className="add-opt hero" onClick={() => { close(); navigate('/scan') }}>
+      {/* Opens the native camera directly; the sheet stays open until a photo comes back. */}
+      <button type="button" className="add-opt hero" onClick={() => cameraRef.current?.click()}>
         <span className="add-ic"><Icon name="camera" size={26} /></span>
         <span className="add-txt"><b>Scan a recipe card</b><small>Handwritten, printed or a cookbook page</small></span>
         <Icon name="chev" size={18} />
@@ -28,10 +31,7 @@ export function AddSheet() {
         <span className="add-txt"><b>Type it yourself</b><small>Start from a blank recipe</small></span>
         <Icon name="chev" size={18} />
       </button>
-      <div className="share-tip">
-        <Icon name="share" size={18} />
-        <span>Found one in Safari or Photos? Tap <b>Share</b>, then <b>Meals by Maggie</b>.</span>
-      </div>
+      <CameraInput ref={cameraRef} onFile={f => { app.setScanPages([toPage(f)]); close(); navigate('/scan') }} />
     </Sheet>
   )
 }
