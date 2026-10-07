@@ -113,7 +113,10 @@ export function Editor({ initial }: { initial: Draft }) {
     try {
       const saved = await app.saveDraft(d)
       app.toast(isEdit ? 'Changes saved' : 'Saved to your recipe box')
-      navigate(`/recipe/${encodeURIComponent(saved.id)}`, { replace: true })
+      // Editing from the recipe page: go back to it (it re-renders with the saved data)
+      // rather than pushing a second copy of it onto history.
+      if (isEdit && (location.state as { fromDetail?: boolean } | null)?.fromDetail) navigate(-1)
+      else navigate(`/recipe/${encodeURIComponent(saved.id)}`, { replace: true })
     } catch (e) {
       console.error('Failed to save recipe', e)
       setError('The oven door’s stuck — we couldn’t save that. Try again in a moment.')

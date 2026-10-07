@@ -85,7 +85,8 @@ const SCROLL_OFFSET = 56
 function Cook({ r }: { r: Recipe }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const mult = (location.state as { mult?: number } | null)?.mult ?? 1
+  const nav = location.state as { mult?: number; fromDetail?: boolean } | null
+  const mult = nav?.mult ?? 1
   const steps = r.instructions || []
   const ingredients = r.ingredients || []
   const base = parseServings(r.servings)
@@ -117,7 +118,8 @@ function Cook({ r }: { r: Recipe }) {
     saveProgress(r.id, { ingredients: [...checked], steps: [...doneSteps] })
   }, [r.id, checked, doneSteps])
 
-  const exit = () => navigate(`/recipe/${encodeURIComponent(r.id)}`, { replace: true })
+  // Opened from the recipe page: go back to it rather than pushing a second copy onto history.
+  const exit = () => (nav?.fromDetail ? navigate(-1) : navigate(`/recipe/${encodeURIComponent(r.id)}`, { replace: true }))
 
   const startTimer = (step: number, minutes: number) => {
     unlockAudio()

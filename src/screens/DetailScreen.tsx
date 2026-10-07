@@ -89,13 +89,13 @@ function Detail({ r }: { r: Recipe }) {
         <GlassButton icon="back" onClick={() => (location.key !== 'default' ? navigate(-1) : navigate('/'))} label="Back" />
         <div className="hero-btns-right">
           <GlassButton icon="heart" filled={fav} active={fav} onClick={() => app.toggleFavorite(r.id)} label={fav ? 'Remove from favorites' : 'Add to favorites'} />
-          {app.auth.isAuthed && <GlassButton icon="pencil" onClick={() => navigate(`/recipe/${encodeURIComponent(r.id)}/edit`)} label="Edit recipe" />}
+          {app.auth.isAuthed && <GlassButton icon="pencil" onClick={() => navigate(`/recipe/${encodeURIComponent(r.id)}/edit`, { state: { fromDetail: true } })} label="Edit recipe" />}
         </div>
       </div>
 
       {steps.length > 0 && (
         <div className="bottom-cta">
-          <button type="button" className="btn primary block lg" onClick={() => navigate(`/recipe/${encodeURIComponent(r.id)}/cook`, { state: { mult } })}>
+          <button type="button" className="btn primary block lg" onClick={() => navigate(`/recipe/${encodeURIComponent(r.id)}/cook`, { state: { mult, fromDetail: true } })}>
             <Icon name="play" size={18} filled />Start cooking
           </button>
         </div>
