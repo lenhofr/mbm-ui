@@ -11,6 +11,9 @@ import type { Draft, Recipe } from '../types'
 
 export type SheetName = 'add' | 'paste' | null
 
+/** A captured recipe-card page waiting on the scan review screen. */
+export type ScanPage = { file: File; url: string }
+
 /** What the Processing screen should extract, plus previews of scanned pages for the review "Original" viewer. */
 export type ImportJob = ExtractInput & { originals?: string[] }
 
@@ -68,6 +71,7 @@ function useAppState() {
   const [sheet, setSheet] = useState<SheetName>(null)
   const [showLogin, setShowLogin] = useState(false)
   const [importJob, setImportJob] = useState<ImportJob | null>(null)
+  const [scanPages, setScanPages] = useState<ScanPage[]>([])
   /** Draft handed from an import to the /new editor. */
   const [pendingDraft, setPendingDraft] = useState<Draft | null>(null)
 
@@ -106,6 +110,7 @@ function useAppState() {
     sheet, setSheet,
     showLogin, setShowLogin, requireLogin,
     importJob, setImportJob,
+    scanPages, setScanPages,
     pendingDraft, setPendingDraft,
     saveDraft, deleteRecipe,
   }

@@ -4,6 +4,7 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp, type ImportJob } from '../state/AppContext'
 import { Icon } from '../icons/Icons'
 import { GlassButton } from '../components/ui'
+import CameraInput, { toPage } from '../components/CameraInput'
 import { UnreadableError, extractRecipe, hostOf } from '../lib/extract'
 import { draftFromExtract } from '../lib/draft'
 import { topTags } from '../lib/search'
@@ -12,69 +13,72 @@ import './ImportScreens.css'
 
 const MAX_PAGES = 2
 
-export function CameraScreen() {
+/** /scan: shown after the native camera returns a photo. Add the back, retake, or start reading. */
+export function ScanReviewScreen() {
   const app = useApp()
   const navigate = useNavigate()
-  const [pages, setPages] = useState<{ file: File; url: string }[]>([])
-  const [flash, setFlash] = useState(false)
-  const shutterRef = useRef<HTMLInputElement>(null)
-  const libraryRef = useRef<HTMLInputElement>(null)
+  const pages = app.scanPages
+  const cameraRef = useRef<HTMLInputElement>(null)
+  // Which page the next capture replaces: null appends (back of card).
+  const replacing = useRef<number | null>(null)
 
-  useEffect(() => { if (!app.auth.loading) app.requireLogin() }, [app.auth.loading])  // eslint-disable-line react-hooks/exhaustive-deps
+  if (!pages.length) return <Navigate to="/" replace />
 
-  function add(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/') || /\.(heic|heif)$/i.test(f.name))
-    e.target.value = ''
-    if (!files.length) return
-    setFlash(true)
-    setTimeout(() => setFlash(false), 200)
-    setPages(p => [...p, ...files.map(file => ({ file, url: URL.createObjectURL(file) }))].slice(0, MAX_PAGES))
+  const capture = (index: number | null) => {
+    replacing.current = index
+    cameraRef.current?.click()
   }
-
-  function done(list = pages) {
-    if (!list.length) return
-    app.setImportJob({ kind: 'scan', files: list.map(p => p.file), originals: list.map(p => p.url) })
+  const onFile = (f: File) => {
+    const i = replacing.current
+    const next = i == null ? [...pages, toPage(f)].slice(0, MAX_PAGES) : pages.map((p, k) => (k === i ? toPage(f) : p))
+    app.setScanPages(next)
+  }
+  const close = () => {
+    app.setScanPages([])
+    navigate('/', { replace: true })
+  }
+  const read = () => {
+    if (!app.requireLogin()) return
+    app.setImportJob({ kind: 'scan', files: pages.map(p => p.file), originals: pages.map(p => p.url) })
+    app.setScanPages([])
     navigate('/import', { replace: true })
   }
 
   const n = pages.length
-  const last = pages[n - 1]
-
   return (
-    <div className="screen camera rise">
+    <div className="screen scan-review rise">
       <div className="cam-top">
-        <GlassButton icon="close" dark onClick={() => navigate('/', { replace: true })} label="Close" />
-        <div className="cam-pill">{n === 0 ? 'Front of card' : n === 1 ? 'Back of card (optional)' : '2 pages'}</div>
+        <GlassButton icon="close" dark onClick={close} label="Close" />
+        <div className="cam-pill">{n === 1 ? 'Front of card' : 'Front and back'}</div>
         <div style={{ width: 44 }} />
       </div>
-      <button type="button" className="viewfinder" onClick={() => n < MAX_PAGES && shutterRef.current?.click()} aria-label="Take photo">
-        {last ? <img className="vf-shot" src={last.url} alt="" /> : <span className="vf-empty"><Icon name="camera" size={40} /></span>}
-        {['tl', 'tr', 'bl', 'br'].map(c => <i key={c} className={'vf-corner ' + c} />)}
-        {flash && <div className="vf-flash" />}
-      </button>
-      <div className="cam-hint">
-        {n === 0 ? 'Fit the whole card inside the corners' : n === 1 ? 'Got the front. Flip it over for the back, or tap Done.' : 'Both sides captured.'}
+      <div className={'scan-pages' + (n > 1 ? ' two' : '')}>
+        {pages.map((p, k) => (
+          <figure key={p.url}>
+            <img src={p.url} alt={k === 0 ? 'Front of card' : 'Back of card'} />
+            {n > 1 && <figcaption>{k === 0 ? 'Front' : 'Back'}</figcaption>}
+          </figure>
+        ))}
       </div>
-      <div className="cam-bar">
-        <div className="cam-thumbs">
-          {n === 0 ? (
-            <button type="button" className="cam-lib" onClick={() => libraryRef.current?.click()} aria-label="Choose from photo library">
-              <Icon name="photo" size={24} />
+      <div className="cam-hint">
+        {n === 1 ? 'If the recipe continues on the back, add a photo of it too.' : 'Both sides are ready.'}
+      </div>
+      <div className="scan-actions">
+        <div className="scan-row">
+          <button type="button" className="btn dark-soft" onClick={() => capture(n - 1)}>
+            <Icon name="reset" size={18} />{n === 1 ? 'Retake' : 'Retake back'}
+          </button>
+          {n < MAX_PAGES && (
+            <button type="button" className="btn dark-soft" onClick={() => capture(null)}>
+              <Icon name="camera" size={18} />Add back of card
             </button>
-          ) : (
-            <div className="cam-stack" aria-label={`${n} ${n === 1 ? 'page' : 'pages'} captured`}>
-              {pages.map((p, k) => <img key={k} className="cam-mini" src={p.url} alt="" style={{ transform: `rotate(${k ? 6 : -4}deg)` }} />)}
-              <b>{n}</b>
-            </div>
           )}
         </div>
-        <button type="button" className="shutter" onClick={() => shutterRef.current?.click()} disabled={n >= MAX_PAGES} aria-label="Take photo"><span /></button>
-        <div className="cam-thumbs right">
-          {n > 0 && <button type="button" className="btn done" onClick={() => done()}>Done</button>}
-        </div>
+        <button type="button" className="btn primary block lg" onClick={read}>
+          <Icon name="spark" size={18} />Read recipe
+        </button>
       </div>
-      <input ref={shutterRef} type="file" accept="image/*" capture="environment" hidden onChange={add} />
-      <input ref={libraryRef} type="file" accept="image/*" multiple hidden onChange={add} />
+      <CameraInput ref={cameraRef} onFile={onFile} />
     </div>
   )
 }
@@ -189,6 +193,7 @@ function Processing({ job }: { job: ImportJob }) {
 export function ScanFailedScreen() {
   const app = useApp()
   const navigate = useNavigate()
+  const cameraRef = useRef<HTMLInputElement>(null)
   return (
     <div className="screen failed rise">
       <div className="proc-top"><GlassButton icon="close" onClick={() => navigate('/', { replace: true })} label="Close" /></div>
@@ -201,9 +206,10 @@ export function ScanFailedScreen() {
         <li><Icon name="clock" size={20} />Hold still for a second after tapping</li>
       </ul>
       <div className="fail-actions">
-        <button type="button" className="btn primary block" onClick={() => navigate('/scan', { replace: true })}><Icon name="camera" size={18} />Retake photo</button>
+        <button type="button" className="btn primary block" onClick={() => cameraRef.current?.click()}><Icon name="camera" size={18} />Retake photo</button>
         <button type="button" className="btn ghost block" onClick={() => { app.setPendingDraft(null); navigate('/new', { replace: true }) }}>Type it in instead</button>
       </div>
+      <CameraInput ref={cameraRef} onFile={f => { app.setScanPages([toPage(f)]); navigate('/scan', { replace: true }) }} />
     </div>
   )
 }
