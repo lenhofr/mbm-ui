@@ -17,7 +17,9 @@
 .count { font-size: 13px; color: var(--muted); margin: 16px 2px 10px; }
 
 .rgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 12px; }
-.rcard { min-width: 0; cursor: pointer; }
+.rcard { min-width: 0; cursor: pointer; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; transition: transform .15s var(--ease); }
+.rcard.pressing { transform: scale(.97); }
+.rcard img { -webkit-touch-callout: none; pointer-events: none; }
 .rcard-img { position: relative; aspect-ratio: 1; border-radius: 18px; overflow: hidden; }
 .rcard-open { display: block; width: 100%; height: 100%; border: 0; padding: 0; background: none; }
 .fav-dot { position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.9); border: 0; color: var(--plum); display: grid; place-items: center; padding: 0; }
@@ -25,6 +27,7 @@
 .fav-dot.on { color: var(--pink); }
 .rtitle { font: 600 15.5px/1.25 Poppins, sans-serif; color: var(--plum); margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .rmeta { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.mbm .ing-link { background: none; border: 0; padding: 4px 0; margin: -4px 0; font: 600 13px Inter, sans-serif; color: var(--plum); text-decoration: underline; text-decoration-color: #e3c3d3; text-underline-offset: 3px; }
 
 
 .empty { text-align: center; padding: 40px 20px; color: var(--muted); }

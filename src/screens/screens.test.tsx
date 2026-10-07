@@ -1,5 +1,5 @@
 import React from 'react'
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import App from '../App'
 
@@ -44,15 +44,71 @@ describe('mobile screens', () => {
     expect(screen.getByText('· scaled')).toBeInTheDocument()
   })
 
-  it('cook mode steps through, shows used ingredients and a timer', async () => {
+  it('cook mode is one page: tap steps to mark done, timers stay inside the card', async () => {
+    window.sessionStorage.clear()
     at('/recipe/cookies/cook')
-    expect(await screen.findByText('Preheat oven to 375° F.')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /next step/i }))
-    expect(screen.getByText('2 large eggs')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /next step/i }))
-    expect(screen.getByRole('button', { name: /start 9 min timer/i })).toBeInTheDocument()
+    expect(await screen.findByText('0 of 3 steps done')).toBeInTheDocument()
+    expect(screen.getByText('2 1/4 cups all-purpose flour')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /next step/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Step 1' }))
+    expect(screen.getByText('1 of 3 steps done')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Step 1, done' })).toBeInTheDocument()
+    // Starting a timer must not toggle the step it lives in.
+    fireEvent.click(screen.getByRole('button', { name: /start 9 min timer/i }))
+    expect(screen.getByText('1 of 3 steps done')).toBeInTheDocument()
+    expect(screen.getByRole('timer')).toHaveTextContent('9:00')
+    expect(screen.getByRole('button', { name: /step 3$/ })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Finish' }))
     expect(screen.getByText('Nice work')).toBeInTheDocument()
+  })
+
+  it('cook page reflects servings scaled on the recipe page', async () => {
+    at('/recipe/cookies')
+    await screen.findByText('2 1/4 cups all-purpose flour')
+    for (let k = 0; k < 24; k++) fireEvent.click(screen.getByRole('button', { name: 'More servings' }))
+    fireEvent.click(screen.getByRole('button', { name: /start cooking/i }))
+    expect(await screen.findByText('4½ cups all-purpose flour')).toBeInTheDocument()
+    expect(screen.getByText(/serves 48/)).toBeInTheDocument()
+    expect(screen.getByText('· scaled')).toBeInTheDocument()
+  })
+
+  it('ingredient link opens the quick view without navigating', async () => {
+    at('/')
+    fireEvent.click(await screen.findByRole('button', { name: '2 ingredients' }))
+    expect(window.location.pathname).toBe('/')
+    expect(screen.getByText('Tap what you already have')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('2 large eggs'))
+    expect(screen.getByText(/Missing 1/)).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('2 1/4 cups all-purpose flour'))
+    expect(screen.getByText('You have everything')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open recipe' }))
+    expect(window.location.pathname).toBe('/recipe/cookies')
+  })
+
+  it('long-press opens the quick view and swallows the click; a quick tap still opens the recipe', async () => {
+    at('/')
+    const card = (await screen.findByRole('button', { name: 'Choco Chip Cookies' })).closest('.rcard')!
+    const img = screen.getByRole('button', { name: 'Choco Chip Cookies' })
+    vi.useFakeTimers()
+    try {
+      fireEvent.pointerDown(card)
+      vi.advanceTimersByTime(300)
+      fireEvent.pointerUp(card)
+      vi.advanceTimersByTime(500)
+      expect(screen.queryByText('Tap what you already have')).not.toBeInTheDocument()
+
+      fireEvent.pointerDown(card)
+      vi.advanceTimersByTime(460)
+      fireEvent.pointerUp(card)
+      fireEvent.click(img)
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(screen.getByText('Tap what you already have')).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/')
+
+    fireEvent.click(img)
+    expect(window.location.pathname).toBe('/recipe/cookies')
   })
 
   it('new recipe save is disabled until there is a title', async () => {

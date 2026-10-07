@@ -1,0 +1,10 @@
+.ing-list { list-style: none; padding: 0; margin: 0; }
+.ing-list li { border-bottom: 1px solid var(--line); }
+.ing-list label { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; font-size: 16px; line-height: 1.4; cursor: pointer; }
+.ing-list.lg label { font-size: 17px; }
+.cbox { width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--dash); flex: none; display: grid; place-items: center; box-sizing: border-box; transition: background .15s, border-color .15s; }
+.ing-list input:focus-visible + .cbox { outline: 2px solid var(--pink); outline-offset: 2px; }
+.ing-list.used li.done .ing-text { color: #b9a6b0; text-decoration: line-through; }
+.ing-list.used li.done .cbox { background: var(--plum); border-color: var(--plum); color: #fff; }
+.ing-list.have li.done .ing-text { color: var(--muted); }
+.ing-list.have li.done .cbox { background: var(--ok); border-color: var(--ok); color: #fff; }

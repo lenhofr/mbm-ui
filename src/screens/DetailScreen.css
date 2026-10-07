@@ -16,14 +16,6 @@
 .meta-cell b { font: 600 16px Inter, sans-serif; color: var(--text); }
 .d-h2 { font: 600 19px Poppins, sans-serif; color: var(--text); margin: 28px 0 8px; }
 
-.ing-list { list-style: none; padding: 0; margin: 0; }
-.ing-list li { border-bottom: 1px solid var(--line); }
-.ing-list label { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; font-size: 16px; line-height: 1.4; cursor: pointer; }
-.ing-list li.done label > span:last-child { color: #b9a6b0; text-decoration: line-through; }
-.cbox { width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--dash); flex: none; display: grid; place-items: center; box-sizing: border-box; }
-.ing-list li.done .cbox { background: var(--plum); border-color: var(--plum); color: #fff; }
-.ing-list input:focus-visible + .cbox { outline: 2px solid var(--pink); outline-offset: 2px; }
-
 .step-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px; }
 .step-list li { display: flex; gap: 12px; }
 .step-list p { margin: 0; font-size: 16px; line-height: 1.55; }

@@ -3,7 +3,8 @@ import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useApp, useRecipe } from '../state/AppContext'
 import { Icon } from '../icons/Icons'
 import { GlassButton, RecipeThumb, Stepper } from '../components/ui'
-import { ingredientText, parseServings } from '../lib/quantity'
+import { parseServings } from '../lib/quantity'
+import IngredientChecklist, { toggleIn } from '../components/IngredientChecklist'
 import { relativeTime } from '../lib/search'
 import { DEFAULT_SERVINGS } from '../lib/draft'
 import type { Recipe } from '../types'
@@ -34,7 +35,7 @@ function Detail({ r }: { r: Recipe }) {
   const location = useLocation()
   const base = parseServings(r.servings)
   const [servings, setServings] = useState(base ?? DEFAULT_SERVINGS)
-  const [checked, setChecked] = useState<Record<number, boolean>>({})
+  const [checked, setChecked] = useState<Set<number>>(() => new Set())
   const mult = base ? servings / base : 1
   const fav = app.favorites.has(r.id)
   const by = byline(r, app.userSub, app.displayName)
@@ -68,17 +69,7 @@ function Detail({ r }: { r: Recipe }) {
           {ingredients.length > 0 && (
             <>
               <h2 className="d-h2">Ingredients</h2>
-              <ul className="ing-list">
-                {ingredients.map((ing, i) => (
-                  <li key={i} className={checked[i] ? 'done' : ''}>
-                    <label>
-                      <input type="checkbox" className="sr-only" checked={!!checked[i]} onChange={() => setChecked(c => ({ ...c, [i]: !c[i] }))} />
-                      <span className="cbox" aria-hidden>{checked[i] && <Icon name="check" size={14} weight="bold" />}</span>
-                      <span>{ingredientText(ing, mult)}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
+              <IngredientChecklist ingredients={ingredients} checked={checked} onToggle={i => setChecked(c => toggleIn(c, i))} mult={mult} />
             </>
           )}
 
