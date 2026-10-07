@@ -40,7 +40,9 @@ export function ScanReviewScreen() {
   const read = () => {
     if (!app.requireLogin()) return
     app.setImportJob({ kind: 'scan', files: pages.map(p => p.file), originals: pages.map(p => p.url) })
-    app.setScanPages([])
+    // Don't clear scanPages here: this screen would re-render with no pages and its
+    // redirect to Home would beat the (transition-wrapped) navigation to /import.
+    // The Processing screen clears them once it has taken the job.
     navigate('/import', { replace: true })
   }
 
@@ -117,7 +119,7 @@ function Processing({ job }: { job: ImportJob }) {
   const [attempt, setAttempt] = useState(0)
   const authed = app.auth.isAuthed
 
-  useEffect(() => { app.setImportJob(null) }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { app.setImportJob(null); app.setScanPages([]) }, [])  // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!app.auth.loading && !authed) app.setShowLogin(true) }, [app.auth.loading, authed])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // The API doesn't stream progress, so advance on a timer and hold on the last step.
