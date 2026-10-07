@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import './ui.css'
 
 /** Bottom sheet: slides up over a scrim; tapping the scrim or swiping down dismisses. */
-export default function Sheet({ open, onClose, label, children }: { open: boolean; onClose: () => void; label: string; children: React.ReactNode }) {
+/** `tall`: fixed 88% height, flex column; the caller's own `.sheet-list` is the only thing that scrolls. */
+export default function Sheet({ open, onClose, label, tall, children }: { open: boolean; onClose: () => void; label: string; tall?: boolean; children: React.ReactNode }) {
   const [mounted, setMounted] = useState(open)
   const [shown, setShown] = useState(false)
   const [drag, setDrag] = useState(0)
@@ -34,14 +35,21 @@ export default function Sheet({ open, onClose, label, children }: { open: boolea
       <div className="sheet-scrim" onClick={onClose} />
       <div
         ref={sheetRef}
-        className={'sheet' + (drag ? ' dragging' : '')}
+        className={'sheet' + (tall ? ' tall' : '') + (drag ? ' dragging' : '')}
         style={drag ? { transform: `translateY(${drag}px)` } : undefined}
         role="dialog"
         aria-modal="true"
         aria-label={label}
         onTouchStart={e => {
-          // Only start a dismiss drag when the sheet's own content is scrolled to the top.
-          startY.current = (sheetRef.current?.scrollTop ?? 0) <= 0 ? e.touches[0].clientY : null
+          // Only start a dismiss drag when nothing under the finger (the sheet itself or a
+          // scrolling list inside it) is scrolled down; otherwise the touch is a scroll.
+          let el = e.target as HTMLElement | null
+          let scrolled = false
+          while (el && el !== sheetRef.current?.parentElement) {
+            if (el.scrollTop > 0) { scrolled = true; break }
+            el = el.parentElement
+          }
+          startY.current = scrolled ? null : e.touches[0].clientY
         }}
         onTouchMove={e => {
           if (startY.current == null) return

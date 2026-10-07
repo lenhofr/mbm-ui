@@ -111,6 +111,46 @@ describe('mobile screens', () => {
     expect(window.location.pathname).toBe('/recipe/cookies')
   })
 
+  it('Home search shows matching quick tips inline from 3 characters', async () => {
+    at('/')
+    const search = await screen.findByPlaceholderText('Search title, tag or ingredient')
+    fireEvent.change(search, { target: { value: 'eg' } })
+    await new Promise(r => setTimeout(r, 300))
+    expect(screen.queryByText('Quick tip')).not.toBeInTheDocument()
+    fireEvent.change(search, { target: { value: 'egg' } })
+    expect(await screen.findByText('Quick tip')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Boiled eggs' })).toBeInTheDocument()
+    // No recipe matches "egg" by title, but the cookies use eggs: count + grid stay as before.
+    expect(screen.getByText(/1 recipe/)).toBeInTheDocument()
+  })
+
+  it('a tip match shows alongside the empty state when no recipe matches', async () => {
+    at('/')
+    fireEvent.change(await screen.findByPlaceholderText('Search title, tag or ingredient'), { target: { value: 'bacon' } })
+    expect(await screen.findByRole('heading', { name: 'Oven bacon' })).toBeInTheDocument()
+    expect(screen.getByText(/Nothing matches/)).toBeInTheDocument()
+  })
+
+  it('Quick tips sheet groups tips and filters them', async () => {
+    at('/')
+    fireEvent.click(await screen.findByRole('button', { name: 'Quick tips' }))
+    const filter = screen.getByPlaceholderText('Filter tips')
+    expect(filter).not.toHaveFocus()
+    expect(screen.getByRole('region', { name: 'Temps & conversions' })).toBeInTheDocument()
+    fireEvent.change(filter, { target: { value: 'chicken' } })
+    expect(screen.getByRole('region', { name: 'Eggs & poultry' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Vegetables' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Boiled eggs' })).not.toBeInTheDocument()
+    fireEvent.change(filter, { target: { value: 'zzz' } })
+    expect(screen.getByText('No tips for “zzz”.')).toBeInTheDocument()
+  })
+
+  it('Favorites has no Quick tips link', async () => {
+    at('/favorites')
+    await screen.findByText(/recipes?$/)
+    expect(screen.queryByRole('button', { name: 'Quick tips' })).not.toBeInTheDocument()
+  })
+
   it('new recipe save is disabled until there is a title', async () => {
     at('/new')
     const save = await screen.findByRole('button', { name: 'Save' })

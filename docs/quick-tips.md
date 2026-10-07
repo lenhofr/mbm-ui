@@ -1,6 +1,6 @@
-# Quick Tips (tabled)
+# Quick Tips (original idea, superseded)
 
-Status: **Design only — not started.** Parked on branch `feature/quick-tips`.
+Status: **Superseded** by design update 002 (`tmp_artifacts/002-quick-tips.md`), which places the link on the Home count row, reuses the app's bottom sheet, and shows matching tips inline in search. Kept for the original rationale; placement notes below predate the #93 redesign.
 
 ## Idea
 
