@@ -1,7 +1,7 @@
 import {
   CookingPot, PencilSimpleLine, SignIn, SignOut, Plus, PlusCircle, X, Trash, DownloadSimple,
   MagnifyingGlass, Minus, Heart, BookOpen, Camera, ClipboardText, PencilSimple, CaretLeft, CaretRight,
-  Export, Check, Clock, Users, Timer, Sun, Image, Sparkle, WarningCircle, Play, Pause,
+  Export, Check, Clock, Users, Sun, Image, Sparkle, WarningCircle, Play,
   ArrowCounterClockwise, Link, TextAlignLeft, Lightbulb,
 } from 'phosphor-react'
 import type { IconProps } from 'phosphor-react'
@@ -33,13 +33,11 @@ const ICONS = {
   check: Check,
   clock: Clock,
   people: Users,
-  timer: Timer,
   sun: Sun,
   photo: Image,
   spark: Sparkle,
   alert: WarningCircle,
   play: Play,
-  pause: Pause,
   reset: ArrowCounterClockwise,
   link: Link,
   text: TextAlignLeft,

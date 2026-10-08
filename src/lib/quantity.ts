@@ -76,15 +76,6 @@ export function parseIngredientLine(line: string): { name: string; amount?: stri
   return { amount: qtyPart, name: rest || s }
 }
 
-/** First number of minutes mentioned in a step, e.g. "Bake 9 to 11 minutes" → 9, "1 hour" → 60. */
-export function detectTimerMinutes(text: string): number | undefined {
-  const min = text.match(/(\d+)\s*(?:(?:-|–|to)\s*\d+\s*)?(?:minutes?|mins?)\b/i)
-  if (min) return Number(min[1])
-  const hr = text.match(/(\d+(?:\.\d+)?)\s*(?:(?:-|–|to)\s*\d+\s*)?(?:hours?|hrs?)\b/i)
-  if (hr) return Math.round(Number(hr[1]) * 60)
-  return undefined
-}
-
 /** Leading integer of a servings string ("4-6" → 4). */
 export function parseServings(s: string | undefined): number | undefined {
   const m = (s || '').match(/\d+/)
