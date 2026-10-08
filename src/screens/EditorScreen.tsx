@@ -7,6 +7,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import { blankDraft, draftFromRecipe, normalizeTag } from '../lib/draft'
 import { isHeic, resizeDishPhoto, resolveImageUrl } from '../lib/images'
 import type { Draft, DraftRow, Flag } from '../types'
+import { pick, talk } from '../lib/kitchenTalk'
 import './EditorScreen.css'
 
 /** /recipe/:id/edit */
@@ -112,14 +113,14 @@ export function Editor({ initial }: { initial: Draft }) {
     setError(null)
     try {
       const saved = await app.saveDraft(d)
-      app.toast(isEdit ? 'Changes saved' : 'Saved to your recipe box')
+      app.toast(pick(isEdit ? talk.savedEdit : talk.savedNew))
       // Editing from the recipe page: go back to it (it re-renders with the saved data)
       // rather than pushing a second copy of it onto history.
       if (isEdit && (location.state as { fromDetail?: boolean } | null)?.fromDetail) navigate(-1)
       else navigate(`/recipe/${encodeURIComponent(saved.id)}`, { replace: true })
     } catch (e) {
       console.error('Failed to save recipe', e)
-      setError('The oven door’s stuck — we couldn’t save that. Try again in a moment.')
+      setError(pick(talk.saveError))
       setSaving(false)
     }
   }
@@ -128,12 +129,12 @@ export function Editor({ initial }: { initial: Draft }) {
     if (!d.id) return
     try {
       await app.deleteRecipe(d.id)
-      app.toast('Recipe 86’d')
+      app.toast(pick(talk.deleted))
       navigate('/', { replace: true })
     } catch (e) {
       console.error('Failed to delete recipe', e)
       setConfirmDelete(false)
-      setError('That one’s stuck to the pan — we couldn’t delete it. Try again.')
+      setError(pick(talk.deleteError))
     }
   }
 
@@ -155,7 +156,7 @@ export function Editor({ initial }: { initial: Draft }) {
             <Icon name={open ? 'spark' : 'check'} size={18} weight={open ? 'regular' : 'bold'} />
             <div>
               <b>{open ? `${open} ${open === 1 ? 'thing' : 'things'} to check` : totalFlags ? 'All checked' : 'Read from your card'}</b>
-              <small>{open ? 'We weren’t sure about a few words. Everything else is ready.' : 'Looks good. Save whenever you’re ready.'}</small>
+              <small>{open ? 'We weren’t sure about a few words. Everything else is ready.' : totalFlags ? talk.allChecked : 'Looks good. Save whenever you’re ready.'}</small>
             </div>
             {!!d.originals?.length && (
               <button type="button" className="orig-btn" onClick={() => setShowOrig(true)}>

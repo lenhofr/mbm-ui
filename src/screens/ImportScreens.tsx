@@ -8,6 +8,7 @@ import CameraInput, { toPage } from '../components/CameraInput'
 import { UnreadableError, extractRecipe, hostOf } from '../lib/extract'
 import { draftFromExtract } from '../lib/draft'
 import { topTags } from '../lib/search'
+import { talk, usePick, usePickSteps } from '../lib/kitchenTalk'
 import type { DraftSource } from '../types'
 import './ImportScreens.css'
 
@@ -85,11 +86,6 @@ export function ScanReviewScreen() {
   )
 }
 
-const STEPS: Record<'scan' | 'link' | 'screenshot', string[]> = {
-  scan: ['Reading the handwriting', 'Finding ingredients', 'Writing out the steps', 'Suggesting tags'],
-  link: ['Opening the page', 'Skipping the life story', 'Finding ingredients', 'Writing out the steps'],
-  screenshot: ['Reading the screenshot', 'Finding ingredients', 'Writing out the steps', 'Suggesting tags'],
-}
 
 /** /import — runs the queued job, or one from ?url= / ?text= (Shortcuts, bookmarklets, share target). */
 export function ProcessingScreen() {
@@ -113,7 +109,10 @@ function Processing({ job }: { job: ImportJob }) {
   const app = useApp()
   const navigate = useNavigate()
   const kind = job.kind === 'text' ? 'link' : job.kind
-  const steps = STEPS[kind]
+  const steps = usePickSteps(kind === 'scan' ? talk.scanSteps : kind === 'screenshot' ? talk.screenshotSteps : talk.linkSteps)
+  const scanTitle = usePick(job.kind === 'scan' && job.files.length > 1 ? talk.scanTitleTwo : talk.scanTitle)
+  const importTitle = usePick(talk.importTitle)
+  const failTitle = usePick(talk.importFailTitle)
   const [i, setI] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
@@ -154,7 +153,7 @@ function Processing({ job }: { job: ImportJob }) {
   }, [authed, attempt])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const cancel = () => navigate('/', { replace: true })
-  const title = error ? 'That didn’t work' : job.kind === 'scan' ? `Reading your card${job.files.length > 1 ? 's' : ''}…` : 'Importing…'
+  const title = error ? failTitle : job.kind === 'scan' ? scanTitle : importTitle
 
   return (
     <div className="screen processing rise">
@@ -182,7 +181,7 @@ function Processing({ job }: { job: ImportJob }) {
       ) : (
         <ul className="proc-steps">
           {steps.map((s, k) => (
-            <li key={s} className={k < i ? 'done' : k === i ? 'now' : ''}>
+            <li key={k} className={k < i ? 'done' : k === i ? 'now' : ''}>
               <span className="ps-dot">{k < i && <Icon name="check" size={14} weight="bold" />}</span>{s}
             </li>
           ))}
@@ -196,11 +195,12 @@ export function ScanFailedScreen() {
   const app = useApp()
   const navigate = useNavigate()
   const cameraRef = useRef<HTMLInputElement>(null)
+  const title = usePick(talk.scanFailTitle)
   return (
     <div className="screen failed rise">
       <div className="proc-top"><GlassButton icon="close" onClick={() => navigate('/', { replace: true })} label="Close" /></div>
       <div className="proc-visual"><div className="proc-blur"><Icon name="photo" size={48} /></div></div>
-      <h2 className="proc-title">We couldn’t read this one</h2>
+      <h2 className="proc-title">{title}</h2>
       <p className="fail-sub">The photo is too blurry to make out the words. A few things that help:</p>
       <ul className="fail-tips">
         <li><Icon name="sun" size={20} />Use more light, and avoid glare from the flash</li>

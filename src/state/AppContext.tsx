@@ -8,6 +8,7 @@ import { getApiBase } from '../lib/env'
 import { toStoredImage, uploadImage } from '../lib/images'
 import type { ExtractInput } from '../lib/extract'
 import type { Draft, Recipe } from '../types'
+import { pick, talk } from '../lib/kitchenTalk'
 
 export type SheetName = 'add' | 'paste' | null
 
@@ -28,10 +29,6 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
-const LOAD_ERRORS = [
-  "Something's burning in the kitchen. We're on it!",
-  'A kitchen mishap! Please try again in a moment.',
-]
 
 function useAppState() {
   const auth = useCognitoAuth()
@@ -50,7 +47,7 @@ function useAppState() {
       setRecipes((await storage.listRecipes()) || [])
     } catch (e) {
       console.error('Failed to load recipes', e)
-      setLoadError(LOAD_ERRORS[Math.floor(Math.random() * LOAD_ERRORS.length)])
+      setLoadError(pick(talk.loadError))
     } finally {
       setLoading(false)
     }

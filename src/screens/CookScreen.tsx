@@ -7,6 +7,7 @@ import { useWakeLock } from '../hooks/useWakeLock'
 import { parseServings } from '../lib/quantity'
 import IngredientChecklist, { toggleIn } from '../components/IngredientChecklist'
 import type { Recipe } from '../types'
+import { fill, talk, usePick } from '../lib/kitchenTalk'
 import './CookScreen.css'
 
 export default function CookScreen() {
@@ -35,6 +36,7 @@ function saveProgress(id: string, p: Progress) {
 }
 
 function Cook({ r }: { r: Recipe }) {
+  const app = useApp()
   const navigate = useNavigate()
   const location = useLocation()
   const nav = location.state as { mult?: number; fromDetail?: boolean } | null
@@ -55,6 +57,10 @@ function Cook({ r }: { r: Recipe }) {
   // Opened from the recipe page: go back to it rather than pushing a second copy onto history.
   const exit = () => (nav?.fromDetail ? navigate(-1) : navigate(`/recipe/${encodeURIComponent(r.id)}`, { replace: true }))
 
+  // Picked once per cook session, so the finish screen line doesn't change under you.
+  const doneTitle = usePick(app.displayName ? [...talk.cookDoneTitle, ...talk.cookDoneTitleNamed] : talk.cookDoneTitle)
+  const doneSub = usePick(talk.cookDoneSub)
+
   const finish = () => {
     try { window.sessionStorage.removeItem(`mbm:cook:${r.id}`) } catch {}
     setFinished(true)
@@ -70,8 +76,8 @@ function Cook({ r }: { r: Recipe }) {
       <div className="screen cook rise">
         <div className="cook-done">
           <div className="done-ring"><Icon name="check" size={40} weight="bold" /></div>
-          <h1>Nice work</h1>
-          <p>Enjoy your {r.title}.</p>
+          <h1>{fill(doneTitle, { name: app.displayName })}</h1>
+          <p>{fill(doneSub, { title: r.title })}</p>
           <button type="button" className="btn primary block lg" onClick={exit}>Back to recipe</button>
           <button type="button" className="btn ghost block" onClick={startOver}>Start over</button>
         </div>
@@ -87,7 +93,9 @@ function Cook({ r }: { r: Recipe }) {
     <div className="screen cook rise">
       <header className="cook-head">
         <GlassButton icon="close" onClick={exit} label="Exit cook mode" />
-        <div className="cook-count" aria-live="polite">{doneSteps.size} of {steps.length} steps done</div>
+        <div className="cook-count" aria-live="polite">
+          {doneSteps.size === steps.length ? talk.cookAllDone : `${doneSteps.size} of ${steps.length} steps done`}
+        </div>
         <div className={'awake' + (wake.isActive ? ' on' : '')} title={wake.isSupported ? undefined : 'Not supported on this device'}>
           <Icon name="sun" size={15} weight="bold" />Screen on
         </div>

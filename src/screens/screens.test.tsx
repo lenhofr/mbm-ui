@@ -2,6 +2,13 @@ import React from 'react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import App from '../App'
+import { fill, talk } from '../lib/kitchenTalk'
+
+/** Matches any line of a copy bank (after filling placeholders) as the element's full text. */
+const oneOf = (bank: readonly string[], vars: Record<string, string> = {}) => {
+  const lines = bank.map(l => fill(l, vars))
+  return (_: string, el: Element | null) => !!el && lines.includes(el.textContent?.trim() ?? '') && !Array.from(el.children).some(c => lines.includes(c.textContent?.trim() ?? ''))
+}
 
 const RECIPES = [
   {
@@ -57,8 +64,13 @@ describe('mobile screens', () => {
     expect(screen.queryByRole('button', { name: /timer/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('timer')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Step 3' })).toBeInTheDocument()
+    // Ticking every step swaps the counter for a nudge to finish.
+    fireEvent.click(screen.getByRole('button', { name: 'Step 2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Step 3' }))
+    expect(screen.getByText(talk.cookAllDone)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Finish' }))
-    expect(screen.getByText('Nice work')).toBeInTheDocument()
+    expect(screen.getByText(oneOf(talk.cookDoneTitle))).toBeInTheDocument()
+    expect(screen.getByText(oneOf(talk.cookDoneSub, { title: 'Choco Chip Cookies' }))).toBeInTheDocument()
   })
 
   it('cook page reflects servings scaled on the recipe page', async () => {
@@ -79,7 +91,7 @@ describe('mobile screens', () => {
     fireEvent.click(screen.getByLabelText('2 large eggs'))
     expect(screen.getByText(/Missing 1/)).toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('2 1/4 cups all-purpose flour'))
-    expect(screen.getByText('You have everything')).toBeInTheDocument()
+    expect(screen.getByText(talk.haveEverything)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Open recipe' }))
     expect(window.location.pathname).toBe('/recipe/cookies')
   })
@@ -127,7 +139,7 @@ describe('mobile screens', () => {
     at('/')
     fireEvent.change(await screen.findByPlaceholderText('Search title, tag or ingredient'), { target: { value: 'bacon' } })
     expect(await screen.findByRole('heading', { name: 'Oven bacon' })).toBeInTheDocument()
-    expect(screen.getByText(/Nothing matches/)).toBeInTheDocument()
+    expect(screen.getByText(oneOf(talk.noMatch, { q: 'bacon' }))).toBeInTheDocument()
   })
 
   it('Quick tips sheet groups tips and filters them', async () => {
@@ -141,7 +153,7 @@ describe('mobile screens', () => {
     expect(screen.queryByRole('region', { name: 'Vegetables' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Boiled eggs' })).not.toBeInTheDocument()
     fireEvent.change(filter, { target: { value: 'zzz' } })
-    expect(screen.getByText('No tips for “zzz”.')).toBeInTheDocument()
+    expect(screen.getByText(fill(talk.tipsEmpty, { q: 'zzz' }))).toBeInTheDocument()
   })
 
   it('Favorites has no Quick tips link', async () => {
