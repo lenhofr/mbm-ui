@@ -44,7 +44,7 @@ describe('mobile screens', () => {
     expect(screen.getByText('· scaled')).toBeInTheDocument()
   })
 
-  it('cook mode is one page: tap steps to mark done, timers stay inside the card', async () => {
+  it('cook mode is one page: tap steps to mark done, no step timers', async () => {
     window.sessionStorage.clear()
     at('/recipe/cookies/cook')
     expect(await screen.findByText('0 of 3 steps done')).toBeInTheDocument()
@@ -53,11 +53,10 @@ describe('mobile screens', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Step 1' }))
     expect(screen.getByText('1 of 3 steps done')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Step 1, done' })).toBeInTheDocument()
-    // Starting a timer must not toggle the step it lives in.
-    fireEvent.click(screen.getByRole('button', { name: /start 9 min timer/i }))
-    expect(screen.getByText('1 of 3 steps done')).toBeInTheDocument()
-    expect(screen.getByRole('timer')).toHaveTextContent('9:00')
-    expect(screen.getByRole('button', { name: /step 3$/ })).toBeInTheDocument()
+    // Step 3 bakes for 9 minutes, but timers were removed from cook mode.
+    expect(screen.queryByRole('button', { name: /timer/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('timer')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Step 3' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Finish' }))
     expect(screen.getByText('Nice work')).toBeInTheDocument()
   })

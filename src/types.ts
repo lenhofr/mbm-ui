@@ -1,6 +1,6 @@
 // Persisted recipe shape (DynamoDB / localStorage). Kept backward-compatible with
 // existing records: ingredients are {amount, name} strings and instructions are
-// plain strings. Structured quantities and step timers are derived on the client.
+// plain strings. Structured quantities are derived on the client.
 export type Recipe = {
   id: string
   title: string

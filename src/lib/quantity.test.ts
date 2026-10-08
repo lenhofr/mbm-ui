@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { splitQty, formatQty, scaleAmount, parseIngredientLine, detectTimerMinutes, parseServings, ingredientsUsedInStep } from './quantity'
+import { splitQty, formatQty, scaleAmount, parseIngredientLine, parseServings, ingredientsUsedInStep } from './quantity'
 
 describe('splitQty', () => {
   it.each([
@@ -42,15 +42,6 @@ describe('parseIngredientLine', () => {
     expect(parseIngredientLine('2 1/4 cups all-purpose flour')).toEqual({ amount: '2 1/4 cups', name: 'all-purpose flour' })
     expect(parseIngredientLine('2 large eggs')).toEqual({ amount: '2', name: 'large eggs' })
     expect(parseIngredientLine('salt to taste')).toEqual({ name: 'salt to taste' })
-  })
-})
-
-describe('detectTimerMinutes', () => {
-  it('uses the first number', () => {
-    expect(detectTimerMinutes('Bake for 9 to 11 minutes or until golden')).toBe(9)
-    expect(detectTimerMinutes('Bake at 425°F for 25 minutes.')).toBe(25)
-    expect(detectTimerMinutes('Cook on high for 4 hours.')).toBe(240)
-    expect(detectTimerMinutes('Preheat oven to 375° F.')).toBeUndefined()
   })
 })
 
