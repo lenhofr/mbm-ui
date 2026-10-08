@@ -5,6 +5,7 @@ import { RecipeThumb } from './ui'
 import IngredientChecklist, { toggleIn } from './IngredientChecklist'
 import { Icon } from '../icons/Icons'
 import type { Recipe } from '../types'
+import { talk } from '../lib/kitchenTalk'
 import './QuickView.css'
 
 /** Pantry check: tick the ingredients you already have, without opening the recipe. */
@@ -43,7 +44,7 @@ export default function QuickView({ recipe, onClose }: { recipe: Recipe | null; 
             {have.size === 0
               ? 'Tap what you already have'
               : missing === 0
-                ? <><Icon name="check" size={16} weight="bold" />You have everything</>
+                ? <><Icon name="check" size={16} weight="bold" />{talk.haveEverything}</>
                 : <><b>Missing {missing}</b>&nbsp;of {total}</>}
           </div>
 

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Sheet from './ui/Sheet'
 import { Icon } from '../icons/Icons'
 import { TIP_CATEGORIES, searchTips, type QuickTip } from '../lib/quickTips'
+import { fill, talk } from '../lib/kitchenTalk'
 import './QuickTips.css'
 
 export function TipCard({ tip }: { tip: QuickTip }) {
@@ -79,7 +80,7 @@ export default function QuickTipsSheet({ open, onClose }: { open: boolean; onClo
       </label>
       <div className="sheet-list" ref={listRef}>
         {groups.length === 0 ? (
-          <p className="qt-empty">No tips for “{q.trim()}”.</p>
+          <p className="qt-empty">{fill(talk.tipsEmpty, { q: q.trim() })}</p>
         ) : groups.map(g => (
           <section key={g.category} aria-label={g.category}>
             <div className="sec-label">{g.category}</div>

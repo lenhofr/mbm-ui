@@ -7,6 +7,7 @@ import Sheet from '../components/ui/Sheet'
 import QuickView from '../components/QuickView'
 import QuickTipsSheet, { InlineTips } from '../components/QuickTips'
 import { searchTips } from '../lib/quickTips'
+import { fill, talk, usePick } from '../lib/kitchenTalk'
 import CookSpinner from '../components/CookSpinner'
 import { buildIndex, searchRecipes, topTags } from '../lib/search'
 import type { Recipe } from '../types'
@@ -108,6 +109,8 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
   const [account, setAccount] = useState(false)
   const [quick, setQuick] = useState<Recipe | null>(null)
   const [tipsOpen, setTipsOpen] = useState(false)
+  const loadingLine = usePick(talk.loading)
+  const noMatchLine = usePick(talk.noMatch)
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim().toLowerCase()), 200)
@@ -189,7 +192,7 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
         <InlineTips tips={inlineTips} />
 
         {loading ? (
-          <div className="home-loading"><CookSpinner size={40} /><p>Simmering…</p></div>
+          <div className="home-loading"><CookSpinner size={40} /><p>{loadingLine}</p></div>
         ) : loadError ? (
           <div className="empty" role="alert">
             <p>{loadError}</p>
@@ -201,8 +204,8 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
               <div className="empty">
                 <p>
                   {favoritesOnly && !debounced && tag === 'all'
-                    ? 'Tap the heart on a recipe to keep it here.'
-                    : `Nothing matches${query.trim() ? ` “${query.trim()}”` : ''}.`}
+                    ? talk.favoritesEmpty
+                    : query.trim() ? fill(noMatchLine, { q: query.trim() }) : 'Nothing matches.'}
                 </p>
                 {!favoritesOnly && (
                   <button type="button" className="btn primary" onClick={() => app.requireLogin() && app.setSheet('add')}>

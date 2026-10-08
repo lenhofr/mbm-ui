@@ -4,6 +4,7 @@ import { Authenticator } from '@aws-amplify/ui-react'
 import { Hub } from 'aws-amplify/utils'
 import '@aws-amplify/ui-react/styles.css'
 import '../auth/amplify'
+import { talk, usePick } from '../lib/kitchenTalk'
 import { useScrollLock } from '../hooks/useScrollLock'
 
 type Props = {
@@ -13,8 +14,7 @@ type Props = {
 
 export default function LoginModal({ visible, onClose }: Props) {
   useScrollLock(visible)
-
-  if (!visible) return null
+  const headerTitle = usePick(talk.loginTitle)
 
   // Auto-close the modal after a successful sign-in using Amplify Hub events
   React.useEffect(() => {
@@ -24,7 +24,7 @@ export default function LoginModal({ visible, onClose }: Props) {
     return unsubscribe
   }, [onClose])
 
-  const headerTitle = 'Welcome back to the kitchen!'
+  if (!visible) return null
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
