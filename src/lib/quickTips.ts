@@ -5,7 +5,7 @@
 // Food-safety numbers follow the USDA FSIS Safe Minimum Internal Temperature Chart
 // (checked 2026-10-07). Times are typical ranges; Maggie should give them a once-over.
 
-export type TipCategory = 'Eggs & poultry' | 'Vegetables' | 'Grains & pasta' | 'Meat & fish' | 'Temps & conversions'
+export type TipCategory = 'Eggs & poultry' | 'Vegetables' | 'Meat & fish' | 'Temps & conversions'
 
 export interface QuickTip {
   id: string
@@ -18,7 +18,7 @@ export interface QuickTip {
 }
 
 /** Display order of the sheet's groups. */
-export const TIP_CATEGORIES: TipCategory[] = ['Eggs & poultry', 'Vegetables', 'Grains & pasta', 'Meat & fish', 'Temps & conversions']
+export const TIP_CATEGORIES: TipCategory[] = ['Eggs & poultry', 'Vegetables', 'Meat & fish', 'Temps & conversions']
 
 export const TIPS: QuickTip[] = [
   { id: 'eggs', category: 'Eggs & poultry', title: 'Boiled eggs', text: 'Lower cold eggs into boiling water, then keep it at a gentle boil. Straight into an ice bath after.', rows: [['Soft', '6 min'], ['Jammy', '7 min'], ['Hard', '10–12 min']], keywords: ['egg', 'eggs', 'hard boiled', 'soft boiled', 'jammy'] },
@@ -27,7 +27,6 @@ export const TIPS: QuickTip[] = [
   { id: 'baked-potato', category: 'Vegetables', title: 'Baked potatoes', text: 'Russets, scrubbed and poked with a fork, rubbed with oil and salt. 400°F right on the rack for 50–60 min, until a knife slides in easily.', keywords: ['potato', 'potatoes', 'baked', 'russet', 'jacket'] },
   { id: 'boiled-carrots', category: 'Vegetables', title: 'Boiled baby carrots', text: 'Into salted boiling water, then simmer until a fork slides in. Drain and toss with butter and salt.', rows: [['Crisp-tender', '6–8 min'], ['Tender', '10–12 min']], keywords: ['carrot', 'carrots', 'baby carrots', 'boiled carrots'] },
   { id: 'corn', category: 'Vegetables', title: 'Corn on the cob', text: 'Shuck, drop into a big pot of boiling water, and cover. Done when the kernels are bright and tender.', rows: [['Fresh', '3–5 min'], ['Frozen cobs', '5–8 min']], keywords: ['corn', 'cob', 'corn on the cob', 'sweet corn'] },
-  { id: 'rice', category: 'Grains & pasta', title: 'Rice & grains', text: 'Water to grain, simmer covered on low, then fluff with a fork.', rows: [['White rice', '1½ : 1 · 15–18 min + 10 min rest'], ['Brown rice', '2 : 1 · 40–45 min'], ['Quinoa', '2 : 1 · 15 min']], keywords: ['rice', 'grain', 'grains', 'quinoa', 'brown rice', 'ratio', 'water'] },
   { id: 'fish', category: 'Meat & fish', title: 'Salmon & white fish', text: '400°F for 12–15 min per inch of thickness. Done at 145°F, or when it flakes easily with a fork.', keywords: ['fish', 'salmon', 'cod', 'tilapia', 'halibut', 'fillet', 'bake'] },
   { id: 'bacon', category: 'Meat & fish', title: 'Oven bacon', text: '400°F on a foil-lined sheet pan, no flipping. 15–20 min regular, 20–25 min thick-cut.', keywords: ['bacon', 'oven', 'sheet pan'] },
   { id: 'steak', category: 'Meat & fish', title: 'Steak doneness', text: 'Final temp after resting. Pull it off about 5°F early.', rows: [['Rare', '125°F'], ['Medium-rare', '130–135°F'], ['Medium', '140–145°F'], ['Medium-well', '150–155°F'], ['Well done', '160°F']], note: 'USDA safe minimum: 145°F with a 3-minute rest.', keywords: ['steak', 'beef', 'doneness', 'medium rare', 'rare', 'temp'] },

@@ -4,9 +4,9 @@ import { TIPS, TIP_CATEGORIES, matchTip, searchTips } from './quickTips'
 const egg = TIPS.find(t => t.id === 'eggs')!
 
 describe('quick tips data', () => {
-  it('has 12 tips with unique ids in known categories', () => {
-    expect(TIPS).toHaveLength(12)
-    expect(new Set(TIPS.map(t => t.id)).size).toBe(12)
+  it('has 11 tips with unique ids in known categories', () => {
+    expect(TIPS).toHaveLength(11)
+    expect(new Set(TIPS.map(t => t.id)).size).toBe(11)
     TIPS.forEach(t => expect(TIP_CATEGORIES).toContain(t.category))
   })
 
@@ -31,6 +31,7 @@ describe('tip lineup', () => {
     const ids = TIPS.map(t => t.id)
     expect(ids).not.toContain('roast-chicken')
     expect(ids).not.toContain('pasta')
+    expect(ids).not.toContain('rice')
   })
 })
 
@@ -52,6 +53,6 @@ describe('matchTip', () => {
 
   it('searchTips trims and lowercases', () => {
     expect(searchTips('  EGG ').map(t => t.id)).toContain('eggs')
-    expect(searchTips('')).toHaveLength(12)
+    expect(searchTips('')).toHaveLength(11)
   })
 })
