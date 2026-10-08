@@ -5,6 +5,8 @@ import { Icon } from '../icons/Icons'
 import { RecipeThumb } from '../components/ui'
 import Sheet from '../components/ui/Sheet'
 import QuickView from '../components/QuickView'
+import QuickTipsSheet, { InlineTips } from '../components/QuickTips'
+import { searchTips } from '../lib/quickTips'
 import CookSpinner from '../components/CookSpinner'
 import { buildIndex, searchRecipes, topTags } from '../lib/search'
 import type { Recipe } from '../types'
@@ -105,6 +107,7 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
   const [tag, setTag] = useState('all')
   const [account, setAccount] = useState(false)
   const [quick, setQuick] = useState<Recipe | null>(null)
+  const [tipsOpen, setTipsOpen] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim().toLowerCase()), 200)
@@ -113,6 +116,9 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
 
   const index = useMemo(() => buildIndex(recipes), [recipes])
   const tags = useMemo(() => ['all', ...topTags(recipes)], [recipes])
+
+  // Recipes tab only: up to 2 tips once the search is 3+ characters.
+  const inlineTips = useMemo(() => (!favoritesOnly && debounced.length >= 3 ? searchTips(debounced).slice(0, 2) : []), [favoritesOnly, debounced])
 
   const list = useMemo(() => {
     const hits = debounced ? searchRecipes(index, debounced) : null
@@ -170,6 +176,18 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
           </div>
         )}
 
+        {/* Count row + tips render in every state, so Quick tips still work offline
+            (bundled data) even when the recipe request fails. */}
+        <div className="count-row">
+          <span className="count">{!loading && !loadError && `${list.length} ${list.length === 1 ? 'recipe' : 'recipes'}`}</span>
+          {!favoritesOnly && (
+            <button type="button" className="tips-link" onClick={() => setTipsOpen(true)}>
+              <Icon name="bulb" size={17} weight="bold" />Quick tips
+            </button>
+          )}
+        </div>
+        <InlineTips tips={inlineTips} />
+
         {loading ? (
           <div className="home-loading"><CookSpinner size={40} /><p>Simmering…</p></div>
         ) : loadError ? (
@@ -179,7 +197,6 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
           </div>
         ) : (
           <>
-            <div className="count">{list.length} {list.length === 1 ? 'recipe' : 'recipes'}</div>
             {list.length === 0 ? (
               <div className="empty">
                 <p>
@@ -213,6 +230,7 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
       </div>
 
       <QuickView recipe={quick} onClose={() => setQuick(null)} />
+      <QuickTipsSheet open={tipsOpen} onClose={() => setTipsOpen(false)} />
 
       <Sheet open={account} onClose={() => setAccount(false)} label="Account">
         <h2 className="sheet-title">{app.displayName ? `Hi ${app.displayName}!` : 'Your account'}</h2>

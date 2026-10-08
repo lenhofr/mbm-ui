@@ -14,7 +14,9 @@
 .chips-row::-webkit-scrollbar { display: none; }
 .mbm .chips-row .chip.on { background: var(--plum); color: #fff; }
 
-.count { font-size: 13px; color: var(--muted); margin: 16px 2px 10px; }
+.count-row { display: flex; justify-content: space-between; align-items: center; margin: 4px 2px 4px; min-height: 44px; }
+.count { font-size: 13px; color: var(--muted); }
+.mbm .tips-link { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 2px 0 10px; margin-right: -2px; border: 0; background: none; font: 600 13.5px Inter, sans-serif; color: var(--plum); white-space: nowrap; }
 
 .rgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 12px; }
 .rcard { min-width: 0; cursor: pointer; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; transition: transform .15s var(--ease); }

@@ -2,7 +2,7 @@ import {
   CookingPot, PencilSimpleLine, SignIn, SignOut, Plus, PlusCircle, X, Trash, DownloadSimple,
   MagnifyingGlass, Minus, Heart, BookOpen, Camera, ClipboardText, PencilSimple, CaretLeft, CaretRight,
   Export, Check, Clock, Users, Timer, Sun, Image, Sparkle, WarningCircle, Play, Pause,
-  ArrowCounterClockwise, Link, TextAlignLeft,
+  ArrowCounterClockwise, Link, TextAlignLeft, Lightbulb,
 } from 'phosphor-react'
 import type { IconProps } from 'phosphor-react'
 import React from 'react'
@@ -46,6 +46,7 @@ const ICONS = {
   trash: Trash,
   signin: SignIn,
   signout: SignOut,
+  bulb: Lightbulb,
 } as const
 
 export type IconName = keyof typeof ICONS

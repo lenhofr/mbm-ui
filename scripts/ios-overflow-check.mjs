@@ -56,23 +56,36 @@ async function checkOverflow(page, label) {
   return overflow;
 }
 
-async function tryInteractions(page) {
-  // Try opening first recipe card to show modal, then cook mode if available
+// Each step opens a screen/sheet, then checks for horizontal overflow there.
+// Returns true if any step overflowed.
+async function tryInteractions(page, label) {
+  let failed = false
+  const check = async (step) => {
+    const r = await checkOverflow(page, `${label} - ${step}`)
+    if (r.docOverflow || r.bodyOverflow) failed = true
+  }
   try {
-    await page.waitForSelector('.recipe-card', { timeout: 1000 });
-    const card = await page.$('.recipe-card');
-    if (card) {
-      await card.click();
-      // small wait for modal animation
-      await page.waitForTimeout(150);
-      // try cook mode toggle
-      const cookBtn = await page.$('.cook-mode-btn');
-      if (cookBtn) {
-        await cookBtn.click();
-        await page.waitForTimeout(150);
-      }
-    }
+    // Quick tips sheet (Home count row link), then filtered
+    await page.waitForSelector('.tips-link', { timeout: 5000 })
+    await page.click('.tips-link')
+    await page.waitForTimeout(400) // sheet slide-up
+    await check('quick tips sheet')
+    await page.fill('.qt-filter input', 'chicken')
+    await page.waitForTimeout(100)
+    await check('quick tips sheet filtered')
+    await page.click('.qt-close')
+    await page.waitForTimeout(400)
+  } catch (e) {
+    console.log(`[${label}] quick tips sheet not reachable:`, e.message)
+  }
+  try {
+    // First recipe page
+    await page.waitForSelector('.rcard-open', { timeout: 2000 })
+    await page.click('.rcard-open')
+    await page.waitForTimeout(400)
+    await check('recipe page')
   } catch {}
+  return failed
 }
 
 async function main() {
@@ -96,9 +109,7 @@ async function main() {
     const base = await checkOverflow(page, `${s.label} - base`);
     if (base.docOverflow || base.bodyOverflow) exitCode = 1;
 
-    await tryInteractions(page);
-    const after = await checkOverflow(page, `${s.label} - after interactions`);
-    if (after.docOverflow || after.bodyOverflow) exitCode = 1;
+    if (await tryInteractions(page, s.label)) exitCode = 1;
 
     await context.close();
   }

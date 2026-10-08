@@ -1,0 +1,20 @@
+.tip-stack { display: flex; flex-direction: column; gap: 8px; }
+.tip-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+.mbm .tip-title { font: 600 16.5px/1.25 Poppins, sans-serif; color: var(--plum); margin: 0; }
+.tip-text { font: 15.5px/1.45 Inter, sans-serif; color: var(--text); margin: 5px 0 0; text-wrap: pretty; }
+.tip-rows { margin: 8px 0 0; }
+.tip-rows > div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid #f3e7ed; font-size: 15px; }
+.tip-rows dt { color: var(--text); min-width: 0; }
+.tip-rows dd { margin: 0; color: var(--plum); font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; flex: none; max-width: 55%; }
+.tip-note { font-size: 13px; color: var(--muted); margin: 8px 0 0; line-height: 1.4; }
+
+/* Inline matches above the Home grid */
+.inline-tips { margin: 2px 0 18px; }
+.tip-label { display: flex; align-items: center; gap: 6px; font: 600 12.5px Inter, sans-serif; color: var(--pink); text-transform: uppercase; letter-spacing: .07em; margin: 0 2px 8px; }
+
+/* Sheet */
+.qt-head { display: flex; align-items: center; justify-content: space-between; }
+.qt-head .sheet-title { margin: 0; }
+.qt-close { width: 44px; height: 44px; margin-right: -12px; border: 0; background: none; color: var(--muted); display: grid; place-items: center; padding: 0; }
+.qt-filter { margin: 10px 0 4px; flex: none; }
+.qt-empty { text-align: center; color: var(--muted); font-size: 15px; margin: 32px 0; }
