@@ -21,6 +21,19 @@ describe('quick tips data', () => {
   })
 })
 
+describe('tip lineup', () => {
+  it('includes boiled baby carrots and corn on the cob', () => {
+    expect(searchTips('baby carrots').map(t => t.id)).toContain('boiled-carrots')
+    expect(searchTips('corn on the cob').map(t => t.id)).toEqual(['corn'])
+  })
+
+  it('no longer has roast chicken or pasta', () => {
+    const ids = TIPS.map(t => t.id)
+    expect(ids).not.toContain('roast-chicken')
+    expect(ids).not.toContain('pasta')
+  })
+})
+
 describe('matchTip', () => {
   it('matches title and keyword substrings', () => {
     expect(matchTip(egg, 'boiled')).toBe(true)
