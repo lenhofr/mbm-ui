@@ -3,13 +3,17 @@ import SwiftUI
 // Home screen, styled after HomeScreen.tsx / HomeScreen.css in mbm-ui.
 struct RecipeListView: View {
     @Environment(AuthModel.self) private var auth
+    @Environment(RecipeStore.self) private var store
+    @State private var path: [String] = []
     @State private var showLogin = false
     @State private var showAccount = false
-    @State private var recipes: [Recipe] = []
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    @State private var showNewRecipe = false
     @State private var searchText = ""
     @State private var selectedTag = "all"
+
+    private var recipes: [Recipe] { store.recipes }
+    private var isLoading: Bool { store.isLoading }
+    private var errorMessage: String? { store.loadError }
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 2)
 
@@ -38,7 +42,7 @@ struct RecipeListView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
@@ -71,18 +75,28 @@ struct RecipeListView: View {
                     content
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 32)
+                .padding(.bottom, 110)
             }
             .scrollDismissesKeyboard(.immediately)
             .background(Color.appBackground)
             .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(for: Recipe.self) { recipe in
-                RecipeDetailView(recipe: recipe)
+            .navigationDestination(for: String.self) { id in
+                RecipeDetailView(recipeID: id)
             }
-            .refreshable { await load() }
+            .overlay(alignment: .bottom) {
+                AddButton {
+                    if auth.isSignedIn { showNewRecipe = true } else { showLogin = true }
+                }
+                .padding(.bottom, 8)
+            }
+            .refreshable { await store.load() }
             .sheet(isPresented: $showLogin) { LoginView() }
             .sheet(isPresented: $showAccount) { AccountView() }
-            .task { await load() }
+            .fullScreenCover(isPresented: $showNewRecipe) {
+                // Open the new recipe once it's saved.
+                RecipeEditorView(draft: RecipeDraft()) { saved in path.append(saved.id) }
+            }
+            .task { if store.recipes.isEmpty { await store.load() } }
         }
     }
 
@@ -118,14 +132,14 @@ struct RecipeListView: View {
             .padding(.top, 80)
         } else if let errorMessage, recipes.isEmpty {
             EmptyMessage(text: errorMessage, buttonTitle: "Try again") {
-                Task { await load() }
+                Task { await store.load() }
             }
         } else if filteredRecipes.isEmpty {
             EmptyMessage(text: "Nothing matches. Try another search or tag.")
         } else {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
                 ForEach(filteredRecipes) { recipe in
-                    NavigationLink(value: recipe) {
+                    NavigationLink(value: recipe.id) {
                         RecipeCard(recipe: recipe)
                     }
                     .buttonStyle(PressableStyle())
@@ -134,16 +148,23 @@ struct RecipeListView: View {
         }
     }
 
-    private func load() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            recipes = try await RecipeAPI.listRecipes()
-                .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
+}
+
+/// Big plum "+" button floating at the bottom (`.tab-add` in TabBar.css).
+private struct AddButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "plus")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 60, height: 60)
+                .background(Color.plum, in: Circle())
+                .shadow(color: Color.plum.opacity(0.35), radius: 10, y: 4)
         }
+        .buttonStyle(PressableStyle())
+        .accessibilityLabel("Add a recipe")
     }
 }
 
@@ -341,4 +362,5 @@ struct RecipeImage: View {
 #Preview {
     RecipeListView()
         .environment(AuthModel())
+        .environment(RecipeStore())
 }

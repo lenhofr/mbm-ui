@@ -103,9 +103,12 @@ ios/MealsByMaggie/
 ├── Theme.swift              # Colors/fonts ported from src/tokens.css, TagChip, FlowLayout
 ├── Fonts/                   # Lobster, Poppins, Inter (registered at runtime, no Info.plist entries)
 ├── Recipe.swift             # Mirrors Recipe in src/types.ts; imageURL mirrors resolveImageUrl
-├── RecipeAPI.swift          # Mirrors RemoteAdapter in src/lib/storage.ts (reads only so far)
-├── RecipeListView.swift     # HomeScreen.tsx
-├── RecipeDetailView.swift   # DetailScreen.tsx
+├── RecipeAPI.swift          # Mirrors RemoteAdapter (storage.ts) + uploadImage (images.ts)
+├── RecipeStore.swift        # Shared recipe list + save/delete + toast (AppContext.tsx)
+├── RecipeDraft.swift        # Editor state + conversions (draft.ts), parseIngredientLine port (quantity.ts)
+├── RecipeListView.swift     # HomeScreen.tsx + floating "+" add button
+├── RecipeDetailView.swift   # DetailScreen.tsx; edit pencil when signed in
+├── RecipeEditorView.swift   # EditorScreen.tsx (manual add/edit/delete, camera/library photo)
 ├── CookView.swift           # CookScreen.tsx (screen stays on, progress saved in UserDefaults)
 └── IngredientChecklist.swift
 ```
