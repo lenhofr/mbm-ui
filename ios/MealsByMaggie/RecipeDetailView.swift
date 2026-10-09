@@ -1,7 +1,39 @@
 import SwiftUI
 
 // Recipe detail, styled after DetailScreen.tsx / DetailScreen.css in mbm-ui.
+// Looks the recipe up in the shared store so edits show up immediately.
 struct RecipeDetailView: View {
+    let recipeID: String
+    @Environment(RecipeStore.self) private var store
+    @Environment(AuthModel.self) private var auth
+    @Environment(\.dismiss) private var dismiss
+    @State private var isEditing = false
+    @State private var wasDeleted = false
+
+    var body: some View {
+        Group {
+            if let recipe = store.recipe(id: recipeID) {
+                RecipeDetailBody(recipe: recipe)
+            } else {
+                Color.appBackground.ignoresSafeArea()
+            }
+        }
+        .toolbar {
+            if auth.isSignedIn, store.recipe(id: recipeID) != nil {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Edit recipe", systemImage: "pencil") { isEditing = true }
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $isEditing, onDismiss: { if wasDeleted { dismiss() } }) {
+            if let recipe = store.recipe(id: recipeID) {
+                RecipeEditorView(draft: RecipeDraft(recipe: recipe), onDeleted: { wasDeleted = true })
+            }
+        }
+    }
+}
+
+private struct RecipeDetailBody: View {
     let recipe: Recipe
     @State private var checked: Set<Int> = []
     @State private var isCooking = false
@@ -184,7 +216,7 @@ private struct MetaCell: View {
 
 #Preview {
     NavigationStack {
-        RecipeDetailView(recipe: Recipe(
+        RecipeDetailBody(recipe: Recipe(
             id: "preview",
             title: "Crockpot Chicken Pasta",
             description: "Creamy, easy, and weeknight friendly.",
