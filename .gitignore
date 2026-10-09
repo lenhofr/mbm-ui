@@ -46,6 +46,12 @@ terraform/tfplan
 # Zipped Lambda artifacts created by archive_file
 terraform/dist/
 
+# --- iOS / Xcode ---
+xcuserdata/
+DerivedData/
+ios/build/
+*.xcuserstate
+
 # --- Misc ---
 coverage/
 *.lognode_modules
