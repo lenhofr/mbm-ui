@@ -84,3 +84,20 @@ html, body { background: #fcf5f8; }
 .mbm .sec-label { font: 600 12.5px Inter, sans-serif; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin: 20px 2px 8px; }
 .mbm .step-n { width: 24px; height: 24px; border-radius: 50%; background: var(--chip); color: var(--plum); font: 700 12px/24px Inter, sans-serif; text-align: center; flex: none; }
 .mbm .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Desktop browser: widen the shell, flow the recipe grid, and keep reading screens
+   (detail, cook, editor) at a comfortable centred column. Mobile is untouched. */
+@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
+  .mbm { --col: max(20px, calc((100% - 760px) / 2)); max-width: 1200px; }
+  .home .scroll { padding-inline: 32px; }
+  .chips-row { margin-inline: -32px; padding-inline: 32px; }
+  .rgrid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px 18px; }
+  .rcard:hover .rcard-img { box-shadow: 0 6px 18px rgba(123,36,83,.18); }
+  .tabbar { padding-inline: max(44px, calc(50% - 180px)); }
+  .d-hero { height: 380px; }
+  .hero-btns { left: var(--col); right: var(--col); }
+  .d-body, .bottom-cta, .cook-head, .cook-scroll, .review .scroll { padding-inline: var(--col); }
+  .sheet { max-width: 560px; margin: 0 auto; }
+  .mbm .scroll, .cook-scroll { scrollbar-width: thin; }
+  .mbm .scroll::-webkit-scrollbar, .cook-scroll::-webkit-scrollbar { display: block; width: 8px; }
+}
