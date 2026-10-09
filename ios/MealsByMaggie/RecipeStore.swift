@@ -14,6 +14,18 @@ final class RecipeStore {
         recipes.first { $0.id == id }
     }
 
+    /// Most-used tags, most common first (topTags in src/lib/search.ts).
+    func topTags(limit: Int) -> [String] {
+        var counts: [String: Int] = [:]
+        for recipe in recipes {
+            for tag in Set((recipe.tags ?? []).map { $0.lowercased() }) {
+                counts[tag, default: 0] += 1
+            }
+        }
+        let sorted = counts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+        return sorted.prefix(limit).map(\.key)
+    }
+
     func load() async {
         isLoading = true
         defer { isLoading = false }

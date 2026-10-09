@@ -82,7 +82,7 @@ VITE_API_BASE=          # API Gateway base URL
 
 ## iOS App
 
-`ios/MealsByMaggie.xcodeproj` is a native SwiftUI port of the web app (iPhone/iPad only, bundle ID `com.mealsbymaggie.app`). It calls the same API Gateway endpoints; GET routes are public, writes need a Cognito JWT. Login uses Amplify Swift (pinned exact version via Swift Package Manager) against the same user pool and app client as the web (SRP, email as username).
+`ios/MealsByMaggie.xcodeproj` is a native SwiftUI port of the web app (iPhone/iPad only, bundle ID `com.mealsbymaggie.app`). It calls the same API Gateway endpoints; GET routes are public, writes need a Cognito JWT. Link imports depend on the Lambda fetching the page; some big sites (e.g. allrecipes) block it and return 502 for web and iOS alike. Login uses Amplify Swift (pinned exact version via Swift Package Manager) against the same user pool and app client as the web (SRP, email as username).
 
 ```bash
 open ios/MealsByMaggie.xcodeproj    # then ⌘R to run in the simulator
@@ -108,7 +108,9 @@ ios/MealsByMaggie/
 ├── RecipeDraft.swift        # Editor state + conversions (draft.ts), parseIngredientLine port (quantity.ts)
 ├── RecipeListView.swift     # HomeScreen.tsx + floating "+" add button
 ├── RecipeDetailView.swift   # DetailScreen.tsx; edit pencil when signed in
-├── RecipeEditorView.swift   # EditorScreen.tsx (manual add/edit/delete, camera/library photo)
+├── RecipeEditorView.swift   # EditorScreen.tsx (add/edit/delete, photo, AI review banner + flag answers)
+├── RecipeImport.swift       # ImportJob, /ai/extract-recipe client (extract.ts), draftFromExtract port
+├── ImportViews.swift        # AddSheets.tsx + ImportScreens.tsx; VisionKit document scanner for cards
 ├── CookView.swift           # CookScreen.tsx (screen stays on, progress saved in UserDefaults)
 └── IngredientChecklist.swift
 ```

@@ -3,12 +3,37 @@ import UIKit
 /// Editor state for a new or existing recipe (Draft in src/types.ts, conversions
 /// from src/lib/draft.ts). Ingredients and steps are edited as plain text lines.
 struct RecipeDraft {
+    /// Where the draft came from; AI sources get a review banner in the editor.
+    enum Source { case manual, edit, scan, link, text, screenshot }
+
+    /// A question the AI asks about a word it wasn't sure of, with full-text choices.
+    struct Flag: Equatable {
+        struct Option: Equatable { var text: String; var label: String }
+        var question: String
+        var options: [Option]
+    }
+
     struct Row: Identifiable, Equatable {
         let id = UUID()
         var text: String
+        var flag: Flag? = nil
+        /// The user confirmed or edited a flagged row.
+        var ok = false
+
+        var needsReview: Bool { flag != nil && !ok }
     }
 
     static let defaultServings = 4
+
+    var source: Source = .manual
+    /// Site name for link imports ("allrecipes.com").
+    var sourceLabel: String?
+    /// The scanned pages, for the "Original" viewer.
+    var originals: [UIImage] = []
+    /// Tags the AI suggested (shown with a dashed border until saved).
+    var aiTags: Set<String> = []
+    /// How many rows were flagged when the draft was created.
+    var initialFlagCount = 0
 
     var id: String?
     var title = ""
@@ -24,11 +49,14 @@ struct RecipeDraft {
     var steps: [Row] = [Row(text: "")]
 
     var isEdit: Bool { id != nil }
+    var isAI: Bool { [.scan, .link, .text, .screenshot].contains(source) }
+    var openFlagCount: Int { (ingredients + steps).filter(\.needsReview).count }
     var canSave: Bool { !title.trimmingCharacters(in: .whitespaces).isEmpty }
 
     init() {}
 
     init(recipe: Recipe) {
+        source = .edit
         id = recipe.id
         title = recipe.title
         description = recipe.description ?? ""

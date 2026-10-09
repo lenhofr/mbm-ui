@@ -15,6 +15,10 @@ extension Color {
     static let text = Color(hex: 0x3A2830)
     static let muted = Color(hex: 0x7D6872)
     static let ok = Color(hex: 0x2E7D57)
+    static let okBackground = Color(hex: 0xE7F3EC)
+    static let warn = Color(hex: 0x8A4A0C)
+    static let warnBackground = Color(hex: 0xFDF0DC)
+    static let warnLine = Color(hex: 0xEFCF9F)
 
     init(hex: UInt32) {
         self.init(

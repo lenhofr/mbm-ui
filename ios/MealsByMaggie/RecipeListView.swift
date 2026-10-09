@@ -8,6 +8,14 @@ struct RecipeListView: View {
     @State private var showLogin = false
     @State private var showAccount = false
     @State private var showNewRecipe = false
+    @State private var showAddSheet = false
+    @State private var showPaste = false
+    @State private var showScanner = false
+    @State private var importJob: ImportJob?
+    /// A scan or paste waiting for its sheet to finish closing before the import starts.
+    @State private var queuedJob: ImportJob?
+    /// What to open once the add sheet has finished closing.
+    @State private var pendingChoice: AddRecipeSheet.Choice?
     @State private var searchText = ""
     @State private var selectedTag = "all"
 
@@ -17,17 +25,8 @@ struct RecipeListView: View {
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 2)
 
-    /// The 8 most common tags, like topTags() in src/lib/search.ts.
-    private var topTags: [String] {
-        var counts: [String: Int] = [:]
-        for recipe in recipes {
-            for tag in Set((recipe.tags ?? []).map { $0.lowercased() }) {
-                counts[tag, default: 0] += 1
-            }
-        }
-        let sorted = counts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
-        return sorted.prefix(8).map(\.key)
-    }
+    /// The 8 most common tags for the filter row.
+    private var topTags: [String] { store.topTags(limit: 8) }
 
     private var filteredRecipes: [Recipe] {
         let query = searchText.trimmingCharacters(in: .whitespaces)
@@ -85,19 +84,58 @@ struct RecipeListView: View {
             }
             .overlay(alignment: .bottom) {
                 AddButton {
-                    if auth.isSignedIn { showNewRecipe = true } else { showLogin = true }
+                    if auth.isSignedIn { showAddSheet = true } else { showLogin = true }
                 }
                 .padding(.bottom, 8)
             }
             .refreshable { await store.load() }
             .sheet(isPresented: $showLogin) { LoginView() }
             .sheet(isPresented: $showAccount) { AccountView() }
+            .sheet(isPresented: $showAddSheet, onDismiss: openPendingChoice) {
+                AddRecipeSheet { choice in
+                    pendingChoice = choice
+                    showAddSheet = false
+                }
+            }
+            .sheet(isPresented: $showPaste, onDismiss: startQueuedImport) {
+                PasteSheet { job in
+                    queuedJob = job
+                    showPaste = false
+                }
+            }
+            .fullScreenCover(isPresented: $showScanner, onDismiss: startQueuedImport) {
+                DocumentScanner { pages in queuedJob = ImportJob(kind: .scan(pages)) }
+                    .ignoresSafeArea()
+            }
+            .fullScreenCover(item: $importJob) { job in
+                ImportFlowView(job: job) { saved in path.append(saved.id) }
+            }
             .fullScreenCover(isPresented: $showNewRecipe) {
                 // Open the new recipe once it's saved.
                 RecipeEditorView(draft: RecipeDraft()) { saved in path.append(saved.id) }
             }
             .task { if store.recipes.isEmpty { await store.load() } }
         }
+    }
+
+    /// Opens the scanner, paste sheet or blank editor after the add sheet closes
+    /// (iOS can only present one sheet at a time).
+    private func openPendingChoice() {
+        guard let choice = pendingChoice else { return }
+        pendingChoice = nil
+        switch choice {
+        case .scan: showScanner = true
+        case .paste: showPaste = true
+        case .manual: showNewRecipe = true
+        }
+    }
+
+    /// Opening the import screen while the scanner is still closing makes SwiftUI
+    /// start it twice, so wait for the dismissal to finish.
+    private func startQueuedImport() {
+        guard let job = queuedJob else { return }
+        queuedJob = nil
+        importJob = job
     }
 
     private var tagFilter: some View {
@@ -286,7 +324,7 @@ private struct RecipeCard: View {
 }
 
 /// Shrinks slightly while pressed, like `.rcard.pressing`.
-private struct PressableStyle: ButtonStyle {
+struct PressableStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
