@@ -2,6 +2,9 @@ import SwiftUI
 
 // Home screen, styled after HomeScreen.tsx / HomeScreen.css in mbm-ui.
 struct RecipeListView: View {
+    @Environment(AuthModel.self) private var auth
+    @State private var showLogin = false
+    @State private var showAccount = false
     @State private var recipes: [Recipe] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -38,12 +41,19 @@ struct RecipeListView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Meals by Maggie")
-                        .font(.lobster(31))
-                        .foregroundStyle(Color.plum)
-                        .padding(.horizontal, 2)
-                        .padding(.top, 4)
-                        .padding(.bottom, 12)
+                    HStack {
+                        Text("Meals by Maggie")
+                            .font(.lobster(31))
+                            .foregroundStyle(Color.plum)
+                        Spacer()
+                        AvatarButton(initial: auth.isSignedIn ? auth.displayName?.first.map { String($0).uppercased() } : nil) {
+                            if auth.isSignedIn { showAccount = true } else { showLogin = true }
+                        }
+                        .opacity(auth.state == .loading ? 0 : 1)
+                    }
+                    .padding(.horizontal, 2)
+                    .padding(.top, 4)
+                    .padding(.bottom, 12)
 
                     SearchField(text: $searchText)
 
@@ -70,6 +80,8 @@ struct RecipeListView: View {
                 RecipeDetailView(recipe: recipe)
             }
             .refreshable { await load() }
+            .sheet(isPresented: $showLogin) { LoginView() }
+            .sheet(isPresented: $showAccount) { AccountView() }
             .task { await load() }
         }
     }
@@ -132,6 +144,32 @@ struct RecipeListView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+}
+
+/// Round chip-colored button: the user's initial when signed in, a sign-in icon otherwise (`.avatar`).
+private struct AvatarButton: View {
+    let initial: String?
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Group {
+                if let initial {
+                    Text(initial).font(.poppins(16))
+                } else {
+                    Image(systemName: "person.crop.circle.badge.plus")
+                        .font(.system(size: 18, weight: .medium))
+                }
+            }
+            .foregroundStyle(Color.plum)
+            .frame(width: 38, height: 38)
+            .background(Color.chip, in: Circle())
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(initial == nil ? "Log in" : "Account")
     }
 }
 
@@ -302,4 +340,5 @@ struct RecipeImage: View {
 
 #Preview {
     RecipeListView()
+        .environment(AuthModel())
 }

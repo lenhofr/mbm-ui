@@ -82,19 +82,24 @@ VITE_API_BASE=          # API Gateway base URL
 
 ## iOS App
 
-`ios/MealsByMaggie.xcodeproj` is a native SwiftUI port of the web app (iPhone/iPad only, bundle ID `com.lenhofr.mealsbymaggie`). It calls the same API Gateway endpoints; GET routes are public, writes need a Cognito JWT (login not built yet).
+`ios/MealsByMaggie.xcodeproj` is a native SwiftUI port of the web app (iPhone/iPad only, bundle ID `com.mealsbymaggie.app`). It calls the same API Gateway endpoints; GET routes are public, writes need a Cognito JWT. Login uses Amplify Swift (pinned exact version via Swift Package Manager) against the same user pool and app client as the web (SRP, email as username).
 
 ```bash
 open ios/MealsByMaggie.xcodeproj    # then ⌘R to run in the simulator
 xcodebuild -project ios/MealsByMaggie.xcodeproj -scheme MealsByMaggie \
-  -destination 'generic/platform=iOS Simulator' build
+  -destination 'generic/platform=iOS Simulator' -skipPackagePluginValidation build
 ```
+
+The first build in Xcode shows a one-time "Trust & Enable" prompt for the `smithy-swift` build plugin (an AWS SDK dependency); `-skipPackagePluginValidation` is the command-line equivalent. Amplify stores the session in the Keychain, so builds must be signed (Xcode does this; for CLI simulator builds use `CODE_SIGN_IDENTITY=-`, not `CODE_SIGNING_ALLOWED=NO`).
 
 The project uses Xcode's synchronized folders: any file added under `ios/MealsByMaggie/` is part of the app automatically, no project file edits needed.
 
 ```
 ios/MealsByMaggie/
-├── MealsByMaggieApp.swift   # App entry; light mode + plum tint
+├── MealsByMaggieApp.swift   # App entry; configures Amplify, light mode + plum tint
+├── amplifyconfiguration.json # Cognito pool/client IDs (public, same as the web bundle)
+├── AuthModel.swift          # Mirrors useCognitoAuth.ts: sign in/up/confirm/out, idToken()
+├── LoginView.swift          # Mirrors LoginModal.tsx (invite code sign-up) + AccountView
 ├── Theme.swift              # Colors/fonts ported from src/tokens.css, TagChip, FlowLayout
 ├── Fonts/                   # Lobster, Poppins, Inter (registered at runtime, no Info.plist entries)
 ├── Recipe.swift             # Mirrors Recipe in src/types.ts; imageURL mirrors resolveImageUrl
