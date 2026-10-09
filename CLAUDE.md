@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Meals by Maggie (mbm-ui) is a React + TypeScript SPA for storing, searching, and sharing recipes with images and ratings. It runs as a PWA backed by AWS (Cognito auth, API Gateway + Lambda, DynamoDB, S3 images, CloudFront CDN). Infrastructure is fully managed via Terraform.
 
+A native SwiftUI iPhone/iPad app lives in `ios/` (see "iOS App" below). It is a second client for the same API.
+
 ## Commands
 
 ```bash
@@ -77,6 +79,33 @@ VITE_COGNITO_REDIRECT_URI=
 VITE_COGNITO_REGION=
 VITE_API_BASE=          # API Gateway base URL
 ```
+
+## iOS App
+
+`ios/MealsByMaggie.xcodeproj` is a native SwiftUI port of the web app (iPhone/iPad only, bundle ID `com.lenhofr.mealsbymaggie`). It calls the same API Gateway endpoints; GET routes are public, writes need a Cognito JWT (login not built yet).
+
+```bash
+open ios/MealsByMaggie.xcodeproj    # then ⌘R to run in the simulator
+xcodebuild -project ios/MealsByMaggie.xcodeproj -scheme MealsByMaggie \
+  -destination 'generic/platform=iOS Simulator' build
+```
+
+The project uses Xcode's synchronized folders: any file added under `ios/MealsByMaggie/` is part of the app automatically, no project file edits needed.
+
+```
+ios/MealsByMaggie/
+├── MealsByMaggieApp.swift   # App entry; light mode + plum tint
+├── Theme.swift              # Colors/fonts ported from src/tokens.css, TagChip, FlowLayout
+├── Fonts/                   # Lobster, Poppins, Inter (registered at runtime, no Info.plist entries)
+├── Recipe.swift             # Mirrors Recipe in src/types.ts; imageURL mirrors resolveImageUrl
+├── RecipeAPI.swift          # Mirrors RemoteAdapter in src/lib/storage.ts (reads only so far)
+├── RecipeListView.swift     # HomeScreen.tsx
+├── RecipeDetailView.swift   # DetailScreen.tsx
+├── CookView.swift           # CookScreen.tsx (screen stays on, progress saved in UserDefaults)
+└── IngredientChecklist.swift
+```
+
+When porting a web screen, read its `.tsx` + `.css` and keep the Swift view's comments pointing at the web source. Styling comes from `Theme.swift`, not ad-hoc colors.
 
 ## Conventions
 
