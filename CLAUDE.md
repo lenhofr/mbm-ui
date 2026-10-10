@@ -82,7 +82,7 @@ VITE_API_BASE=          # API Gateway base URL
 
 ## iOS App
 
-`ios/MealsByMaggie.xcodeproj` is a native SwiftUI port of the web app (iPhone/iPad only, bundle ID `com.mealsbymaggie.app`). It calls the same API Gateway endpoints; GET routes are public, writes need a Cognito JWT. Link imports depend on the Lambda fetching the page; some big sites (e.g. allrecipes) block it and return 502 for web and iOS alike. Login uses Amplify Swift (pinned exact version via Swift Package Manager) against the same user pool and app client as the web (SRP, email as username).
+`ios/MealsByMaggie.xcodeproj` is a native SwiftUI port of the web app (iPhone/iPad only, bundle ID `com.mealsbymaggie.app`). It calls the same API Gateway endpoints; GET routes are public, writes need a Cognito JWT. Link imports depend on the Lambda fetching the page; some big sites (e.g. allrecipes) block it and return 502; the iOS app then fetches the page on the device (`PageReader` in RecipeImport.swift) and sends its JSON-LD recipe or visible text as a text import. Login uses Amplify Swift (pinned exact version via Swift Package Manager) against the same user pool and app client as the web (SRP, email as username).
 
 ```bash
 open ios/MealsByMaggie.xcodeproj    # then ⌘R to run in the simulator
@@ -112,6 +112,8 @@ ios/MealsByMaggie/
 ├── RecipeImport.swift       # ImportJob, /ai/extract-recipe client (extract.ts), draftFromExtract port
 ├── ImportViews.swift        # AddSheets.tsx + ImportScreens.tsx; VisionKit document scanner for cards
 ├── CookView.swift           # CookScreen.tsx (screen stays on, progress saved in UserDefaults)
+├── Quantity.swift           # splitQty/formatQty/scaleAmount port (quantity.ts), checked against the JS
+├── Favorites.swift          # Per-user favorites in UserDefaults, keyed by Cognito sub (favorites.ts)
 └── IngredientChecklist.swift
 ```
 

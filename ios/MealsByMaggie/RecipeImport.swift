@@ -77,6 +77,19 @@ enum ExtractAPI {
     }
 
     static func extract(_ job: ImportJob, token: String, knownTags: [String]) async throws -> ExtractResult {
+        do {
+            return try await send(job, token: token, knownTags: knownTags)
+        } catch ExtractError.failed {
+            // Some big recipe sites block the server's page fetch; fetch the page from
+            // the phone instead (sites rarely block real devices) and send its text.
+            guard case .link(let url) = job.kind, let text = await PageReader.recipeText(from: url) else {
+                throw ExtractError.failed
+            }
+            return try await send(ImportJob(kind: .text("Web page: \(url)\n\n---\n\(text)")), token: token, knownTags: knownTags)
+        }
+    }
+
+    private static func send(_ job: ImportJob, token: String, knownTags: [String]) async throws -> ExtractResult {
         var body: [String: Any] = ["knownTags": Array(knownTags.prefix(30))]
         switch job.kind {
         case .link(let url):
@@ -129,6 +142,90 @@ enum ExtractAPI {
             }
         }
         return nil
+    }
+}
+
+/// Downloads a recipe page on the device and boils it down to text for the AI:
+/// the page's structured recipe data (schema.org JSON-LD) if it has some, else
+/// its visible text (mirrors _PageParser / find_ld_recipe in ai_extract.py).
+enum PageReader {
+    private static let maxCharacters = 20_000
+
+    static func recipeText(from urlString: String) async -> String? {
+        guard let url = URL(string: urlString) else { return nil }
+        var request = URLRequest(url: url, timeoutInterval: 15)
+        request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { return nil }
+        let html = String(decoding: data.prefix(3_000_000), as: UTF8.self)
+        let text = structuredRecipe(in: html) ?? visibleText(of: html)
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.count < 80 ? nil : String(trimmed.prefix(maxCharacters))
+    }
+
+    /// Title, ingredients and steps from a schema.org Recipe in the page's JSON-LD.
+    nonisolated static func structuredRecipe(in html: String) -> String? {
+        let blocks = html.matches(of: /(?is)<script[^>]*application\/ld\+json[^>]*>(.*?)<\/script>/).map { String($0.output.1) }
+        for block in blocks {
+            guard let json = try? JSONSerialization.jsonObject(with: Data(block.utf8)),
+                  let recipe = findRecipe(in: json) else { continue }
+            var lines: [String] = []
+            if let name = recipe["name"] as? String { lines.append(name) }
+            if let description = recipe["description"] as? String { lines.append(description) }
+            if let yield = recipe["recipeYield"] { lines.append("Servings: \(flatten(yield).first ?? "")") }
+            if let time = recipe["totalTime"] as? String { lines.append("Total time: \(time)") }
+            let ingredients = flatten(recipe["recipeIngredient"] ?? [])
+            let steps = flatten(recipe["recipeInstructions"] ?? [])
+            guard !ingredients.isEmpty, !steps.isEmpty else { continue }
+            lines.append("\nIngredients:")
+            lines += ingredients.map { "- \($0)" }
+            lines.append("\nInstructions:")
+            lines += steps.enumerated().map { "\($0.offset + 1). \($0.element)" }
+            return lines.joined(separator: "\n")
+        }
+        return nil
+    }
+
+    private nonisolated static func findRecipe(in json: Any) -> [String: Any]? {
+        if let object = json as? [String: Any] {
+            let type = object["@type"]
+            if (type as? String) == "Recipe" || (type as? [String])?.contains("Recipe") == true { return object }
+            if let graph = object["@graph"] { return findRecipe(in: graph) }
+        } else if let array = json as? [Any] {
+            for item in array { if let found = findRecipe(in: item) { return found } }
+        }
+        return nil
+    }
+
+    /// Strings from JSON-LD values: plain strings, HowToStep text, HowToSection lists.
+    private nonisolated static func flatten(_ value: Any) -> [String] {
+        if let string = value as? String { return [decodeEntities(string)] }
+        if let array = value as? [Any] { return array.flatMap(flatten) }
+        if let object = value as? [String: Any] {
+            if let items = object["itemListElement"] { return flatten(items) }
+            if let text = object["text"] as? String { return [decodeEntities(text)] }
+            if let name = object["name"] as? String { return [decodeEntities(name)] }
+        }
+        return []
+    }
+
+    /// Readable text with scripts, styles and tags removed.
+    nonisolated static func visibleText(of html: String) -> String {
+        var text = html.replacing(/(?is)<(script|style|noscript|svg|nav|footer|header)[^>]*>.*?<\/\1>/, with: " ")
+        text = text.replacing(/(?i)<(br|\/p|\/li|\/h\d|\/div)[^>]*>/, with: "\n")
+        text = text.replacing(/<[^>]+>/, with: " ")
+        text = decodeEntities(text)
+        let lines = text.split(separator: "\n").map { $0.split(whereSeparator: \.isWhitespace).joined(separator: " ") }
+        return lines.filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+
+    private nonisolated static func decodeEntities(_ s: String) -> String {
+        var out = s
+        for (entity, char) in [("&amp;", "&"), ("&quot;", "\""), ("&#39;", "'"), ("&#039;", "'"), ("&apos;", "'"),
+                               ("&lt;", "<"), ("&gt;", ">"), ("&nbsp;", " "), ("&#8217;", "’"), ("&#8211;", "–"), ("&frac12;", "½")] {
+            out = out.replacingOccurrences(of: entity, with: char)
+        }
+        return out
     }
 }
 
