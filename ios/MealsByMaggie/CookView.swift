@@ -4,6 +4,8 @@ import SwiftUI
 // big text, tick off ingredients and steps, and the screen stays on.
 struct CookView: View {
     let recipe: Recipe
+    /// Servings scaling chosen on the recipe page (1 = as written).
+    var multiplier: Double = 1
     @Environment(\.dismiss) private var dismiss
 
     @State private var checked: Set<Int> = []
@@ -59,7 +61,7 @@ struct CookView: View {
 
                     if !ingredients.isEmpty {
                         SectionLabel(title: "Ingredients")
-                        IngredientChecklist(ingredients: ingredients, checked: $checked, large: true)
+                        IngredientChecklist(ingredients: ingredients, checked: $checked, large: true, multiplier: multiplier)
                     }
 
                     SectionLabel(title: "Steps", hint: "tap a step when it’s done")
@@ -124,8 +126,9 @@ struct CookView: View {
     }
 
     private var meta: String? {
-        let parts = [recipe.cookTime, recipe.servings.map { "serves \($0)" }]
-            .compactMap { $0?.isEmpty == false ? $0 : nil }
+        let serves = RecipeDraft.parseServings(recipe.servings).map { "serves \(Int((Double($0) * multiplier).rounded()))" }
+        var parts = [recipe.cookTime, serves].compactMap { $0?.isEmpty == false ? $0 : nil }
+        if multiplier != 1 { parts.append("scaled") }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 

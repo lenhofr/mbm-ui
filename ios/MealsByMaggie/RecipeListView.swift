@@ -18,6 +18,8 @@ struct RecipeListView: View {
     @State private var pendingChoice: AddRecipeSheet.Choice?
     @State private var searchText = ""
     @State private var selectedTag = "all"
+    @State private var showFavorites = false
+    @Environment(Favorites.self) private var favorites
 
     private var recipes: [Recipe] { store.recipes }
     private var isLoading: Bool { store.isLoading }
@@ -32,6 +34,7 @@ struct RecipeListView: View {
         let query = searchText.trimmingCharacters(in: .whitespaces)
         return recipes.filter { recipe in
             let tags = (recipe.tags ?? []).map { $0.lowercased() }
+            guard !showFavorites || favorites.contains(recipe.id) else { return false }
             guard selectedTag == "all" || tags.contains(selectedTag) else { return false }
             guard !query.isEmpty else { return true }
             return recipe.title.localizedCaseInsensitiveContains(query)
@@ -45,9 +48,15 @@ struct RecipeListView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
-                        Text("Meals by Maggie")
-                            .font(.lobster(31))
-                            .foregroundStyle(Color.plum)
+                        if showFavorites {
+                            Text("Favorites")
+                                .font(.poppins(28))
+                                .foregroundStyle(Color.plum)
+                        } else {
+                            Text("Meals by Maggie")
+                                .font(.lobster(31))
+                                .foregroundStyle(Color.plum)
+                        }
                         Spacer()
                         AvatarButton(initial: auth.isSignedIn ? auth.displayName?.first.map { String($0).uppercased() } : nil) {
                             if auth.isSignedIn { showAccount = true } else { showLogin = true }
@@ -74,7 +83,7 @@ struct RecipeListView: View {
                     content
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 110)
+                .padding(.bottom, 32)
             }
             .scrollDismissesKeyboard(.immediately)
             .background(Color.appBackground)
@@ -82,11 +91,10 @@ struct RecipeListView: View {
             .navigationDestination(for: String.self) { id in
                 RecipeDetailView(recipeID: id)
             }
-            .overlay(alignment: .bottom) {
-                AddButton {
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                TabBar(showFavorites: $showFavorites) {
                     if auth.isSignedIn { showAddSheet = true } else { showLogin = true }
                 }
-                .padding(.bottom, 8)
             }
             .refreshable { await store.load() }
             .sheet(isPresented: $showLogin) { LoginView() }
@@ -173,7 +181,9 @@ struct RecipeListView: View {
                 Task { await store.load() }
             }
         } else if filteredRecipes.isEmpty {
-            EmptyMessage(text: "Nothing matches. Try another search or tag.")
+            EmptyMessage(text: showFavorites && searchText.isEmpty && selectedTag == "all"
+                ? "Your favorites shelf is empty. Tap ♥ on a recipe to keep it here."
+                : "Nothing matches. Try another search or tag.")
         } else {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
                 ForEach(filteredRecipes) { recipe in
@@ -181,6 +191,10 @@ struct RecipeListView: View {
                         RecipeCard(recipe: recipe)
                     }
                     .buttonStyle(PressableStyle())
+                    .overlay(alignment: .topTrailing) {
+                        HeartButton(isOn: favorites.contains(recipe.id)) { favorites.toggle(recipe.id) }
+                            .padding(8)
+                    }
                 }
             }
         }
@@ -188,21 +202,78 @@ struct RecipeListView: View {
 
 }
 
-/// Big plum "+" button floating at the bottom (`.tab-add` in TabBar.css).
-private struct AddButton: View {
+/// Recipes · + · Favorites bar along the bottom (TabBar.tsx / TabBar.css).
+private struct TabBar: View {
+    @Binding var showFavorites: Bool
+    let onAdd: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top) {
+            tab("Recipes", icon: "book", selectedIcon: "book.fill", selected: !showFavorites) { showFavorites = false }
+            Spacer()
+            Button(action: onAdd) {
+                Image(systemName: "plus")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 58, height: 58)
+                    .background(Color.plum, in: Circle())
+                    .shadow(color: Color.plum.opacity(0.35), radius: 9, y: 6)
+            }
+            .buttonStyle(PressableStyle())
+            .offset(y: -20)
+            .accessibilityLabel("Add a recipe")
+            Spacer()
+            tab("Favorites", icon: "heart", selectedIcon: "heart.fill", selected: showFavorites) { showFavorites = true }
+        }
+        .padding(.horizontal, 44)
+        .padding(.top, 6)
+        .frame(height: 52, alignment: .top)
+        .background {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .overlay(Color.appBackground.opacity(0.6))
+                .overlay(alignment: .top) { Color.line.frame(height: 1) }
+                .ignoresSafeArea(edges: .bottom)
+        }
+        .sensoryFeedback(.selection, trigger: showFavorites)
+    }
+
+    private func tab(_ title: String, icon: String, selectedIcon: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Image(systemName: selected ? selectedIcon : icon)
+                    .font(.system(size: 20))
+                    .frame(height: 24)
+                Text(title)
+                    .font(.inter(11, weight: selected ? .semibold : .medium))
+            }
+            .foregroundStyle(selected ? Color.plum : Color.muted)
+            .frame(width: 72, height: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// White circle heart on a recipe card (`.fav-dot`).
+private struct HeartButton: View {
+    let isOn: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "plus")
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 60, height: 60)
-                .background(Color.plum, in: Circle())
-                .shadow(color: Color.plum.opacity(0.35), radius: 10, y: 4)
+            Image(systemName: isOn ? "heart.fill" : "heart")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(isOn ? Color.pink : Color.plum)
+                .frame(width: 34, height: 34)
+                .background(.white.opacity(0.9), in: Circle())
+                .contentShape(Circle().inset(by: -5))
+                .symbolEffect(.bounce, value: isOn)
         }
-        .buttonStyle(PressableStyle())
-        .accessibilityLabel("Add a recipe")
+        .buttonStyle(.plain)
+        .sensoryFeedback(.impact(weight: .light), trigger: isOn)
+        .accessibilityLabel(isOn ? "Remove from favorites" : "Add to favorites")
     }
 }
 
@@ -401,4 +472,5 @@ struct RecipeImage: View {
     RecipeListView()
         .environment(AuthModel())
         .environment(RecipeStore())
+        .environment(Favorites())
 }
