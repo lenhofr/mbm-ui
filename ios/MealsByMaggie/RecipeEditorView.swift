@@ -20,6 +20,7 @@ struct RecipeEditorView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var showLibrary = false
     @State private var showCamera = false
+    @State private var showOriginals = false
     @FocusState private var focusedRow: UUID?
     @FocusState private var tagFieldFocused: Bool
 
@@ -33,6 +34,11 @@ struct RecipeEditorView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
+                    if draft.isAI {
+                        aiBanner
+                            .padding(.bottom, 16)
+                    }
+
                     if let errorMessage {
                         Text(errorMessage)
                             .font(.inter(14))
@@ -70,7 +76,7 @@ struct RecipeEditorView: View {
                             ServingsStepper(value: $draft.servings)
                         }
                     }
-                    EditorField(label: "Tags") { tagEditor }
+                    EditorField(label: "Tags", note: draft.tags.contains(where: draft.aiTags.contains) ? "suggested" : nil) { tagEditor }
 
                     SectionHeading(title: "Ingredients")
                     rowsBox(rows: $draft.ingredients, placeholder: "1 cup flour", addTitle: "Add ingredient", numbered: false)
@@ -95,7 +101,7 @@ struct RecipeEditorView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(Color.appBackground)
-            .navigationTitle(draft.isEdit ? "Edit recipe" : "New recipe")
+            .navigationTitle(draft.isEdit ? "Edit recipe" : draft.isAI ? "Check recipe" : "New recipe")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Color.appBackground, for: .navigationBar)
             .toolbar {
@@ -120,6 +126,7 @@ struct RecipeEditorView: View {
                 CameraPicker { image in draft.newPhoto = image }
                     .ignoresSafeArea()
             }
+            .sheet(isPresented: $showOriginals) { OriginalsView(pages: draft.originals) }
             .confirmationDialog("Are you sure you want to 86 this recipe?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete “\(draft.title)”", role: .destructive, action: delete)
             }
@@ -197,6 +204,72 @@ struct RecipeEditorView: View {
         }
     }
 
+    // MARK: AI review banner
+
+    /// "2 things to check" / "All checked" / "Imported from …" (`.ai-banner`).
+    private var aiBanner: some View {
+        let open = draft.openFlagCount
+        let warn = open > 0
+        let title: String
+        let detail: String
+        if warn {
+            title = "\(open) \(open == 1 ? "thing" : "things") to check"
+            detail = "We weren’t sure about a few words. Everything else is ready."
+        } else if draft.initialFlagCount > 0 {
+            title = "All checked"
+            detail = "Mise en place complete. Save whenever you’re ready."
+        } else {
+            switch draft.source {
+            case .scan:
+                title = "Read from your card"
+                detail = "Looks good. Save whenever you’re ready."
+            case .link:
+                title = "Imported from \(draft.sourceLabel ?? "the web")"
+                detail = "We kept the recipe and skipped the rest of the page."
+            case .screenshot:
+                title = "Read from your screenshot"
+                detail = "Review it below, then save."
+            default:
+                title = "Read from your text"
+                detail = "Review it below, then save."
+            }
+        }
+        return HStack(spacing: 12) {
+            Image(systemName: warn ? "sparkles" : "checkmark")
+                .font(.system(size: 16, weight: warn ? .regular : .bold))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.inter(15, weight: .bold))
+                Text(detail)
+                    .font(.inter(13))
+                    .foregroundStyle(Color.text)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if let first = draft.originals.first {
+                Button { showOriginals = true } label: {
+                    VStack(spacing: 4) {
+                        Image(uiImage: first)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 52, height: 36)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                        Text("Original")
+                            .font(.inter(11, weight: .semibold))
+                            .foregroundStyle(Color.plum)
+                    }
+                    .padding(6)
+                    .background(Color.surface, in: RoundedRectangle(cornerRadius: 12))
+                    .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .foregroundStyle(warn ? Color.warn : Color.ok)
+        .padding(12)
+        .padding(.leading, 2)
+        .background(warn ? Color.warnBackground : Color.okBackground, in: RoundedRectangle(cornerRadius: 18))
+        .animation(.easeOut(duration: 0.2), value: open)
+    }
+
     // MARK: Tags
 
     private var tagEditor: some View {
@@ -218,7 +291,13 @@ struct RecipeEditorView: View {
                 .padding(.leading, 14)
                 .padding(.trailing, 6)
                 .frame(height: 34)
-                .background(Color.chip, in: Capsule())
+                .background(draft.aiTags.contains(tag) ? Color.surface : Color.chip, in: Capsule())
+                .overlay {
+                    // AI-suggested tags get a dashed pink outline (`.chip.ai`).
+                    if draft.aiTags.contains(tag) {
+                        Capsule().strokeBorder(Color.pink, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                    }
+                }
             }
             TextField("+ tag", text: $tagInput)
                 .font(.inter(16))
@@ -250,6 +329,7 @@ struct RecipeEditorView: View {
     private func rowsBox(rows: Binding<[RecipeDraft.Row]>, placeholder: String, addTitle: String, numbered: Bool) -> some View {
         VStack(spacing: 0) {
             ForEach(Array(rows.wrappedValue.enumerated()), id: \.element.id) { index, row in
+                VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top, spacing: 8) {
                     if numbered {
                         Text("\(index + 1)")
@@ -260,6 +340,12 @@ struct RecipeEditorView: View {
                             .padding(.top, 12)
                     }
                     rowField(rows: rows, row: row, placeholder: placeholder, numbered: numbered)
+                    if row.ok {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Color.ok)
+                            .padding(.top, 16)
+                    }
                     Button {
                         rows.wrappedValue.removeAll { $0.id == row.id }
                     } label: {
@@ -276,6 +362,18 @@ struct RecipeEditorView: View {
                 .padding(.leading, 14)
                 .padding(.trailing, 6)
                 .frame(minHeight: 48)
+                if let flag = row.flag, !row.ok {
+                    FlagBox(flag: flag) { choice in
+                        if let i = rows.wrappedValue.firstIndex(where: { $0.id == row.id }) {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                rows.wrappedValue[i].text = choice
+                                rows.wrappedValue[i].ok = true
+                            }
+                        }
+                    }
+                }
+                }
+                .background(row.needsReview ? Color.warnBackground : Color.clear)
                 .overlay(alignment: .bottom) { Color.line.frame(height: 1) }
             }
             Button {
@@ -307,10 +405,13 @@ struct RecipeEditorView: View {
                 } else {
                     rows.wrappedValue[i].text = value
                 }
+                // Editing a flagged row by hand counts as checking it.
+                if rows.wrappedValue[i].flag != nil { rows.wrappedValue[i].ok = true }
             }
         )
         return TextField(placeholder, text: text, axis: .vertical)
-            .font(.inter(16))
+            .font(.inter(16, weight: row.needsReview ? .semibold : .regular))
+            .foregroundStyle(row.needsReview ? Color.warn : Color.text)
             .lineSpacing(3)
             .padding(.vertical, 12)
             .submitLabel(numbered ? .return : .next)
@@ -364,13 +465,21 @@ struct RecipeEditorView: View {
 /// Labeled field (`.field` in EditorScreen.css).
 private struct EditorField<Content: View>: View {
     let label: String
+    var note: String? = nil
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label)
-                .font(.inter(13, weight: .semibold))
-                .foregroundStyle(Color.muted)
+            HStack(spacing: 8) {
+                Text(label)
+                    .font(.inter(13, weight: .semibold))
+                    .foregroundStyle(Color.muted)
+                if let note {
+                    Label(note, systemImage: "sparkles")
+                        .font(.inter(12, weight: .semibold))
+                        .foregroundStyle(Color.pink)
+                }
+            }
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -389,6 +498,67 @@ private struct SectionHeading: View {
             .padding(.horizontal, 2)
             .padding(.top, 20)
             .padding(.bottom, 8)
+    }
+}
+
+/// The AI's question about a word, with one-tap answers (FlagBox in EditorScreen.tsx).
+private struct FlagBox: View {
+    let flag: RecipeDraft.Flag
+    let onPick: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Label(flag.question, systemImage: "exclamationmark.circle")
+                .font(.inter(13.5))
+                .foregroundStyle(Color.warn)
+            FlowLayout(spacing: 8) {
+                ForEach(flag.options, id: \.label) { option in
+                    Button(option.label) { onPick(option.text) }
+                        .font(.inter(14, weight: .semibold))
+                        .foregroundStyle(Color.warn)
+                        .padding(.horizontal, 18)
+                        .frame(height: 38)
+                        .background(Color.surface, in: Capsule())
+                        .overlay(Capsule().strokeBorder(Color.warnLine, lineWidth: 1.5))
+                        .buttonStyle(.plain)
+                }
+            }
+            .padding(.leading, 25)
+        }
+        .padding(.horizontal, 14)
+        .padding(.bottom, 12)
+    }
+}
+
+/// Full-screen look at the scanned pages, to compare with what the AI read.
+private struct OriginalsView: View {
+    let pages: [UIImage]
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 24) {
+            ScrollView {
+                VStack(spacing: 16) {
+                    ForEach(Array(pages.enumerated()), id: \.offset) { _, page in
+                        Image(uiImage: page)
+                            .resizable()
+                            .scaledToFit()
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                }
+                .padding(16)
+            }
+            Button("Close") { dismiss() }
+                .font(.inter(16, weight: .semibold))
+                .foregroundStyle(Color.plum)
+                .padding(.horizontal, 24)
+                .frame(height: 48)
+                .background(Color.chip, in: RoundedRectangle(cornerRadius: 14))
+        }
+        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(red: 25 / 255, green: 12 / 255, blue: 18 / 255).opacity(0.95))
+        .presentationBackground(.clear)
     }
 }
 
