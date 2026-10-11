@@ -12,9 +12,11 @@ Add the app to the iOS share sheet so a recipe page in Safari (or text, or a scr
 - Optional: share the Cognito session through a Keychain access group so the extension can import without opening the app.
 - The web app's `/import?url=` route (share target, bookmarklets) is the same idea for the PWA.
 
-### TestFlight / App Store
-- TestFlight lets Maggie and family install the app; builds also stop expiring after 7 days.
+### App Store
 - App Store review requires in-app **account deletion** (a new Lambda + button), a privacy policy URL, and screenshots.
+
+### Xcode Cloud (automatic TestFlight builds)
+Apple's build service can archive, sign and upload to TestFlight on every merge to `main` (25 free compute hours/month), replacing the manual Product → Archive → Distribute steps. Needs GitHub repo access granted to Xcode Cloud and a workflow that passes `-skipPackagePluginValidation` (or trusts the smithy-swift plugin). The GitHub Actions workflow (`ios.yml`) would keep handling PR build/test.
 
 ## Feature parity with the web
 
