@@ -1,0 +1,79 @@
+name: iOS Build & Test
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main ]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The project was created with Xcode 27; use the newest Xcode on the runner.
+      - name: Select Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      # Amplify pulls in the AWS SDK; caching the checkouts saves several minutes.
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: .spm
+          key: spm-${{ hashFiles('ios/MealsByMaggie.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: spm-
+
+      - name: Pick a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name | startswith("iPhone"))][0].udid')
+          echo "Using simulator $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      # -skipPackagePluginValidation: CI can't click Xcode's "Trust & Enable" for the
+      # AWS SDK's smithy-swift build plugin. Simulator builds don't need signing.
+      - name: Build and test
+        working-directory: ios
+        run: |
+          status=0
+          xcodebuild test \
+            -project MealsByMaggie.xcodeproj \
+            -scheme MealsByMaggie \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -clonedSourcePackagesDirPath ../.spm \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            > ../xcodebuild.log 2>&1 || status=$?
+          # Just the useful lines: our errors/warnings, failed tests and the summary.
+          grep -E "error:|/ios/MealsByMaggie.*warning:|✘|Test run with|\*\* (BUILD|TEST)" ../xcodebuild.log || true
+          exit $status
+
+      - name: Upload build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: xcodebuild.log

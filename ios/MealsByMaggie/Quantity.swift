@@ -13,24 +13,32 @@ nonisolated enum Quantity {
     /// "2 1/4 cups flour" → (2.25, "cups flour"). Ranges keep the first number ("4-6" → 4).
     static func split(_ input: String) -> (quantity: Double, rest: String)? {
         let s = input.trimmingCharacters(in: .whitespaces)
-        let pattern = /^(?:(\d+)\s+(\d+)\/(\d+)|(\d+)\/(\d+)|(\d+(?:\.\d+)?)\s*([¼½¾⅓⅔⅛⅜⅝⅞])?|([¼½¾⅓⅔⅛⅜⅝⅞]))/
+        // [0-9], not \d: Swift's \d matches any Unicode digit (including "½"),
+        // while JavaScript's \d, which the web relies on, is ASCII only.
+        let pattern = /^(?:([0-9]+)\s+([0-9]+)\/([0-9]+)|([0-9]+)\/([0-9]+)|([0-9]+(?:\.[0-9]+)?)\s*([¼½¾⅓⅔⅛⅜⅝⅞])?|([¼½¾⅓⅔⅛⅜⅝⅞]))/
         guard let m = s.firstMatch(of: pattern) else { return nil }
+        // Convert captures without force-unwrapping, so anything unexpected leaves the
+        // amount unscaled instead of crashing the app.
+        func number(_ capture: Substring?) -> Double? { capture.flatMap { Double($0) } }
+        func fraction(_ capture: Substring?) -> Double? {
+            capture.flatMap { $0.first }.flatMap { unicodeFractions[$0] }
+        }
         let q: Double
-        if let whole = m.output.1, let num = m.output.2, let den = m.output.3 {
-            q = Double(whole)! + Double(num)! / Double(den)!
-        } else if let num = m.output.4, let den = m.output.5 {
-            q = Double(num)! / Double(den)!
-        } else if let number = m.output.6 {
-            q = Double(number)! + (m.output.7.flatMap { unicodeFractions[Character(String($0))] } ?? 0)
-        } else if let fraction = m.output.8 {
-            q = unicodeFractions[Character(String(fraction))] ?? 0
+        if let whole = number(m.output.1), let num = number(m.output.2), let den = number(m.output.3) {
+            q = whole + num / den
+        } else if let num = number(m.output.4), let den = number(m.output.5) {
+            q = num / den
+        } else if let value = number(m.output.6) {
+            q = value + (fraction(m.output.7) ?? 0)
+        } else if let value = fraction(m.output.8) {
+            q = value
         } else {
             return nil
         }
         guard q.isFinite, q != 0 else { return nil }
         var rest = String(s[m.range.upperBound...]).trimmingCharacters(in: .whitespaces)
         // Drop the upper end of a range ("-6", "to 11") so it doesn't read as part of the unit.
-        if let range = rest.firstMatch(of: /^(?i)(?:-|–|to)\s*\d+(?:\.\d+)?(?:\/\d+)?\s*/) {
+        if let range = rest.firstMatch(of: /^(?i)(?:-|–|to)\s*[0-9]+(?:\.[0-9]+)?(?:\/[0-9]+)?\s*/) {
             rest = String(rest[range.range.upperBound...])
         }
         return (q, rest)
