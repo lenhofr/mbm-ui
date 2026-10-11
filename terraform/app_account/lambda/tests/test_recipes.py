@@ -58,3 +58,40 @@ def test_create_and_get_recipe(tmp_path, monkeypatch):
     assert got['recipeId'] == recipe_id
     # End of test_create_and_get_recipe
 
+
+
+@mock_aws()
+def test_update_clears_fields_left_out_of_the_body(monkeypatch):
+    dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+    dynamodb.create_table(
+        TableName='mbm-recipes',
+        KeySchema=[{'AttributeName': 'recipeId', 'KeyType': 'HASH'}],
+        AttributeDefinitions=[{'AttributeName': 'recipeId', 'AttributeType': 'S'}],
+        BillingMode='PAY_PER_REQUEST'
+    ).wait_until_exists()
+    monkeypatch.setenv('RECIPES_TABLE', 'mbm-recipes')
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    recipes_app = load_module(os.path.join(repo_root, 'recipes', 'app.py'))
+
+    created = json.loads(recipes_app.handler({
+        'requestContext': {'http': {'method': 'POST'}},
+        'rawPath': '/recipes',
+        'body': json.dumps({'title': 'Soup', 'description': 'Hearty', 'cookTime': '1 hr', 'image': 'uploads/a.jpeg', 'servings': '4'}),
+    }, None)['body'])
+    recipe_id = created['recipeId']
+
+    # The editor cleared the description and photo, so they're absent from the full-recipe PUT.
+    res = recipes_app.handler({
+        'requestContext': {'http': {'method': 'PUT'}},
+        'rawPath': f'/recipes/{recipe_id}',
+        'pathParameters': {'id': recipe_id},
+        'body': json.dumps({'title': 'Soup', 'cookTime': '1 hr', 'servings': '6'}),
+    }, None)
+    assert res['statusCode'] == 200
+    updated = json.loads(res['body'])
+    assert updated['servings'] == '6'
+    assert updated['cookTime'] == '1 hr'
+    assert 'description' not in updated
+    assert 'image' not in updated
+    # Creation metadata survives the update.
+    assert updated['createdAt'] == created['createdAt']
