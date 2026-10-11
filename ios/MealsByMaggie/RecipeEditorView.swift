@@ -227,7 +227,7 @@ struct RecipeEditorView: View {
                 title = "Imported from \(draft.sourceLabel ?? "the web")"
                 detail = "We kept the recipe and skipped the rest of the page."
             case .screenshot:
-                title = "Read from your screenshot"
+                title = "Read from your image"
                 detail = "Review it below, then save."
             default:
                 title = "Read from your text"
