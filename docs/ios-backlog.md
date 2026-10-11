@@ -18,17 +18,6 @@ Add the app to the iOS share sheet so a recipe page in Safari (or text, or a scr
 ### Xcode Cloud (automatic TestFlight builds)
 Apple's build service can archive, sign and upload to TestFlight on every merge to `main` (25 free compute hours/month), replacing the manual Product → Archive → Distribute steps. Needs GitHub repo access granted to Xcode Cloud and a workflow that passes `-skipPackagePluginValidation` (or trusts the smithy-swift plugin). The GitHub Actions workflow (`ios.yml`) would keep handling PR build/test.
 
-## Sharing recipes
-
-### Share button on the recipe page
-Replace the recipe page's heart (favoriting stays on the recipe cards) with a **Share** button that opens the iOS share sheet (Messages, Mail, AirDrop, Copy…) with the recipe title and its public web link, e.g. `https://mealsbymaggie.com/recipe/<id>`. Recipe pages are already public, so anyone can open the link in a browser without the app or an account. SwiftUI's `ShareLink` covers it; iOS-only, no backend changes.
-
-### Open shared links in the app (Universal Links)
-When someone who has the app taps a `mealsbymaggie.com/recipe/<id>` link, open that recipe in the app instead of Safari.
-- Host `/.well-known/apple-app-site-association` on the website (served as JSON from the S3/CloudFront site) listing the app (`<team id>.com.mealsbymaggie.app`) and the `/recipe/*` paths.
-- Add the **Associated Domains** capability (`applinks:mealsbymaggie.com`, plus `www`) to the app; needs the paid developer account, which is now in place.
-- Handle the incoming URL in the app (`onOpenURL`) by pushing the recipe's detail screen.
-
 ## Feature parity with the web
 
 - **Nickname prompt** (`CompleteProfile.tsx`): ask for a kitchen nickname when the account has none, so recipes aren't stamped "User".
