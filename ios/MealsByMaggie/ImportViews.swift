@@ -95,7 +95,7 @@ struct PasteSheet: View {
             Text("Paste anything")
                 .font(.poppins(22))
                 .foregroundStyle(Color.plum)
-            Text("A recipe link, the recipe text itself, or a screenshot.")
+            Text("A recipe link, the recipe text itself, or a screenshot or photo.")
                 .font(.inter(15))
                 .foregroundStyle(Color.muted)
                 .padding(.top, 6)
@@ -142,8 +142,9 @@ struct PasteSheet: View {
                     .labelStyle(.titleAndIcon)
                     .frame(maxWidth: .infinity)
 
-                    PhotosPicker(selection: $photoItem, matching: .screenshots) {
-                        Label("Screenshot", systemImage: "photo")
+                    // Any photo: a screenshot, or a picture of a cookbook page or recipe card.
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        Label("Photo", systemImage: "photo")
                             .font(.inter(14, weight: .semibold))
                             .foregroundStyle(Color.plum)
                             .frame(maxWidth: .infinity, minHeight: 46)
@@ -229,7 +230,7 @@ struct PasteSheet: View {
     private func label(for kind: ImportJob.Kind) -> String {
         switch kind {
         case .link: "Link"
-        case .screenshot: "Screenshot"
+        case .screenshot: "Image"
         default: "Recipe text"
         }
     }
@@ -451,7 +452,7 @@ private struct ProcessingView: View {
     private var label: String {
         switch job.kind {
         case .link: job.host ?? "Link"
-        case .screenshot: "Screenshot"
+        case .screenshot: "Image"
         default: "Recipe text"
         }
     }
@@ -474,7 +475,7 @@ private struct ProcessingView: View {
         case .screenshot:
             title = ["Prepping your recipe…", "Chopping up the page…", "Importing…"].randomElement()!
             banks = [
-                ["Reading the screenshot"],
+                ["Reading the image"],
                 ["Measuring out the ingredients", "Finding the ingredients"],
                 ["Writing out the steps"],
                 ["Sprinkling on some tags", "Suggesting tags"],

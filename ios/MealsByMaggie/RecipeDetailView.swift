@@ -23,17 +23,32 @@ struct RecipeDetailView: View {
             if store.recipe(id: recipeID) != nil {
                 ToolbarItem(placement: .topBarTrailing) {
                     let isFavorite = favorites.contains(recipeID)
-                    Button(isFavorite ? "Remove from favorites" : "Add to favorites",
-                           systemImage: isFavorite ? "heart.fill" : "heart") {
+                    Button {
                         favorites.toggle(recipeID)
+                    } label: {
+                        Image(systemName: isFavorite ? "heart.fill" : "heart")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(isFavorite ? Color.pink : Color.text)
                     }
-                    .tint(isFavorite ? Color.pink : nil)
+                    .accessibilityLabel(isFavorite ? "Remove from favorites" : "Add to favorites")
                     .sensoryFeedback(.impact(weight: .light), trigger: isFavorite)
                 }
             }
+            // Separate round buttons, like the web's GlassButtons and the back button
+            // (iOS 26 otherwise merges neighbouring items into one capsule).
+            if #available(iOS 26.0, *), auth.isSignedIn, store.recipe(id: recipeID) != nil {
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+            }
             if auth.isSignedIn, store.recipe(id: recipeID) != nil {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Edit recipe", systemImage: "pencil") { isEditing = true }
+                    Button {
+                        isEditing = true
+                    } label: {
+                        PencilSimple()
+                            .stroke(Color.text, style: StrokeStyle(lineWidth: 20 * 24 / 256, lineCap: .round, lineJoin: .round))
+                            .frame(width: 20, height: 20)
+                    }
+                    .accessibilityLabel("Edit recipe")
                 }
             }
         }

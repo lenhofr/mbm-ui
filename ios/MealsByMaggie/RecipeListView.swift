@@ -19,6 +19,9 @@ struct RecipeListView: View {
     @State private var searchText = ""
     @State private var selectedTag = "all"
     @State private var showFavorites = false
+    /// Picked once per launch (talk.loading in kitchenTalk.ts).
+    @State private var loadingLine = ["Simmering…", "Preheating the oven…", "Raiding the pantry…",
+                                      "Sharpening the knives…", "Letting the dough rise…", "Stirring the pot…"].randomElement()!
     @Environment(Favorites.self) private var favorites
 
     private var recipes: [Recipe] { store.recipes }
@@ -167,10 +170,8 @@ struct RecipeListView: View {
     private var content: some View {
         if isLoading && recipes.isEmpty {
             VStack(spacing: 12) {
-                ProgressView()
-                    .tint(.plum)
-                    .controlSize(.large)
-                Text("Preheating the oven…")
+                CookSpinner(size: 40)
+                Text(loadingLine)
                     .font(.inter(15))
                     .foregroundStyle(Color.muted)
             }
