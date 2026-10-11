@@ -351,7 +351,7 @@ resource "aws_cognito_user_pool" "mbm" {
   # one paragraph), and also uses it for password-reset codes, so the wording covers both.
   verification_message_template {
     default_email_option = "CONFIRM_WITH_CODE"
-    email_subject        = "Your Meals by Maggie code"
+    email_subject        = "Welcome to Meals by Maggie! Please verify your email"
     email_message        = file("${path.module}/cognito-verification-email.html")
   }
 }
