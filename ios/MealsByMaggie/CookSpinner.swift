@@ -52,6 +52,28 @@ struct CookingPot: Shape {
     }
 }
 
+/// Phosphor's "PencilSimple" icon (bold), the web's edit button: a pencil outline with a
+/// line across near the top right marking the eraser. Drawn on the same 256×256 grid.
+struct PencilSimple: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        // Outline from the writing end (bottom left) up to the eraser end (top right).
+        path.move(to: CGPoint(x: 96, y: 216))
+        path.addLine(to: CGPoint(x: 40, y: 216))
+        path.addLine(to: CGPoint(x: 40, y: 160))
+        path.addLine(to: CGPoint(x: 168, y: 32))
+        path.addLine(to: CGPoint(x: 224, y: 88))
+        path.closeSubpath()
+        path.move(to: CGPoint(x: 136, y: 64))
+        path.addLine(to: CGPoint(x: 192, y: 120))
+
+        let scale = min(rect.width, rect.height) / 256
+        return path.applying(
+            CGAffineTransform(translationX: rect.minX, y: rect.minY).scaledBy(x: scale, y: scale)
+        )
+    }
+}
+
 #Preview {
     VStack(spacing: 12) {
         CookSpinner()
