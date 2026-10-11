@@ -377,6 +377,13 @@ resource "aws_cognito_user_pool_client" "spa" {
 
   supported_identity_providers  = ["COGNITO"]
   prevent_user_existence_errors = "ENABLED"
+
+  # Stay signed in for a year (Cognito's default is 30 days). The refresh token sets the
+  # session length; the 1-hour ID/access tokens are renewed from it in the background.
+  refresh_token_validity = 365
+  token_validity_units {
+    refresh_token = "days"
+  }
 }
 
 resource "aws_cognito_user_pool_domain" "mbm" {
