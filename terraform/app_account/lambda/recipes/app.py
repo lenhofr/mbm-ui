@@ -76,6 +76,10 @@ def response(status_code, body):
     }
 
 
+# Recipe fields the web and iOS editors own; PUT replaces these as a set.
+EDITABLE_FIELDS = ('title', 'description', 'image', 'tags', 'ingredients', 'instructions', 'servings', 'cookTime')
+
+
 def map_recipe_out(item: dict | None) -> dict | None:
     if not item:
         return None
@@ -288,9 +292,14 @@ def handler(event, context):
                 created_by_sub = existing.get('createdBySub')
                 created_by_name = existing.get('createdByName')
 
+                # Clients send the whole recipe and leave out empty fields, so a content
+                # field missing from the body was cleared in the editor: drop it instead
+                # of letting the old value survive the merge. Other stored fields
+                # (attribution, anything not editable) are kept.
+                kept = {k: v for k, v in existing.items() if k not in EDITABLE_FIELDS}
                 item = {
                     'recipeId': recipe_id,
-                    **existing,
+                    **kept,
                     **body,
                     # preserve original creation metadata
                     'createdAt': created_at,

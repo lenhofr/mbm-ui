@@ -94,7 +94,7 @@ struct RecipeDraft {
 
     /// Leading integer of a servings string ("4-6" → 4), like parseServings in quantity.ts.
     nonisolated static func parseServings(_ value: String?) -> Int? {
-        guard let value, let match = value.firstMatch(of: /\d+/), let n = Int(match.output), n > 0 else { return nil }
+        guard let value, let match = value.firstMatch(of: /[0-9]+/), let n = Int(match.output), n > 0 else { return nil }
         return n
     }
 
@@ -102,13 +102,13 @@ struct RecipeDraft {
     /// Port of parseIngredientLine in src/lib/quantity.ts so saved data matches the web.
     nonisolated static func parseIngredientLine(_ line: String) -> Recipe.Ingredient {
         let s = line.trimmingCharacters(in: .whitespaces)
-        let quantity = /^(?:\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?\s*[¼½¾⅓⅔⅛⅜⅝⅞]?|[¼½¾⅓⅔⅛⅜⅝⅞])/
+        let quantity = /^(?:[0-9]+\s+[0-9]+\/[0-9]+|[0-9]+\/[0-9]+|[0-9]+(?:\.[0-9]+)?\s*[¼½¾⅓⅔⅛⅜⅝⅞]?|[¼½¾⅓⅔⅛⅜⅝⅞])/
         guard let q = s.firstMatch(of: quantity), !q.output.trimmingCharacters(in: .whitespaces).allSatisfy({ $0 == "0" || $0 == "." }) else {
             return .init(name: s)
         }
         var rest = String(s[q.range.upperBound...]).trimmingCharacters(in: .whitespaces)
         // Drop the upper end of a range ("-6", "to 11") so it doesn't read as part of the unit.
-        if let range = rest.firstMatch(of: /^(?i)(?:-|–|to)\s*\d+(?:\.\d+)?(?:\/\d+)?\s*/) {
+        if let range = rest.firstMatch(of: /^(?i)(?:-|–|to)\s*[0-9]+(?:\.[0-9]+)?(?:\/[0-9]+)?\s*/) {
             rest = String(rest[range.range.upperBound...])
         }
         let qtyPart = String(s.dropLast(rest.count)).trimmingCharacters(in: .whitespaces)

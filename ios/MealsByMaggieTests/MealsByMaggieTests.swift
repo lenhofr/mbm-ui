@@ -1,0 +1,149 @@
+import Foundation
+import Testing
+@testable import MealsByMaggie
+
+// Expected values come from running the web app's own functions (src/lib/quantity.ts),
+// so these tests fail if the Swift ports drift from what the website saves and shows.
+
+struct IngredientParsingTests {
+    @Test(arguments: [
+        ("2 1/4 cups all-purpose flour", "2 1/4 cups", "all-purpose flour"),
+        ("3 large eggs", "3", "large eggs"),
+        ("1/2 cup Hidden Valley Ranch", "1/2 cup", "Hidden Valley Ranch"),
+        ("1 pkg. (8 oz.) Cream Cheese, softened", "1 pkg.", "(8 oz.) Cream Cheese, softened"),
+        ("1½ tsp vanilla", "1½ tsp", "vanilla"),
+        ("4-6 chicken thighs", "4-6", "chicken thighs"),
+        ("2 to 3 cloves garlic, minced", "2 to 3 cloves", "garlic, minced"),
+        ("½ lb ground beef", "½ lb", "ground beef"),
+        ("1 (28 oz) can crushed tomatoes", "1", "(28 oz) can crushed tomatoes"),
+        ("12 oz pasta", "12 oz", "pasta"),
+    ])
+    func splitsAmountFromName(line: String, amount: String, name: String) {
+        let ingredient = RecipeDraft.parseIngredientLine(line)
+        #expect(ingredient.amount == amount)
+        #expect(ingredient.name == name)
+    }
+
+    @Test(arguments: ["salt to taste", "0 sugar"])
+    func linesWithoutAQuantityHaveNoAmount(line: String) {
+        let ingredient = RecipeDraft.parseIngredientLine(line)
+        #expect(ingredient.amount == nil)
+        #expect(ingredient.name == line)
+    }
+}
+
+struct QuantityScalingTests {
+    @Test(arguments: [
+        ("1 1/2 cups", 2.0, "3 cups"),
+        ("1 1/2 cups", 0.5, "¾ cups"),
+        ("2 1/4 cups", 0.5, "1⅛ cups"),
+        ("2 1/4 cups", 1.5, "3⅓ cups"),
+        ("2 1/4 cups", 0.75, "1⅔ cups"),
+        ("1/3 cup", 0.5, "⅛ cup"),
+        ("1/3 cup", 3.0, "1 cup"),
+        ("½ lb", 0.75, "⅓ lb"),
+        ("4-6", 1.5, "6"),
+        ("2 to 3 cloves", 0.75, "1½ cloves"),
+        ("0.5 cup", 3.0, "1½ cup"),
+        ("1 (28 oz) can", 0.5, "½ (28 oz) can"),
+        ("pinch", 2.0, "pinch"),
+        ("½ lb", 2.0, "1 lb"),
+        ("1½ tsp", 2.0, "3 tsp"),
+    ])
+    func scalesLikeTheWeb(amount: String, multiplier: Double, expected: String) {
+        #expect(Quantity.scale(amount, by: multiplier) == expected)
+    }
+
+    @Test func unscaledAmountsAreUnchanged() {
+        #expect(Quantity.scale("1 1/2 cups", by: 1) == "1 1/2 cups")
+        #expect(Quantity.scale(nil, by: 2) == "")
+    }
+}
+
+@MainActor
+struct DraftTests {
+    @Test func savedRecipeLeavesOutEmptyFields() {
+        var draft = RecipeDraft()
+        draft.title = "  Toast  "
+        draft.tags = ["Breakfast", "breakfast ", ""]
+        draft.ingredients = [.init(text: "2 slices bread"), .init(text: "  ")]
+        draft.steps = [.init(text: "Toast it.")]
+        let input = draft.input(image: nil)
+        #expect(input.title == "Toast")
+        #expect(input.description == nil)
+        #expect(input.cookTime == nil)
+        #expect(input.image == nil)
+        #expect(input.tags == ["breakfast"])
+        #expect(input.ingredients?.count == 1)
+        #expect(input.ingredients?.first?.amount == "2 slices")
+        #expect(input.instructions == ["Toast it."])
+        #expect(input.servings == "4")
+    }
+
+    @Test func editingARecipeRoundTrips() {
+        let recipe = Recipe(
+            id: "r1", title: "Soup", description: "Hearty", image: "uploads/a.jpeg", tags: ["dinner"],
+            ingredients: [.init(name: "carrots", amount: "2 cups")], servings: "6", cookTime: "1 hr",
+            instructions: ["Simmer."]
+        )
+        let input = RecipeDraft(recipe: recipe).input(image: recipe.image)
+        #expect(input.title == "Soup")
+        #expect(input.description == "Hearty")
+        #expect(input.servings == "6")
+        #expect(input.ingredients?.first?.amount == "2 cups")
+        #expect(input.ingredients?.first?.name == "carrots")
+        #expect(input.instructions == ["Simmer."])
+    }
+
+    @Test func aiResultKeepsFlagsAndSuggestedTags() throws {
+        let json = #"{"readable":true,"title":"Cake","servings":12,"tags":["Cake","dessert","cake"],"ingredients":[{"text":"1 tsp salt","flag":{"q":"Salt or soda?","opts":[["1 tsp salt","salt"],["1 tsp soda","soda"]]}},{"text":"2 eggs"}],"instructions":[{"text":"Bake."}]}"#
+        let result = try JSONDecoder().decode(ExtractResult.self, from: Data(json.utf8))
+        let draft = RecipeDraft(extract: result, job: ImportJob(kind: .text("…")))
+        #expect(draft.source == .text)
+        #expect(draft.servings == 12)
+        #expect(draft.tags == ["cake", "dessert"])
+        #expect(draft.aiTags == ["cake", "dessert"])
+        #expect(draft.openFlagCount == 1)
+        #expect(draft.initialFlagCount == 1)
+        #expect(draft.ingredients[0].flag?.options.map(\.label) == ["salt", "soda"])
+    }
+}
+
+struct ImportDetectionTests {
+    @Test func detectsLinks() {
+        guard case .link(let url) = ImportJob.detect("  https://www.example.com/cookies  ") else {
+            Issue.record("expected a link")
+            return
+        }
+        #expect(url == "https://www.example.com/cookies")
+        #expect(ImportJob.host(of: url) == "example.com")
+    }
+
+    @Test func treatsEverythingElseAsText() {
+        guard case .text = ImportJob.detect("2 cups flour\nMix well. See https://example.com") else {
+            Issue.record("expected text")
+            return
+        }
+        #expect(ImportJob.detect("   ") == nil)
+    }
+
+    @Test func readsSchemaOrgRecipeFromAPage() throws {
+        let html = """
+        <html><head><script type="application/ld+json">
+        {"@context":"https://schema.org","@graph":[{"@type":"WebPage"},{"@type":["Recipe"],"name":"Banana Bread",
+         "recipeIngredient":["2 cups flour","3 bananas"],
+         "recipeInstructions":[{"@type":"HowToStep","text":"Mash &amp; mix."},{"@type":"HowToStep","text":"Bake."}]}]}
+        </script></head><body>Life story…</body></html>
+        """
+        let text = try #require(PageReader.structuredRecipe(in: html))
+        #expect(text.hasPrefix("Banana Bread"))
+        #expect(text.contains("- 3 bananas"))
+        #expect(text.contains("1. Mash & mix."))
+        #expect(text.contains("2. Bake."))
+    }
+
+    @Test func fallsBackToVisibleText() {
+        let text = PageReader.visibleText(of: "<p>Hello <b>world</b></p><script>var x = 1</script><p>Bye</p>")
+        #expect(text == "Hello world\nBye")
+    }
+}

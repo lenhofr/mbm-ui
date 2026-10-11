@@ -4,6 +4,9 @@ struct ContentView: View {
     @Environment(RecipeStore.self) private var store
     @Environment(AuthModel.self) private var auth
     @Environment(Favorites.self) private var favorites
+    @State private var askForNickname = false
+    /// Asked at most once per launch, like the web's dismissible prompt.
+    @State private var askedForNickname = false
 
     var body: some View {
         RecipeListView()
@@ -12,6 +15,15 @@ struct ContentView: View {
             .sensoryFeedback(.success, trigger: store.toast) { _, message in message != nil }
             // Each account keeps its own favorites, like the web.
             .onChange(of: auth.userSub, initial: true) { _, sub in favorites.load(for: sub) }
+            // Opened the app already signed in, without a kitchen nickname: ask once
+            // (CompleteProfile in App.tsx). Sign-ins from the login sheet ask there.
+            .onChange(of: auth.state) { oldState, state in
+                if oldState == .loading, state == .signedIn, auth.nickname?.isEmpty ?? true, !askedForNickname {
+                    askedForNickname = true
+                    askForNickname = true
+                }
+            }
+            .sheet(isPresented: $askForNickname) { NicknamePrompt() }
     }
 
     /// Confirmation pill after saving or deleting (toast in AppContext.tsx).

@@ -19,8 +19,18 @@ struct LoginView: View {
     @State private var notice: String?
     @State private var isWorking = false
     @State private var title = ["Welcome back to the kitchen!", "Aprons on!", "The kitchen’s open"].randomElement()!
+    /// Signed in, but the account has no kitchen nickname yet.
+    @State private var askForNickname = false
 
     var body: some View {
+        if askForNickname {
+            NicknamePrompt()
+        } else {
+            form
+        }
+    }
+
+    private var form: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -158,7 +168,7 @@ struct LoginView: View {
                 switch mode {
                 case .signIn:
                     switch try await auth.signIn(email: email, password: password) {
-                    case .signedIn: dismiss()
+                    case .signedIn: finishSignIn()
                     case .needsConfirmation: switchMode(.confirm)
                     }
                 case .signUp:
@@ -167,12 +177,20 @@ struct LoginView: View {
                 case .confirm:
                     try await auth.confirmSignUp(email: email, code: code)
                     if case .signedIn = try await auth.signIn(email: email, password: password) {
-                        dismiss()
+                        finishSignIn()
                     }
                 }
             } catch {
                 errorMessage = friendlyAuthMessage(error)
             }
+        }
+    }
+
+    private func finishSignIn() {
+        if auth.nickname?.isEmpty ?? true {
+            withAnimation { askForNickname = true }
+        } else {
+            dismiss()
         }
     }
 
@@ -247,10 +265,83 @@ private struct LinkButton: View {
     }
 }
 
-/// Signed-in account sheet: "Hi Rob!" and a log out button (HomeScreen.tsx).
+/// "What should we call you in the kitchen?" for accounts without a nickname
+/// (CompleteProfile.tsx). Recipes are signed "By <nickname>".
+struct NicknamePrompt: View {
+    @Environment(AuthModel.self) private var auth
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var name = ""
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(auth.nickname == nil ? "Complete your profile" : "Your kitchen name")
+                .font(.poppins(22))
+                .foregroundStyle(Color.plum)
+            Text("What should we call you in the kitchen? It’s shown on the recipes you add.")
+                .font(.inter(15))
+                .foregroundStyle(Color.muted)
+            TextField("e.g. Maggie", text: $name)
+                .font(.inter(16))
+                .foregroundStyle(Color.text)
+                .textContentType(.nickname)
+                .textInputAutocapitalization(.words)
+                .submitLabel(.done)
+                .focused($focused)
+                .onSubmit(save)
+                .padding(.horizontal, 14)
+                .frame(height: 48)
+                .background(Color.surface, in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.line))
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.inter(14, weight: .medium))
+                    .foregroundStyle(Color.warn)
+            }
+            Button(action: save) {
+                if isSaving { ProgressView().tint(.white) } else { Text("Save") }
+            }
+            .buttonStyle(PrimaryButtonStyle())
+            .disabled(isSaving || name.trimmingCharacters(in: .whitespaces).isEmpty)
+            .opacity(name.trimmingCharacters(in: .whitespaces).isEmpty ? 0.4 : 1)
+            Button(auth.nickname == nil ? "Skip for now" : "Cancel") { dismiss() }
+                .font(.inter(15, weight: .semibold))
+                .foregroundStyle(Color.plum)
+                .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .padding(24)
+        .presentationDetents([.height(400)])
+        .presentationBackground(Color.appBackground)
+        .onAppear { focused = true }
+        .onChange(of: auth.nickname, initial: true) { _, nickname in
+            if name.isEmpty, let nickname { name = nickname }
+        }
+    }
+
+    private func save() {
+        guard !isSaving, !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        isSaving = true
+        errorMessage = nil
+        Task {
+            do {
+                try await auth.updateNickname(name)
+                dismiss()
+            } catch {
+                errorMessage = "We couldn’t save that name. Try again in a moment."
+                isSaving = false
+            }
+        }
+    }
+}
+
+/// Signed-in account sheet: "Hi Rob!", change kitchen name, log out (HomeScreen.tsx).
 struct AccountView: View {
     @Environment(AuthModel.self) private var auth
     @Environment(\.dismiss) private var dismiss
+    @State private var editingName = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -262,6 +353,10 @@ struct AccountView: View {
                     .font(.inter(15))
                     .foregroundStyle(Color.muted)
             }
+            Button(auth.nickname == nil ? "Set your kitchen name" : "Change kitchen name") { editingName = true }
+                .font(.inter(15, weight: .semibold))
+                .foregroundStyle(Color.plum)
+                .padding(.top, 8)
             Button {
                 Task {
                     await auth.signOut()
@@ -279,8 +374,9 @@ struct AccountView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .presentationDetents([.height(220)])
+        .presentationDetents([.height(250)])
         .presentationBackground(Color.appBackground)
+        .sheet(isPresented: $editingName) { NicknamePrompt() }
     }
 }
 
