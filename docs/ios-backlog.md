@@ -1,6 +1,8 @@
 # iOS app backlog
 
-Ideas for the SwiftUI app in `ios/` that have been discussed but deliberately not built yet. Move an item into a branch when it's picked up, and delete it here once it ships.
+Ideas for the SwiftUI app in `ios/` (and the backend/web changes they need) that have been discussed but deliberately not built yet. Move an item into a branch when it's picked up, and delete it here once it ships.
+
+Keep each entry short. When an idea needs a real plan, write it up as its own `docs/<feature>-plan.md` and link it from the entry (e.g. [`passkeys-plan.md`](passkeys-plan.md)).
 
 ## Needs the paid Apple Developer Program ($99/yr)
 
@@ -28,6 +30,17 @@ When someone who has the app taps a `mealsbymaggie.com/recipe/<id>` link, open t
 - Host `/.well-known/apple-app-site-association` on the website (served as JSON from the S3/CloudFront site) listing the app (`<team id>.com.mealsbymaggie.app`) and the `/recipe/*` paths.
 - Add the **Associated Domains** capability (`applinks:mealsbymaggie.com`, plus `www`) to the app; needs the paid developer account, which is now in place.
 - Handle the incoming URL in the app (`onOpenURL`) by pushing the recipe's detail screen.
+
+## Sign-in
+
+### Passkeys ("Sign in with Face ID")
+Passwordless sign-in with Face ID / Touch ID that works in the iOS app and on the website (passkeys sync through iCloud Keychain). Added from the account sheet after signing in, so the invite-code sign-up and password fallback stay as they are. Needs Cognito's Essentials tier and a sign-in policy change, an apple-app-site-association file on the website, and new buttons on both clients. Full plan: [`passkeys-plan.md`](passkeys-plan.md).
+
+### Saved passwords shared between the site and the app
+Add a `webcredentials:mealsbymaggie.com` Associated Domain plus the matching apple-app-site-association entry, so iOS offers passwords saved for mealsbymaggie.com inside the app's login form (and saves new ones for both). Same website file as passkeys and Universal Links; small on its own.
+
+### Sign in with Apple (set aside)
+Conflicts with the invite-code gate: `pre_sign_up` runs for every new account, and Apple sign-in has no step to enter a code. Revisit only with an invite-flow redesign (e.g. enter the code first, then sign in with Apple).
 
 ## Feature parity with the web
 
