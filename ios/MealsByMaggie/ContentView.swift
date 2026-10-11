@@ -2,12 +2,16 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(RecipeStore.self) private var store
+    @Environment(AuthModel.self) private var auth
+    @Environment(Favorites.self) private var favorites
 
     var body: some View {
         RecipeListView()
             .overlay(alignment: .top) { toast }
             .animation(.spring(duration: 0.35), value: store.toast)
             .sensoryFeedback(.success, trigger: store.toast) { _, message in message != nil }
+            // Each account keeps its own favorites, like the web.
+            .onChange(of: auth.userSub, initial: true) { _, sub in favorites.load(for: sub) }
     }
 
     /// Confirmation pill after saving or deleting (toast in AppContext.tsx).
@@ -35,4 +39,5 @@ struct ContentView: View {
     ContentView()
         .environment(AuthModel())
         .environment(RecipeStore())
+        .environment(Favorites())
 }

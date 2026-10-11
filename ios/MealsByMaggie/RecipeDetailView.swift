@@ -6,6 +6,7 @@ struct RecipeDetailView: View {
     let recipeID: String
     @Environment(RecipeStore.self) private var store
     @Environment(AuthModel.self) private var auth
+    @Environment(Favorites.self) private var favorites
     @Environment(\.dismiss) private var dismiss
     @State private var isEditing = false
     @State private var wasDeleted = false
@@ -19,6 +20,17 @@ struct RecipeDetailView: View {
             }
         }
         .toolbar {
+            if store.recipe(id: recipeID) != nil {
+                ToolbarItem(placement: .topBarTrailing) {
+                    let isFavorite = favorites.contains(recipeID)
+                    Button(isFavorite ? "Remove from favorites" : "Add to favorites",
+                           systemImage: isFavorite ? "heart.fill" : "heart") {
+                        favorites.toggle(recipeID)
+                    }
+                    .tint(isFavorite ? Color.pink : nil)
+                    .sensoryFeedback(.impact(weight: .light), trigger: isFavorite)
+                }
+            }
             if auth.isSignedIn, store.recipe(id: recipeID) != nil {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Edit recipe", systemImage: "pencil") { isEditing = true }
@@ -36,6 +48,14 @@ struct RecipeDetailView: View {
 private struct RecipeDetailBody: View {
     let recipe: Recipe
     @State private var checked: Set<Int> = []
+    /// Servings the user wants to cook; amounts scale from the recipe's own servings.
+    @State private var servings: Int?
+
+    private var baseServings: Int? { RecipeDraft.parseServings(recipe.servings) }
+    private var multiplier: Double {
+        guard let base = baseServings, let servings else { return 1 }
+        return Double(servings) / Double(base)
+    }
     @State private var isCooking = false
 
     private var hasSteps: Bool { !(recipe.instructions ?? []).isEmpty }
@@ -54,7 +74,7 @@ private struct RecipeDetailBody: View {
                         .padding(.top, 18)
                     if let ingredients = recipe.ingredients, !ingredients.isEmpty {
                         sectionTitle("Ingredients")
-                        IngredientChecklist(ingredients: ingredients, checked: $checked)
+                        IngredientChecklist(ingredients: ingredients, checked: $checked, multiplier: multiplier)
                     }
                     if let steps = recipe.instructions, !steps.isEmpty {
                         sectionTitle("Instructions")
@@ -76,7 +96,7 @@ private struct RecipeDetailBody: View {
         }
         .toolbarBackground(.hidden, for: .navigationBar)
         .fullScreenCover(isPresented: $isCooking) {
-            CookView(recipe: recipe)
+            CookView(recipe: recipe, multiplier: multiplier)
         }
     }
 
@@ -144,7 +164,11 @@ private struct RecipeDetailBody: View {
     private var metaCells: some View {
         HStack(spacing: 10) {
             MetaCell(icon: "clock", label: "Time", value: recipe.cookTime)
-            MetaCell(icon: "person.2", label: "Servings", value: recipe.servings)
+            if let base = baseServings {
+                ServingsCell(servings: Binding(get: { servings ?? base }, set: { servings = $0 }), scaled: multiplier != 1)
+            } else {
+                MetaCell(icon: "person.2", label: "Servings", value: recipe.servings)
+            }
         }
     }
 
@@ -211,6 +235,60 @@ private struct MetaCell: View {
         .frame(maxWidth: .infinity)
         .background(Color.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.line))
+    }
+}
+
+/// Servings card with − / + that rescales the ingredient amounts (Stepper in DetailScreen.tsx).
+private struct ServingsCell: View {
+    @Binding var servings: Int
+    let scaled: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "person.2")
+                .font(.system(size: 18))
+                .foregroundStyle(Color.plum)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 0) {
+                    Text("Servings")
+                        .foregroundStyle(Color.muted)
+                    if scaled {
+                        Text(" · scaled")
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.pink)
+                    }
+                }
+                .font(.inter(12))
+                HStack(spacing: 8) {
+                    stepButton("minus", label: "Fewer servings") { servings = max(1, servings - 1) }
+                    Text("\(servings)")
+                        .font(.inter(16, weight: .semibold))
+                        .foregroundStyle(Color.text)
+                        .frame(minWidth: 24)
+                        .contentTransition(.numericText())
+                        .animation(.default, value: servings)
+                    stepButton("plus", label: "More servings") { servings += 1 }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(Color.surface, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.line))
+        .sensoryFeedback(.selection, trigger: servings)
+    }
+
+    private func stepButton(_ icon: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(Color.plum)
+                .frame(width: 30, height: 30)
+                .background(Color.chip, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 }
 

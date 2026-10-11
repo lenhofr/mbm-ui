@@ -6,6 +6,8 @@ struct IngredientChecklist: View {
     let ingredients: [Recipe.Ingredient]
     @Binding var checked: Set<Int>
     var large = false
+    /// Scales amounts when the servings are changed (1 = as written).
+    var multiplier: Double = 1
 
     var body: some View {
         VStack(spacing: 0) {
@@ -17,7 +19,7 @@ struct IngredientChecklist: View {
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         CheckBox(done: done)
                             .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
-                        Text(item.displayText)
+                        Text(item.displayText(scaledBy: multiplier))
                             .font(.inter(large ? 17 : 16))
                             .foregroundStyle(done ? Color(hex: 0xB9A6B0) : Color.text)
                             .strikethrough(done)

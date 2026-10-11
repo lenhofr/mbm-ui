@@ -3,6 +3,7 @@ import SwiftUI
 @main struct MealsByMaggieApp: App {
     @State private var auth: AuthModel
     @State private var store = RecipeStore()
+    @State private var favorites = Favorites()
 
     init() {
         AppFonts.register()
@@ -15,6 +16,7 @@ import SwiftUI
             ContentView()
                 .environment(auth)
                 .environment(store)
+                .environment(favorites)
                 .task { await auth.refresh() }
                 .preferredColorScheme(.light)
                 .tint(.plum)
