@@ -101,6 +101,15 @@ final class AuthModel {
         _ = try await Amplify.Auth.resendSignUpCode(for: normalized(email))
     }
 
+    /// Saves the kitchen nickname, then refreshes the login token so the API (which
+    /// stamps "By …" on recipes from the token) sees it right away.
+    func updateNickname(_ name: String) async throws {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        _ = try await Amplify.Auth.update(userAttribute: AuthUserAttribute(.nickname, value: trimmed))
+        _ = try await Amplify.Auth.fetchAuthSession(options: .init(forceRefresh: true))
+        nickname = trimmed
+    }
+
     func signOut() async {
         _ = await Amplify.Auth.signOut()
         clear()
