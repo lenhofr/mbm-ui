@@ -6,7 +6,6 @@ struct RecipeDetailView: View {
     let recipeID: String
     @Environment(RecipeStore.self) private var store
     @Environment(AuthModel.self) private var auth
-    @Environment(Favorites.self) private var favorites
     @Environment(\.dismiss) private var dismiss
     @State private var isEditing = false
     @State private var wasDeleted = false
@@ -20,18 +19,17 @@ struct RecipeDetailView: View {
             }
         }
         .toolbar {
-            if store.recipe(id: recipeID) != nil {
+            // Share sheet with the recipe's public web link. Favoriting lives on the
+            // recipe cards, so the detail page shares instead of hearting.
+            if let recipe = store.recipe(id: recipeID), let link = recipe.webURL {
                 ToolbarItem(placement: .topBarTrailing) {
-                    let isFavorite = favorites.contains(recipeID)
-                    Button {
-                        favorites.toggle(recipeID)
-                    } label: {
-                        Image(systemName: isFavorite ? "heart.fill" : "heart")
+                    ShareLink(item: link, subject: Text(recipe.title), message: Text(recipe.title),
+                              preview: SharePreview(recipe.title)) {
+                        Image(systemName: "square.and.arrow.up")
                             .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(isFavorite ? Color.pink : Color.text)
+                            .foregroundStyle(Color.text)
                     }
-                    .accessibilityLabel(isFavorite ? "Remove from favorites" : "Add to favorites")
-                    .sensoryFeedback(.impact(weight: .light), trigger: isFavorite)
+                    .accessibilityLabel("Share recipe")
                 }
             }
             // Separate round buttons, like the web's GlassButtons and the back button
