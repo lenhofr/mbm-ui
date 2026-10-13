@@ -30,11 +30,13 @@ jobs:
 
       # The project was created with Xcode 27; use the newest Xcode on the runner.
       - name: Select Xcode
+        id: xcode
         run: |
           XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
           echo "Using $XCODE"
           sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version
+          echo "build=$(xcodebuild -version | awk '/Build version/ {print $3}')" >> "$GITHUB_OUTPUT"
 
       # Amplify pulls in the AWS SDK; caching the checkouts saves several minutes.
       - name: Cache Swift packages
@@ -43,6 +45,18 @@ jobs:
           path: .spm
           key: spm-${{ hashFiles('ios/MealsByMaggie.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
           restore-keys: spm-
+
+      # Compiled packages (the AWS SDK takes most of the build), so CI only recompiles
+      # the app itself. Saved once per Package.resolved + Xcode build; a new package
+      # version or Xcode starts from a clean build.
+      - name: Cache compiled packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            .derived
+            !.derived/Logs
+            !.derived/Index.noindex
+          key: derived-${{ steps.xcode.outputs.build }}-${{ hashFiles('ios/MealsByMaggie.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
 
       - name: Pick a simulator
         id: sim
@@ -63,9 +77,11 @@ jobs:
             -scheme MealsByMaggie \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -clonedSourcePackagesDirPath ../.spm \
+            -derivedDataPath ../.derived \
             -skipPackagePluginValidation \
             -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
             > ../xcodebuild.log 2>&1 || status=$?
           # Just the useful lines: our errors/warnings, failed tests and the summary.
           grep -E "error:|/ios/MealsByMaggie.*warning:|✘|Test run with|\*\* (BUILD|TEST)" ../xcodebuild.log || true
