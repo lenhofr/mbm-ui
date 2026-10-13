@@ -4,13 +4,15 @@ Ideas for the SwiftUI app in `ios/` (and the backend/web changes they need) that
 
 Keep each entry short. When an idea needs a real plan, write it up as its own `docs/<feature>-plan.md` and link it from the entry (e.g. [`passkeys-plan.md`](passkeys-plan.md)).
 
-## Needs the paid Apple Developer Program ($99/yr)
+## Uses the paid Apple Developer Program
+
+The paid account is in place (TestFlight is live), so these are unblocked.
 
 ### Share → Meals by Maggie (share extension)
 Add the app to the iOS share sheet so a recipe page in Safari (or text, or a screenshot) can be sent straight to the AI importer.
 
 - New *Share Extension* target that accepts URLs, text and images, and hands them to the main app's existing `ImportFlowView`.
-- The hand-off needs an **App Group** (shared container) between the app and the extension, and App Groups aren't available on a free Personal Team; that's why this is parked.
+- The hand-off needs an **App Group** (shared container) between the app and the extension, which needs the paid account (not available on a free Personal Team).
 - Optional: share the Cognito session through a Keychain access group so the extension can import without opening the app.
 - The web app's `/import?url=` route (share target, bookmarklets) is the same idea for the PWA.
 
@@ -44,7 +46,6 @@ Conflicts with the invite-code gate: `pre_sign_up` runs for every new account, a
 
 ## Feature parity with the web
 
-- **Nickname prompt** (`CompleteProfile.tsx`): ask for a kitchen nickname when the account has none, so recipes aren't stamped "User".
 - **Quick tips** (`QuickTips.tsx`): the tips sheet and inline tips in search.
 - **Quick view** (long-press a card on the web): a peek at the ingredients without opening the recipe.
 - **Search**: the web uses Fuse.js fuzzy matching; iOS uses plain substring matching on title, tags and ingredients.
