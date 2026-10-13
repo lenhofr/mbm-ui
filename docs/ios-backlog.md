@@ -24,8 +24,8 @@ Apple's build service can archive, sign and upload to TestFlight on every merge 
 
 ## Sharing recipes
 
-### Share button on the recipe page
-Replace the recipe page's heart (favoriting stays on the recipe cards) with a **Share** button that opens the iOS share sheet (Messages, Mail, AirDrop, Copy…) with the recipe title and its public web link, e.g. `https://mealsbymaggie.com/recipe/<id>`. Recipe pages are already public, so anyone can open the link in a browser without the app or an account. SwiftUI's `ShareLink` covers it; iOS-only, no backend changes.
+### Rich link previews for shared recipes
+The share button (#117) sends `mealsbymaggie.com/recipe/<id>`, but Messages shows the site's generic preview, not the recipe's photo and title: every recipe URL serves the same `index.html`, with no per-recipe details for link previews (`og:title`, `og:image`). Fixing it is a small web-side change, e.g. a CloudFront function or Lambda@Edge that fills in those tags for `/recipe/*` from the API. Pairs well with Universal Links, which touches the same website hosting.
 
 ### Open shared links in the app (Universal Links)
 When someone who has the app taps a `mealsbymaggie.com/recipe/<id>` link, open that recipe in the app instead of Safari.
