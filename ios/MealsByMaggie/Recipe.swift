@@ -31,4 +31,12 @@ struct Recipe: Codable, Identifiable, Hashable {
         let encoded = image.addingPercentEncoding(withAllowedCharacters: allowed) ?? image
         return URL(string: "\(RecipeAPI.baseURL)/images/\(encoded)")
     }
+
+    /// Public web page for the recipe (the `/recipe/:id` route in App.tsx); opens
+    /// in any browser without the app or an account.
+    var webURL: URL? {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+        guard let encoded = id.addingPercentEncoding(withAllowedCharacters: allowed) else { return nil }
+        return URL(string: "https://mealsbymaggie.com/recipe/\(encoded)")
+    }
 }
