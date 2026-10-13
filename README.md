@@ -38,6 +38,13 @@ What it does:
 - Opens a recipe card and toggles cook mode if present to exercise modals.
 The script is at `scripts/ios-overflow-check.mjs`.
 
+iOS app → TestFlight
+```bash
+git checkout main && git pull
+npm run ios:testflight   # archive + upload to App Store Connect
+```
+See `docs/ios-release.md` for what it does and troubleshooting.
+
 Build & preview
 ```bash
 npm run build
