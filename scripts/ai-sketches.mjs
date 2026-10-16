@@ -10,7 +10,7 @@
  * Two steps, so you can look at every sketch before anything goes live:
  *
  *   1. generate — reads recipes from the public API, draws a sketch for each one without
- *      an image via Bedrock (Amazon Nova Canvas), and saves them to tmp_artifacts/ai-sketches/
+ *      an image via a Stability AI model on Bedrock, and saves them to tmp_artifacts/ai-sketches/
  *      with a contact sheet (index.html). Needs credentials for the Bedrock (AI) account.
  *
  *        AWS_PROFILE=mbm-ai API_BASE=https://….execute-api.us-east-1.amazonaws.com \
@@ -25,7 +25,10 @@
  *        AWS_PROFILE=mbm-app IMAGES_BUCKET=mbm-site-images-… DDB_TABLE=mbm-recipes \
  *          node scripts/ai-sketches.mjs apply [--dry-run]
  *
- * Env: AWS_REGION (default us-east-1), MODEL_ID (default amazon.nova-canvas-v1:0)
+ * Env: AWS_REGION (S3/DynamoDB, default us-east-1), BEDROCK_REGION (default us-west-2, where
+ * Bedrock hosts the Stability models), MODEL_ID (default stability.stable-image-core-v1:1;
+ * stability.sd3-5-large-v1:0 or stability.stable-image-ultra-v1:1 also take the same request).
+ * List what the account can use: aws bedrock list-foundation-models --region us-west-2 --by-output-modality IMAGE
  */
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -42,7 +45,8 @@ const args = Object.fromEntries(rest.map(a => {
 }))
 
 const REGION = process.env.AWS_REGION || 'us-east-1'
-const MODEL_ID = process.env.MODEL_ID || 'amazon.nova-canvas-v1:0'
+const BEDROCK_REGION = process.env.BEDROCK_REGION || 'us-west-2'
+const MODEL_ID = process.env.MODEL_ID || 'stability.stable-image-core-v1:1'
 const PREFIX = 'ai-sketches/'
 const OUT_DIR = path.resolve('tmp_artifacts/ai-sketches')
 const MANIFEST = path.join(OUT_DIR, 'manifest.json')
@@ -62,7 +66,7 @@ function promptFor(r) {
   let dish = `A pencil sketch of ${clean(r.title)}`
   if (r.description) dish += ` (${clean(r.description).slice(0, 200)})`
   if (ingredients.length) dish += `, made with ${ingredients.join(', ')}`
-  return `${dish}. ${STYLE}`.slice(0, 1024) // Nova Canvas prompt limit
+  return `${dish}. ${STYLE}`
 }
 
 async function readManifest() {
@@ -84,22 +88,19 @@ async function generate() {
   console.log(`${recipes.length} recipes, ${recipes.filter(r => !r.image).length} without an image, drawing ${todo.length}`)
 
   await fs.mkdir(OUT_DIR, { recursive: true })
-  const bedrock = new BedrockRuntimeClient({ region: REGION })
+  const bedrock = new BedrockRuntimeClient({ region: BEDROCK_REGION })
   for (const r of todo) {
     const prompt = promptFor(r)
-    const seed = Math.floor(Math.random() * 2_000_000_000)
+    const seed = Math.floor(Math.random() * 4_294_967_295)
     try {
       const out = await bedrock.send(new InvokeModelCommand({
         modelId: MODEL_ID,
         contentType: 'application/json',
         accept: 'application/json',
-        body: JSON.stringify({
-          taskType: 'TEXT_IMAGE',
-          textToImageParams: { text: prompt, negativeText: NEGATIVE },
-          imageGenerationConfig: { numberOfImages: 1, width: 1024, height: 1024, cfgScale: 8, seed },
-        }),
+        body: JSON.stringify({ prompt, negative_prompt: NEGATIVE, aspect_ratio: '1:1', output_format: 'png', seed }),
       }))
       const body = JSON.parse(new TextDecoder().decode(out.body))
+      if (body.finish_reasons?.[0]) throw new Error(`model refused: ${body.finish_reasons[0]}`)
       const png = Buffer.from(body.images[0], 'base64')
       // Force true grayscale so a stray tint never makes a sketch pass for a photo.
       const webp = await sharp(png).grayscale().webp({ quality: 80 }).toBuffer()
