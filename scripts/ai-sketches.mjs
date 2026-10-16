@@ -65,7 +65,8 @@ const NEGATIVE =
 function promptFor(r) {
   const clean = s => String(s || '').replace(/\s+/g, ' ').trim()
   const ingredients = (r.ingredients || [])
-    .map(i => clean(i.name).replace(/\(.*?\)|,.*$/g, '').trim())
+    // "jar marinara sauce" otherwise gets drawn as jars on the table
+    .map(i => clean(i.name).replace(/\(.*?\)|,.*$/g, '').replace(/\b(jars?|cans?|box(es)?|bottles?|packages?|packets?|bags?|cartons?) (of )?/gi, '').trim())
     .filter(n => n && n.length <= 40)
     .slice(0, 5)
   // Just the dish and a few ingredients; long descriptions pull the model toward food photography.
