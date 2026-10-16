@@ -121,7 +121,7 @@ ios/MealsByMaggie/
 └── IngredientChecklist.swift
 ```
 
-Deferred iOS ideas (share extension, TestFlight, parity gaps) live in `docs/ios-backlog.md`.
+Deferred ideas (share extension, sharing, sign-in options, parity gaps) live in `docs/ios-backlog.md` as short entries; bigger ones link to their own `docs/<feature>-plan.md` (e.g. `docs/passkeys-plan.md`).
 
 When porting a web screen, read its `.tsx` + `.css` and keep the Swift view's comments pointing at the web source. Styling comes from `Theme.swift`, not ad-hoc colors.
 
