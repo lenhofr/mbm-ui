@@ -70,6 +70,7 @@ private struct RecipeDetailBody: View {
         return Double(servings) / Double(base)
     }
     @State private var isCooking = false
+    @State private var showPhoto = false
 
     private var hasSteps: Bool { !(recipe.instructions ?? []).isEmpty }
 
@@ -80,6 +81,11 @@ private struct RecipeDetailBody: View {
                     .frame(height: 330)
                     .frame(maxWidth: .infinity)
                     .clipped()
+                    // Tap the photo to see all of it, full screen and zoomable.
+                    .contentShape(Rectangle())
+                    .onTapGesture { if recipe.imageURL != nil { showPhoto = true } }
+                    .accessibilityAddTraits(recipe.imageURL != nil ? .isButton : [])
+                    .accessibilityHint(recipe.imageURL != nil ? "Opens the photo full screen" : "")
 
                 VStack(alignment: .leading, spacing: 0) {
                     header
@@ -110,6 +116,9 @@ private struct RecipeDetailBody: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .fullScreenCover(isPresented: $isCooking) {
             CookView(recipe: recipe, multiplier: multiplier)
+        }
+        .fullScreenCover(isPresented: $showPhoto) {
+            if let url = recipe.imageURL { PhotoViewer(url: url, title: recipe.title) }
         }
     }
 
