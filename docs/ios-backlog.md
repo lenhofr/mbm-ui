@@ -53,5 +53,6 @@ Conflicts with the invite-code gate: `pre_sign_up` runs for every new account, a
 ## Cross-platform improvements
 
 - **Favorites sync**: favorites live on each device (web `localStorage`, iOS `UserDefaults`), keyed by Cognito sub. Syncing needs API storage, e.g. `GET/PUT /favorites` backed by DynamoDB.
+- **Print a recipe** (tester request): neither client has a print option. iOS: a Print action on the recipe page using `UIPrintInteractionController` with a clean layout (title, servings, ingredients, steps; scaled amounts if servings changed). Web: a Print button calling `window.print()`, with `@media print` rules for the detail screen; the existing ones in `src/styles.css` target old cook-modal classes that no longer exist.
 - **Slow scans**: API Gateway and the Lambda both stop at 30s, which caps how long Bedrock can spend on a hard handwritten card.
 - **Clearing a field on edit**: `PUT /recipes/{id}` merges the body over the existing item, so a field left out (e.g. a deleted description) keeps its old value. Fixing it means the clients sending explicit nulls or the Lambda replacing instead of merging.

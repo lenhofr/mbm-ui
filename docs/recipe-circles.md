@@ -1,6 +1,6 @@
 # Recipe Circles: Groups, Sharing & Per-Recipe Visibility
 
-**Status:** Design, not started. Written 2026-10-11 against `main` at the time.
+**Status:** Design, not started. Written 2026-10-11 against `main` at the time; current-state notes updated 2026-10-16 for #120 (delete permissions, admins group, recipes backups).
 **Scope:** Backend (Lambda + DynamoDB + Terraform), Cognito triggers, web SPA, iOS app, data migration.
 **Audience:** The next engineer or AI session that implements this. Read the whole doc once, then work phase by phase (§13). Every decision below has a stated reason. If you change a decision, update this doc in the same PR.
 
@@ -8,7 +8,7 @@
 
 ## 0. TL;DR
 
-- Today every recipe is world-readable, and **any signed-in user can edit or delete any recipe**. There are no per-user boundaries at all.
+- Today every recipe is world-readable, and **any signed-in user can edit any recipe**. Only deletes are limited: to the recipe's creator or the `admins` Cognito group (#120). There are no other per-user boundaries.
 - We introduce:
   - **Owners.** Every recipe has exactly one `ownerSub`.
   - **Circles.** A circle is a named group of users with roles `owner | editor | member`.
@@ -61,7 +61,9 @@ Routes (see `aws_apigatewayv2_route.*`):
   - `kept` holds the non-editable existing fields. `body` is spread in **unfiltered**, so a client can overwrite any non-`created*`/`updated*` attribute.
   - It also replaces the whole item, so a concurrent change to any other attribute is lost (last writer wins).
   - **No ownership check.**
-- **`DELETE /recipes/{id}`**: no ownership check.
+- **`DELETE /recipes/{id}`** (since #120): allowed only if the caller's `sub` equals the recipe's `createdBySub`, or the caller is in the `admins` Cognito group (read from the `cognito:groups` claim). Otherwise 403. Recipes with no `createdBySub` are admin-only; as of 2026-10-16 all recipes have one. A missing recipe returns 204. The web and iOS editors hide Delete for callers who can't use it.
+- **`admins` Cognito group** (`aws_cognito_user_group.admins`, #120): two members as of 2026-10-16. Members are added by hand in the Cognito console. It is the admin role §6.8 and §14.2 refer to.
+- **Backups:** `mbm-recipes` has point-in-time recovery on (#120).
 - **`get_identity()`**:
   - Reads JWT claims from `requestContext.authorizer.jwt.claims`.
   - Falls back to **decoding the bearer token without verifying it**. That's safe today only because identity is used solely on JWT-authorized routes.
@@ -129,6 +131,8 @@ Roles rank as `member < editor < owner`.
 | Read recipe | ✅ | ✅ if shared to circle | ✅ if shared | ✅ if shared | public only | public only |
 | Edit recipe content (`EDITABLE_FIELDS`) | ✅ | ✅ if shared | ✅ if shared | ❌ | ❌ | ❌ |
 | Delete recipe | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+**Admins** (the `admins` Cognito group) can also delete any recipe today (#120). Proposed: they keep that once circles exist; see §14.7.
 | Change sharing (public flag, add/remove circles) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Remove a recipe from *this* circle (unshare) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Share *own* recipe into circle | – | ✅ | ✅ | ✅ | ❌ | ❌ |
@@ -140,7 +144,7 @@ Roles rank as `member < editor < owner`.
 
 Rationale:
 - **Editors may edit content but not sharing.** Otherwise an editor in circle A could make a recipe public, or push it into circle B. That is privilege escalation across audiences, so content edits and sharing are **separate endpoints** (§7).
-- **Only the owner deletes.** A circle editor can unshare a recipe from their circle, which removes it from that audience, but can't destroy someone else's data.
+- **Only the owner deletes** (plus admins, if §14.7 is accepted). A circle editor can unshare a recipe from their circle, which removes it from that audience, but can't destroy someone else's data.
 - `editor` keeps today's family behavior, where everyone edits everything. The migration (§10) makes all current users editors of the founding circle.
 
 ---
@@ -230,7 +234,7 @@ resource "aws_dynamodb_table" "circles" {
     projection_type = "ALL"
   }
 
-  point_in_time_recovery { enabled = true }
+  point_in_time_recovery { enabled = true }   # mbm-recipes already has it (#120)
 
   tags = { Name = "mbm-circles" }
 }
@@ -465,8 +469,10 @@ Making a recipe public is a meaningful privacy action, so the UI needs an explic
 
 ### 6.4 Delete recipe: `DELETE /recipes/{id}`
 
-1. GetItem. Not readable gives 404. Not `can_delete` (owner only) gives 403.
-2. Transaction: `Delete` the recipe with the condition `ownerSub = :sub`, plus `Delete` the edge for each cid in `circleIds`.
+1. GetItem. Not readable gives 404. Not `can_delete` (owner, or admin if §14.7 is accepted) gives 403.
+2. Transaction: `Delete` the recipe with the condition `ownerSub = :sub` (for an admin deleting someone else's recipe, `ownerSub = :owner` with the owner read in step 1), plus `Delete` the edge for each cid in `circleIds`.
+
+Today's check (#120) compares `createdBySub` instead. The migration copies `createdBySub` into `ownerSub` (§10), so switching the check over is safe once it has run.
 3. Images are not deleted. That's the current behavior, and copies may reference the same key if §6.7 option B is chosen. Image garbage collection is out of scope.
 
 ### 6.5 Circle lifecycle
@@ -547,7 +553,7 @@ Why reuse this table:
 - The atomic uses/maxUses/expiry/revoked logic and the `USE#` audit records already exist and are tested in `pre_sign_up.py`.
 - One code format, one "join" UX.
 
-**Security decision.** The app is invite-only today, and Rob controls who gets in. Circle editors can mint circle codes, but those codes **cannot create accounts** unless `allowSignup` is true. Only an admin script (or a future admin role) sets that. Otherwise any circle editor could open sign-ups. Update `pre_sign_up.py` so that a code with `kind = "circle"` and no `allowSignup` is rejected. This is open question §14.2.
+**Security decision.** The app is invite-only today, and Rob controls who gets in. Circle editors can mint circle codes, but those codes **cannot create accounts** unless `allowSignup` is true. Only an admin script (or a member of the `admins` Cognito group, §2) sets that. Otherwise any circle editor could open sign-ups. Update `pre_sign_up.py` so that a code with `kind = "circle"` and no `allowSignup` is rejected. This is open question §14.2.
 
 Endpoints:
 - **`POST /circles/{cid}/invites {maxUses?=10, ttlDays?=14, role?="member"}`** (circle editor or higher)
@@ -879,7 +885,7 @@ Run it after migration and whenever something looks off. Optionally, schedule it
 ## 11. Security notes & adjacent fixes
 
 ### 11.1 Must fix as part of Phase 1 (independent of circles)
-1. **Ownership / authorization on PUT and DELETE** (§5, §6.2, §6.4).
+1. **Ownership / authorization on PUT** (§5, §6.2). DELETE already has a creator-or-admin check (#120); Phase 1 moves it to `recipe_access()` and `ownerSub` (§6.4).
 2. **Mass assignment** on POST and PUT (I4, §7.3).
 3. **`put_item` full replace on PUT**: switch to UpdateItem (§6.2).
 4. **Unpaginated scan** on `GET /recipes` (§7.2).
@@ -1020,6 +1026,7 @@ Order matters:
 4. **Founding circle roles.** Should everyone stay `editor`, preserving today's everyone-edits behavior, or should some people become `member`?
 5. **Discover.** Should anonymous visitors see public recipes at all, i.e. is the public site a feature? If not, `GET /recipes` could require auth and "public" would mean "all signed-in users". That changes §8.1 and the old iOS builds, which call anonymously.
 6. **Leaving a circle**: confirm that your recipes leave with you (§6.5).
+7. **Admins and deletes.** Since #120, the `admins` group can delete any recipe. Proposal: keep that once circles exist. It's a small family app run by its admins, and it's the only way to clean up after someone who leaves. Alternative: admins delete only within circles they own. If kept, add `is_admin` to `Caller` (from `cognito:groups`) and give admins `can_delete` in `recipe_access()`.
 
 ---
 
