@@ -17,7 +17,9 @@ export function EditRecipeScreen() {
   const app = useApp()
   if (!recipe) return app.loading ? <div className="screen" /> : <Navigate to="/" replace />
   if (!app.auth.loading && !app.auth.isAuthed) return <Navigate to={`/recipe/${encodeURIComponent(recipe.id)}`} replace />
-  return <Editor key={recipe.id} initial={draftFromRecipe(recipe)} />
+  // Only the cook who added it, or an admin, can delete it; anyone signed in can edit.
+  const canDelete = app.isAdmin || (!!recipe.createdBySub && recipe.createdBySub === app.userSub)
+  return <Editor key={recipe.id} initial={draftFromRecipe(recipe)} canDelete={canDelete} />
 }
 
 /** /new — blank, or the draft an import just produced. */
@@ -47,7 +49,7 @@ function FlagBox({ flag, onPick }: { flag: Flag; onPick: (text: string) => void 
 
 type ListKey = 'ingredients' | 'steps'
 
-export function Editor({ initial }: { initial: Draft }) {
+export function Editor({ initial, canDelete = false }: { initial: Draft; canDelete?: boolean }) {
   const app = useApp()
   const navigate = useNavigate()
   const location = useLocation()
@@ -289,7 +291,7 @@ export function Editor({ initial }: { initial: Draft }) {
           </button>
         </div>
 
-        {isEdit && (
+        {isEdit && canDelete && (
           <button type="button" className="btn ghost block delete-btn" onClick={() => setConfirmDelete(true)}>
             <Icon name="trash" size={18} />Delete recipe
           </button>

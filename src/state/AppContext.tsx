@@ -35,6 +35,9 @@ function useAppState() {
   const jwt = auth.idToken ? decodeJwtPayload(auth.idToken) : null
   const displayName = jwt?.nickname as string | undefined
   const userSub = (jwt?.sub ?? jwt?.['cognito:username']) as string | undefined
+  /** In the Cognito `admins` group: can delete anyone's recipe (recipes/app.py). */
+  const groups = jwt?.['cognito:groups']
+  const isAdmin = Array.isArray(groups) && groups.includes('admins')
 
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(true)
@@ -100,7 +103,7 @@ function useAppState() {
   }, [])
 
   return {
-    auth, displayName, userSub,
+    auth, displayName, userSub, isAdmin,
     recipes, loading, loadError, reload,
     favorites, toggleFavorite,
     toastMsg, toast,

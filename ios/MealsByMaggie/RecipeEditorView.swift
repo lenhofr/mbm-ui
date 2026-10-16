@@ -84,7 +84,9 @@ struct RecipeEditorView: View {
                     SectionHeading(title: "Steps")
                     rowsBox(rows: $draft.steps, placeholder: "Describe this step", addTitle: "Add step", numbered: true)
 
-                    if draft.isEdit {
+                    // Only the cook who added it, or an admin, can delete it; anyone
+                    // signed in can edit (EditRecipeScreen in EditorScreen.tsx).
+                    if draft.isEdit, auth.isAdmin || (draft.createdBySub != nil && draft.createdBySub == auth.userSub) {
                         Button(role: .destructive) {
                             confirmDelete = true
                         } label: {

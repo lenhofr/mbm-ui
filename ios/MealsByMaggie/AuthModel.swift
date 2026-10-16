@@ -18,6 +18,8 @@ final class AuthModel {
     private(set) var email: String?
     private(set) var nickname: String?
     private(set) var userSub: String?
+    /// In the Cognito `admins` group: can delete anyone's recipe (isAdmin in AppContext.tsx).
+    private(set) var isAdmin = false
 
     var isSignedIn: Bool { state == .signedIn }
 
@@ -133,6 +135,18 @@ final class AuthModel {
             default: break
             }
         }
+        isAdmin = await idToken().map { Self.groups(inToken: $0).contains("admins") } ?? false
+    }
+
+    /// The `cognito:groups` claim from a JWT's payload (decodeJwtPayload in AppContext.tsx).
+    static func groups(inToken token: String) -> [String] {
+        let parts = token.split(separator: ".")
+        guard parts.count == 3 else { return [] }
+        var payload = parts[1].replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
+        guard let data = Data(base64Encoded: payload),
+              let claims = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
+        return claims["cognito:groups"] as? [String] ?? []
     }
 
     private func clear() {
@@ -140,6 +154,7 @@ final class AuthModel {
         email = nil
         nickname = nil
         userSub = nil
+        isAdmin = false
     }
 
     private func normalized(_ email: String) -> String {
