@@ -51,19 +51,39 @@ Browser/PWA → CloudFront → S3 (static SPA)
 
 ```
 src/
-├── App.tsx                  # Root: recipe CRUD, search state, auth gating
+├── App.tsx                  # Routes (/, /recipe/:id, /recipe/:id/cook, /recipe/:id/edit, /new, /import…) + sheets, login, profile prompt
 ├── main.tsx                 # React root + service worker registration
+├── types.ts                 # Recipe type (shared shape with the API and iOS Recipe.swift)
 ├── auth/amplify.ts          # Amplify + Cognito SRP config (reads VITE_ env vars)
+├── state/AppContext.tsx     # App-wide state: recipes + CRUD, auth (userSub, isAdmin), favorites, toasts, sheets, in-flight import
 ├── hooks/
 │   ├── useCognitoAuth.ts    # Auth state management
+│   ├── useScrollLock.ts     # Lock page scroll while modals/sheets are open
 │   └── useWakeLock.ts       # Keep screen on during cook mode
-├── lib/storage.ts           # Storage adapter abstraction
-├── components/              # One .tsx + .css per component
-│   ├── RecipeList.tsx       # Card grid with search result highlighting
-│   ├── RecipeForm.tsx       # Add/edit form
-│   ├── DetailsModal.tsx     # Recipe detail view (editable)
-│   ├── CookModal.tsx        # Read-only cook mode
-│   └── LoginModal.tsx       # Cognito sign in/up
+├── lib/
+│   ├── storage.ts           # Storage adapter abstraction
+│   ├── search.ts            # Fuse.js search + tag:/ing: scopes
+│   ├── draft.ts             # Recipe ↔ editor draft ↔ AI extract conversions
+│   ├── extract.ts           # /ai/extract-recipe client
+│   ├── images.ts            # Image URL resolution, resize, presigned upload
+│   ├── quantity.ts          # Ingredient amount parsing/scaling (iOS Quantity.swift is checked against it)
+│   ├── favorites.ts         # Per-user favorites in localStorage
+│   ├── kitchenTalk.ts       # Kitchen-themed status/error copy
+│   └── quickTips.ts         # Bundled cooking tips
+├── screens/                 # One per route, .tsx + .css
+│   ├── HomeScreen.tsx       # Recipe grid, search, favorites filter
+│   ├── DetailScreen.tsx     # Recipe page (servings scaling, ingredient checklist)
+│   ├── EditorScreen.tsx     # Add/edit/delete (Delete only for the creator or an admin)
+│   ├── CookScreen.tsx       # Step-by-step cook mode
+│   └── ImportScreens.tsx    # Scan/link import: processing, review, failure
+├── components/              # Shared pieces, .tsx + .css
+│   ├── AddSheets.tsx        # "+" sheet (scan a card, paste a link/text/screenshot, type it) + PasteSheet
+│   ├── LoginModal.tsx       # Cognito sign in/up (invite code)
+│   ├── CompleteProfile.tsx  # Kitchen nickname prompt
+│   ├── ConfirmDialog.tsx    # Confirm modal (renders into #modal-root)
+│   ├── QuickView.tsx        # Long-press a card: tick ingredients you already have
+│   ├── TabBar.tsx, QuickTips.tsx, IngredientChecklist.tsx, CookSpinner.tsx, …
+│   └── ui/                  # Sheet, Toast and other primitives
 └── icons/Icons.tsx          # Custom SVG icon components
 ```
 
@@ -110,14 +130,17 @@ ios/MealsByMaggie/
 ├── RecipeAPI.swift          # Mirrors RemoteAdapter (storage.ts) + uploadImage (images.ts)
 ├── RecipeStore.swift        # Shared recipe list + save/delete + toast (AppContext.tsx)
 ├── RecipeDraft.swift        # Editor state + conversions (draft.ts), parseIngredientLine port (quantity.ts)
+├── ContentView.swift        # Root: recipe list, toast, nickname prompt on launch (App.tsx)
 ├── RecipeListView.swift     # HomeScreen.tsx + floating "+" add button
-├── RecipeDetailView.swift   # DetailScreen.tsx; edit pencil when signed in
+├── RecipeDetailView.swift   # DetailScreen.tsx; share button, edit pencil when signed in
+├── PhotoViewer.swift        # Full-screen zoomable recipe photo (iOS only)
 ├── RecipeEditorView.swift   # EditorScreen.tsx (add/edit/delete, photo, AI review banner + flag answers)
 ├── RecipeImport.swift       # ImportJob, /ai/extract-recipe client (extract.ts), draftFromExtract port
 ├── ImportViews.swift        # AddSheets.tsx + ImportScreens.tsx; VisionKit document scanner for cards
 ├── CookView.swift           # CookScreen.tsx (screen stays on, progress saved in UserDefaults)
 ├── Quantity.swift           # splitQty/formatQty/scaleAmount port (quantity.ts), checked against the JS
 ├── Favorites.swift          # Per-user favorites in UserDefaults, keyed by Cognito sub (favorites.ts)
+├── CookSpinner.swift        # Bobbing pot loader (CookSpinner.tsx)
 └── IngredientChecklist.swift
 ```
 
