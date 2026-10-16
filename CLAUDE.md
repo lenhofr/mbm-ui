@@ -132,3 +132,7 @@ When porting a web screen, read its `.tsx` + `.css` and keep the Swift view's co
 - **Error messages** use kitchen-themed text (see `App.tsx`).
 - **Pre-commit hook** enforces `terraform fmt` — run `npm run install-hooks` after cloning.
 - **Terraform state** is remote (S3 + DynamoDB locking); see `terraform/README.md` before running `plan`/`apply`.
+
+## Planned Work
+
+- **Recipe circles (groups, sharing, per-recipe visibility):** full design in `docs/recipe-circles.md`. Read it before touching recipe authorization, the recipes/circles tables, or sharing UI; it also lists security fixes (ownership checks, mass assignment, unpaginated scan) planned for Phase 1.
