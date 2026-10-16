@@ -373,7 +373,7 @@ private struct RecipeCard: View {
         VStack(alignment: .leading, spacing: 0) {
             Color.clear
                 .aspectRatio(1, contentMode: .fit)
-                .overlay { RecipeImage(url: recipe.imageURL, title: recipe.title) }
+                .overlay { RecipeImage(url: recipe.imageURL, title: recipe.title, aiTag: recipe.isAiSketch ? .init() : nil) }
                 .clipShape(RoundedRectangle(cornerRadius: 18))
 
             Text(recipe.title)
@@ -436,16 +436,44 @@ struct RecipeImage: View {
     let url: URL?
     let title: String
     var letterSize: CGFloat = 52
+    /// Shows the "AI sketch" tag (`.ai-tag` in ui.css); nil hides it.
+    var aiTag: AITagStyle?
+
+    struct AITagStyle {
+        var fontSize: CGFloat = 11
+        var inset = EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 0)
+    }
 
     var body: some View {
         AsyncImage(url: url) { phase in
             if let image = phase.image {
                 image.resizable().scaledToFill()
+                    .overlay(alignment: .bottomLeading) {
+                        if let aiTag { tag(aiTag) }
+                    }
             } else if url != nil, phase.error == nil {
                 Color.chip
             } else {
                 placeholder
             }
+        }
+    }
+
+    private func tag(_ style: AITagStyle) -> some View {
+        Label("AI sketch", systemImage: "sparkles")
+            .font(.inter(style.fontSize, weight: .semibold))
+            .labelStyle(TightLabelStyle())
+            .foregroundStyle(.white)
+            .padding(.horizontal, style.fontSize * 0.75)
+            .padding(.vertical, style.fontSize * 0.4)
+            .background(Color.plum, in: Capsule())
+            .padding(style.inset)
+            .accessibilityLabel("AI sketch, not a photo of the dish")
+    }
+
+    private struct TightLabelStyle: LabelStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            HStack(spacing: 4) { configuration.icon; configuration.title }
         }
     }
 

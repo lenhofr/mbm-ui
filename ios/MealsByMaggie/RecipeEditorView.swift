@@ -156,7 +156,8 @@ struct RecipeEditorView: View {
                     .overlay { photoPreview }
                     .clipShape(RoundedRectangle(cornerRadius: 18))
                     .overlay(alignment: .bottomTrailing) {
-                        Label("Change photo", systemImage: "camera")
+                        Label(draft.newPhoto == nil && draft.image?.hasPrefix("ai-sketches/") == true ? "AI sketch · Add a real photo" : "Change photo",
+                              systemImage: "camera")
                             .font(.inter(13, weight: .medium))
                             .foregroundStyle(Color.plum)
                             .padding(.horizontal, 11)

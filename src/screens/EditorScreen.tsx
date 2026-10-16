@@ -5,7 +5,7 @@ import { Icon } from '../icons/Icons'
 import { Stepper } from '../components/ui'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { blankDraft, draftFromRecipe, normalizeTag } from '../lib/draft'
-import { isHeic, resizeDishPhoto, resolveImageUrl } from '../lib/images'
+import { isAiSketch, isHeic, resizeDishPhoto, resolveImageUrl } from '../lib/images'
 import type { Draft, DraftRow, Flag } from '../types'
 import { pick, talk } from '../lib/kitchenTalk'
 import './EditorScreen.css'
@@ -186,7 +186,7 @@ export function Editor({ initial, canDelete = false }: { initial: Draft; canDele
           onClick={() => fileRef.current?.click()}
         >
           {photo
-            ? <span className="photo-change"><Icon name="camera" size={16} />Change photo</span>
+            ? <span className="photo-change"><Icon name="camera" size={16} />{isAiSketch(d.image) ? 'AI sketch · Add a real photo' : 'Change photo'}</span>
             : <><Icon name="camera" size={24} /><span>Add a photo of the dish</span></>}
         </button>
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={pickPhoto} />

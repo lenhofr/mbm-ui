@@ -13,7 +13,7 @@ struct RecipeDetailView: View {
     var body: some View {
         Group {
             if let recipe = store.recipe(id: recipeID) {
-                RecipeDetailBody(recipe: recipe)
+                RecipeDetailBody(recipe: recipe, onAddPhoto: auth.isSignedIn ? { isEditing = true } : nil)
             } else {
                 Color.appBackground.ignoresSafeArea()
             }
@@ -60,6 +60,8 @@ struct RecipeDetailView: View {
 
 private struct RecipeDetailBody: View {
     let recipe: Recipe
+    /// Opens the editor from the AI sketch note; nil when signed out.
+    var onAddPhoto: (() -> Void)?
     @State private var checked: Set<Int> = []
     /// Servings the user wants to cook; amounts scale from the recipe's own servings.
     @State private var servings: Int?
@@ -77,7 +79,9 @@ private struct RecipeDetailBody: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                RecipeImage(url: recipe.imageURL, title: recipe.title, letterSize: 110)
+                // The tag sits above the body's rounded top, which overlaps the photo by 28pt.
+                RecipeImage(url: recipe.imageURL, title: recipe.title, letterSize: 110,
+                            aiTag: recipe.isAiSketch ? .init(fontSize: 13, inset: EdgeInsets(top: 0, leading: 16, bottom: 40, trailing: 0)) : nil)
                     .frame(height: 330)
                     .frame(maxWidth: .infinity)
                     .clipped()
@@ -154,6 +158,26 @@ private struct RecipeDetailBody: View {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
+    /// "That picture is an AI sketch…" (`.d-sketch` in DetailScreen.css).
+    private var sketchNote: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "camera")
+                .foregroundStyle(Color.plum)
+            Text("That picture is an AI sketch, not the real dish. Next cook up: snap a photo of yours!")
+                .font(.inter(13.5))
+                .foregroundStyle(Color.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let onAddPhoto {
+                Button("Add photo", action: onAddPhoto)
+                    .font(.inter(15, weight: .bold))
+                    .foregroundStyle(Color.plum)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.dash, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(recipe.title)
@@ -172,6 +196,7 @@ private struct RecipeDetailBody: View {
                     .foregroundStyle(Color.muted)
                     .padding(.top, 8)
             }
+            if recipe.isAiSketch { sketchNote.padding(.top, 14) }
             if let tags = recipe.tags, !tags.isEmpty {
                 FlowLayout(spacing: 8) {
                     ForEach(tags, id: \.self) { tag in

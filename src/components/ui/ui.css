@@ -20,10 +20,12 @@
 @keyframes mbm-toast { 0% { opacity: 0; transform: translate(-50%, -10px); } 10%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
 
 /* Recipe image / fallback */
-.rimg { width: 100%; height: 100%; overflow: hidden; }
+.rimg { width: 100%; height: 100%; overflow: hidden; position: relative; }
 .mbm .rimg img { width: 100%; height: 100%; object-fit: cover; display: block; max-width: none; }
 .rimg.noimg { background: repeating-linear-gradient(135deg, #f8eaf1 0 10px, #f3e1ea 10px 20px); display: grid; place-items: center; }
 .rimg.noimg span { font: 52px Lobster, cursive; color: var(--plum); opacity: .45; }
+.rimg .ai-tag { position: absolute; left: 8px; bottom: 8px; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background: var(--plum); color: #fff; font: 600 11px Inter, sans-serif; letter-spacing: .02em; pointer-events: none; }
+.rimg.qv-thumb .ai-tag { display: none; }
 
 /* Stepper */
 .stepper { display: flex; align-items: center; justify-content: space-between; height: 48px; border-radius: 12px; border: 1px solid var(--line); background: #fff; padding: 0 4px; box-sizing: border-box; }

@@ -43,6 +43,8 @@ Browser/PWA → CloudFront → S3 (static SPA)
 
 **Search:** Fuse.js with debouncing. Supports scoped queries: `tag:<term>` and `ing:<term>` in addition to full-text.
 
+**AI sketches:** recipes without a photo can get a grayscale pencil sketch from `scripts/ai-sketches.mjs` (Bedrock Nova Canvas; `generate` to review locally, then `apply`). They're stored under the `ai-sketches/` S3 prefix, which is how web (`isAiSketch` in `images.ts`) and iOS (`Recipe.isAiSketch`) know to show the "AI sketch" tag and the "add a real photo" nudge. Sketches are never generated automatically on save.
+
 **Modal pattern:** Modal components render into `document.getElementById('modal-root')` (separate from `#root`).
 
 **PWA:** Service worker at `/sw.js` handles offline caching. `manifest.webmanifest` + Apple-specific meta tags support "Add to Home Screen" on iOS.
