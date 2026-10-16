@@ -36,6 +36,8 @@ struct RecipeDraft {
     var initialFlagCount = 0
 
     var id: String?
+    /// Cognito sub of the cook who added the recipe; only they (or an admin) can delete it.
+    var createdBySub: String?
     var title = ""
     var description = ""
     var cookTime = ""
@@ -58,6 +60,7 @@ struct RecipeDraft {
     init(recipe: Recipe) {
         source = .edit
         id = recipe.id
+        createdBySub = recipe.createdBySub
         title = recipe.title
         description = recipe.description ?? ""
         cookTime = recipe.cookTime ?? ""

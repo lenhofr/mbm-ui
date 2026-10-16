@@ -15,6 +15,8 @@ import ai_extract  # noqa: E402
 
 RECIPES_TABLE = os.environ.get('RECIPES_TABLE')
 RATINGS_TABLE = os.environ.get('RATINGS_TABLE')
+# Cognito group whose members can delete any recipe (aws_cognito_user_group.admins).
+ADMIN_GROUP = 'admins'
 
 BEDROCK_MODEL = "us.anthropic.claude-sonnet-4-6"
 # For ~10x cost reduction with slightly lower quality, switch to: us.anthropic.claude-haiku-4-5
@@ -218,10 +220,17 @@ def handler(event, context):
             or 'user'
         )
 
+        # Cognito groups: a list in a decoded token; API Gateway's JWT authorizer
+        # passes list claims as a string like "[admins]".
+        groups = claims.get('cognito:groups') or []
+        if isinstance(groups, str):
+            groups = groups.strip('[]').replace(',', ' ').split()
+
         return {
             'sub': sub,
             'email': email,
             'name': name,
+            'groups': list(groups),
         }
 
     # Recipes
@@ -320,6 +329,15 @@ def handler(event, context):
             if not recipe_id:
                 return response(400, {'message': 'Missing id'})
             try:
+                # Only the cook who added a recipe, or an admin, can delete it (anyone
+                # signed in can edit). Recipes saved before attribution are admin-only.
+                existing = table.get_item(Key={'recipeId': recipe_id}).get('Item')
+                if not existing:
+                    return response(204, {})
+                ident = get_identity()
+                is_owner = bool(ident.get('sub')) and existing.get('createdBySub') == ident.get('sub')
+                if not (is_owner or ADMIN_GROUP in ident.get('groups', [])):
+                    return response(403, {'message': 'Only the cook who added this recipe can delete it'})
                 table.delete_item(Key={'recipeId': recipe_id})
                 return response(204, {})
             except ClientError as e:

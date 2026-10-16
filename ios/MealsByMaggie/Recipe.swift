@@ -12,6 +12,7 @@ struct Recipe: Codable, Identifiable, Hashable {
     var servings: String?
     var cookTime: String?
     var instructions: [String]?
+    var createdBySub: String?
     var createdByName: String?
     var updatedByName: String?
     var createdAt: Double?

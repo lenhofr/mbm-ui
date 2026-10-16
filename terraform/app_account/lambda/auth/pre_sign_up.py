@@ -4,13 +4,24 @@ from botocore.exceptions import ClientError
 TABLE = os.environ.get('INVITES_TABLE')
 ddb = boto3.client('dynamodb')
 
+def _stored_code(code):
+    """Invite codes are generated in uppercase, but people type them in any case.
+    Use the code as typed if it exists (older codes may have lowercase letters),
+    else its uppercase form."""
+    upper = code.upper()
+    if upper == code:
+        return code
+    found = ddb.get_item(TableName=TABLE, Key={"code": {"S": code}, "sk": {"S": "META"}}).get("Item")
+    return code if found else upper
+
 def handler(event, _ctx):
     # minimal safe placeholder: deny missing code, allow if exists and mark used
     attrs = (event.get('request') or {}).get('userAttributes') or {}
     email = attrs.get('email') or ''
-    code  = attrs.get('custom:invite')
+    code  = (attrs.get('custom:invite') or '').strip()
     if not code:
         raise Exception(json.dumps({'message': 'Missing invite code'}))
+    code = _stored_code(code)
 
     now = int(time.time())
     used_at_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now))

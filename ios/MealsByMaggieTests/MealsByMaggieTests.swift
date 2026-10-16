@@ -147,3 +147,22 @@ struct ImportDetectionTests {
         #expect(text == "Hello world\nBye")
     }
 }
+
+struct TokenGroupsTests {
+    /// A JWT with `payload` (header and signature are never checked).
+    private func token(_ payload: String) -> String {
+        let body = Data(payload.utf8).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+        return "eyJhbGciOiJSUzI1NiJ9.\(body).sig"
+    }
+
+    @Test func readsCognitoGroups() {
+        #expect(AuthModel.groups(inToken: token(#"{"sub":"a","cognito:groups":["admins"]}"#)) == ["admins"])
+    }
+
+    @Test func noGroupsClaim() {
+        #expect(AuthModel.groups(inToken: token(#"{"sub":"a","nickname":"Rob?"}"#)).isEmpty)
+        #expect(AuthModel.groups(inToken: "not-a-jwt").isEmpty)
+    }
+}

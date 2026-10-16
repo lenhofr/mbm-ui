@@ -95,3 +95,57 @@ def test_update_clears_fields_left_out_of_the_body(monkeypatch):
     assert 'image' not in updated
     # Creation metadata survives the update.
     assert updated['createdAt'] == created['createdAt']
+
+
+def _as(sub, groups=None):
+    """requestContext claims as API Gateway's JWT authorizer passes them."""
+    claims = {'sub': sub}
+    if groups is not None:
+        claims['cognito:groups'] = groups
+    return {'authorizer': {'jwt': {'claims': claims}}}
+
+
+def _delete(app, recipe_id, ctx):
+    return app.handler({
+        'requestContext': {'http': {'method': 'DELETE'}, **ctx},
+        'rawPath': f'/recipes/{recipe_id}',
+        'pathParameters': {'id': recipe_id},
+    }, None)
+
+
+@mock_aws()
+def test_only_the_creator_or_an_admin_can_delete(monkeypatch):
+    dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+    table = dynamodb.create_table(
+        TableName='mbm-recipes',
+        KeySchema=[{'AttributeName': 'recipeId', 'KeyType': 'HASH'}],
+        AttributeDefinitions=[{'AttributeName': 'recipeId', 'AttributeType': 'S'}],
+        BillingMode='PAY_PER_REQUEST'
+    )
+    table.wait_until_exists()
+    monkeypatch.setenv('RECIPES_TABLE', 'mbm-recipes')
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    recipes_app = load_module(os.path.join(repo_root, 'recipes', 'app.py'))
+
+    def create(ctx):
+        return json.loads(recipes_app.handler({
+            'requestContext': {'http': {'method': 'POST'}, **ctx},
+            'rawPath': '/recipes',
+            'body': json.dumps({'title': 'Soup'}),
+        }, None)['body'])['recipeId']
+
+    # Someone else can't delete it, even though anyone can edit.
+    mine = create(_as('cook-a'))
+    assert _delete(recipes_app, mine, _as('cook-b'))['statusCode'] == 403
+    assert 'Item' in table.get_item(Key={'recipeId': mine})
+    assert _delete(recipes_app, mine, _as('cook-a'))['statusCode'] == 204
+    assert 'Item' not in table.get_item(Key={'recipeId': mine})
+
+    # Admins can delete anyone's recipe; the authorizer sends groups as "[admins]".
+    theirs = create(_as('cook-a'))
+    assert _delete(recipes_app, theirs, _as('cook-b', '[admins]'))['statusCode'] == 204
+
+    # Recipes saved before attribution have no creator: admin-only.
+    table.put_item(Item={'recipeId': 'old', 'title': 'Old'})
+    assert _delete(recipes_app, 'old', _as('cook-a'))['statusCode'] == 403
+    assert _delete(recipes_app, 'old', _as('cook-a', ['admins']))['statusCode'] == 204

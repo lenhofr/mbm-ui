@@ -13,6 +13,11 @@ resource "aws_dynamodb_table" "recipes" {
     type = "S"
   }
 
+  # Restore to any second in the last 35 days if recipes are deleted or overwritten.
+  point_in_time_recovery {
+    enabled = true
+  }
+
   tags = {
     Name = "mbm-recipes"
   }
@@ -356,6 +361,14 @@ resource "aws_cognito_user_pool" "mbm" {
   }
 }
 
+
+# Members can delete any recipe (others only their own; see recipes/app.py).
+# Add people in the Cognito console: User pool → Groups → admins → Add user.
+resource "aws_cognito_user_group" "admins" {
+  name         = "admins"
+  user_pool_id = aws_cognito_user_pool.mbm.id
+  description  = "Can delete any recipe"
+}
 
 resource "aws_cognito_user_pool_client" "spa" {
   name         = "mbm-spa-client"
