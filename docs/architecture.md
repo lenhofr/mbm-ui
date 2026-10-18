@@ -37,10 +37,8 @@ flowchart TD
 
   subgraph Data
     DDBRec[(DynamoDB: recipes)]
-    DDBRate[(DynamoDB: ratings)]
     S3Img[(S3 Bucket: images<br/>CORS for PUT/POST)]
     LRec --> DDBRec
-    LRec --> DDBRate
     LImg --> S3Img
   end
 
@@ -55,7 +53,7 @@ flowchart TD
 - Static site: SPA assets are served from S3 through CloudFront using an Origin Access Control (OAC). CloudFront maps SPA 403/404 to `index.html` for client-side routing.
 - DNS/TLS: Route53 provides apex and `www` aliases to CloudFront. ACM cert (in us-east-1) is attached to CloudFront. SES verifies the sending domain with DKIM and an optional custom MAIL FROM.
 - Auth: The SPA uses Cognito (Amplify SRP). A pre-sign-up Lambda validates invite codes in DynamoDB.
-- API: API Gateway (HTTP API) fronts Lambdas. Public routes: `GET /recipes`, `GET /recipes/{id}`, `GET /ratings`, `GET /images/{key+}`. Auth-required routes (JWT): `POST /recipes`, `PUT /recipes/{id}`, `DELETE /recipes/{id}`, `POST /ratings`, `POST /images`.
+- API: API Gateway (HTTP API) fronts Lambdas. Public routes: `GET /recipes`, `GET /recipes/{id}`, `GET /images/{key+}`. Auth-required routes (JWT): `POST /recipes`, `PUT /recipes/{id}`, `DELETE /recipes/{id}`, `POST /ai/extract-recipe`, `POST /images`. Recipe bodies are validated against the editable fields in `lambda/recipes/recipe_input.py`; anyone signed in can edit, only the creator or an admin can delete. (The old `/ratings` routes were removed; the `mbm-ratings` table is kept but unused.)
 - Images: The images Lambda returns presigned PUT/POST data for uploads and redirects `GET /images/{key}` to a presigned GET URL.
 - Observability: Lambdas and API write to CloudWatch Logs. CloudFront logs to a dedicated S3 bucket with lifecycle management.
 
