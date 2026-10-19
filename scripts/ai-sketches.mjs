@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Ink-sketch placeholder images for recipes that have no photo.
+ * Line-drawing placeholder images for recipes that have no photo.
  *
- * The sketches are deliberately obviously-not-a-photo (black ink line drawings) and
+ * The sketches are deliberately obviously-not-a-photo (simple black line drawings) and
  * live under the ai-sketches/ S3 prefix, which is what makes the web and iOS apps show
  * the "AI sketch" tag (isAiSketch in src/lib/images.ts, Recipe.isAiSketch on iOS).
  * Uploading a real photo replaces the key with uploads/…, so the tag goes away by itself.
@@ -51,15 +51,16 @@ const PREFIX = 'ai-sketches/'
 const OUT_DIR = path.resolve('tmp_artifacts/ai-sketches')
 const MANIFEST = path.join(OUT_DIR, 'manifest.json')
 
-// Pen-and-ink line art on plain white (think vintage cookbook / coloring book). Don't
+// Simple black line drawing on plain white (coloring-book / doodle level of detail). Don't
 // mention paper or pencils: the model then draws a photo of a sketchbook instead.
 const STYLE =
-  'Hand-drawn black ink line art illustration, clean confident outlines, stippling and hatching for shading, ' +
-  'flat pure white background, the dish isolated in the center with empty space around it, ' +
-  'vintage cookbook engraving style, black and white only.'
+  'Simple minimalist line drawing, a few bold uniform black outlines, no shading, no hatching, ' +
+  'coloring book style doodle, just the dish on a plain plate, centered, flat pure white background, ' +
+  'lots of empty space, black lines on white only.'
 const NEGATIVE =
-  'photo, photograph, photorealistic, realistic, 3d render, soft gradients, grayscale photo, color, ' +
-  'paper texture, sketchbook, notebook, pencil, pen, table, wood, background scene, ' +
+  'photo, photograph, photorealistic, realistic, detailed, intricate, fine detail, hatching, cross-hatching, ' +
+  'stippling, engraving, shading, shadows, gradients, texture, 3d render, color, grayscale, ' +
+  'paper, sketchbook, notebook, pencil, pen, table, cutlery, fork, spoon, napkin, jars, props, background scene, ' +
   'text, letters, words, signature, handwriting, watermark, logo, hands, people'
 
 function promptFor(r) {
@@ -71,7 +72,7 @@ function promptFor(r) {
     .slice(0, 5)
   // Just the dish and a few ingredients; long descriptions pull the model toward food photography.
   const title = clean(r.title).replace(/\s+-\s+.*$/, '')
-  let dish = `Ink drawing of a plate of ${title}`
+  let dish = `Simple line drawing of a plate of ${title}`
   if (ingredients.length) dish += ` (${ingredients.join(', ')})`
   return `${dish}. ${STYLE}`
 }
