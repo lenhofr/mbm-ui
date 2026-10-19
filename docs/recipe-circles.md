@@ -115,7 +115,7 @@ Routes (see `aws_apigatewayv2_route.*`):
 
 - **User**: a Cognito identity, keyed by `sub` (immutable). Never key anything by email, because email is mutable.
 - **Recipe**: owned by exactly one user (`ownerSub`). Ownership can be transferred (§6.6).
-- **Circle**: a named group. In code it's always called `circle`. The UI label is an open question (§14): "Kitchen", "Cookbook" or "Circle".
+- **Circle**: a named group. In code it's always called `circle`. In the UI it's a **brigade** (§3.2).
 - **Membership**: (circle, user, role).
 - **Share edge**: (circle, recipe). It means the recipe is visible to the circle's members.
 - **Public**: a recipe flag. Public recipes are readable by anyone, including anonymous users.
@@ -131,8 +131,6 @@ Roles rank as `member < editor < owner`.
 | Read recipe | ✅ | ✅ if shared to circle | ✅ if shared | ✅ if shared | public only | public only |
 | Edit recipe content (`EDITABLE_FIELDS`) | ✅ | ✅ if shared | ✅ if shared | ❌ | ❌ | ❌ |
 | Delete recipe | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-
-**Admins** (the `admins` Cognito group) can also delete any recipe today (#120). Proposed: they keep that once circles exist; see §14.7.
 | Change sharing (public flag, add/remove circles) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Remove a recipe from *this* circle (unshare) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Share *own* recipe into circle | – | ✅ | ✅ | ✅ | ❌ | ❌ |
@@ -142,10 +140,53 @@ Roles rank as `member < editor < owner`.
 | Leave circle | – | ✅ unless last owner | ✅ | ✅ | – | – |
 | Rename / delete circle | – | ✅ | ❌ | ❌ | ❌ | ❌ |
 
+**Admins** (the `admins` Cognito group) can also delete any recipe today (#120). Proposed: they keep that once circles exist; see §14.7.
+
 Rationale:
 - **Editors may edit content but not sharing.** Otherwise an editor in circle A could make a recipe public, or push it into circle B. That is privilege escalation across audiences, so content edits and sharing are **separate endpoints** (§7).
 - **Only the owner deletes** (plus admins, if §14.7 is accepted). A circle editor can unshare a recipe from their circle, which removes it from that audience, but can't destroy someone else's data.
 - `editor` keeps today's family behavior, where everyone edits everything. The migration (§10) makes all current users editors of the founding circle.
+
+### 3.2 UI naming: the kitchen brigade
+
+**Decision (2026-10-17):** in the UI, a circle is a **brigade**, after Escoffier's *brigade de cuisine*. Escoffier brought the discipline he saw in the French army during the Franco-Prussian War into the kitchen and gave every cook a defined station. The three circle roles map onto the brigade's best-known ranks.
+
+**Only display strings change.** Code, API paths, table keys, item types and log fields all keep `circle`, `owner`, `editor` and `member`. Renaming a label later should be a one-file change; renaming stored keys never should be.
+
+| Code | UI label | Short form (chips, badges) | Plain description, shown under the label |
+|---|---|---|---|
+| `circle` | Brigade (plural: Brigades) | – | A group of people who share recipes |
+| `owner` | Chef de cuisine | Chef | Runs the brigade: renames it, sets roles, removes people |
+| `editor` | Sous-chef | Sous-chef | Edits the brigade's recipes and invites people |
+| `member` | Commis | Commis | Cooks from the brigade's recipes and shares their own |
+
+**Copy rules**
+- **Always pair a French role with its plain description** wherever someone picks or reads a role: the role picker, the member list, and the invite role selector. Many users won't know the terms, and the description is what tells them what they can do.
+- **Keep the hierarchy light.** Escoffier's brigade was strict; this app is a family sharing recipes. In the UI:
+  - say "Change role", "Make Sous-chef" or "Make Commis", not "promote", "demote" or "rank";
+  - keep "Leave brigade" visible on the brigade screen, never buried in a menu.
+- **Brigade names stand alone.** Home filter chips show only the brigade's name ("Lenhof Family"), not "Lenhof Family Brigade", to keep chips short on an iPhone SE.
+- **The founding circle keeps its name**, "Maggie's Kitchen". A brigade called Maggie's Kitchen reads fine.
+- **No accents needed.** "Sous-chef", "Chef de cuisine" and "Commis" are written without diacritics in English, so there's no special handling for search or sorting.
+
+**Strings** (keep them in one module per client, `src/lib/brigadeCopy.ts` and `ios/MealsByMaggie/BrigadeCopy.swift`, so a future rename touches only those two files):
+
+| Where | String |
+|---|---|
+| Account sheet entry | Your brigades |
+| Brigades list, empty state | You're not in a brigade yet. Start one, or ask for an invite code. |
+| Create button / name placeholder | Start a brigade / e.g. Lenhof Family |
+| Explainer (one tappable line on `/brigades`) | What's a brigade? Chef Auguste Escoffier organized his kitchens into a *brigade de cuisine*, where every cook had a role. Yours works the same way, with less shouting. |
+| Invite button / share-sheet text | Invite to brigade / Join my brigade on Meals by Maggie: {url} |
+| Join screen title / button | You're invited to join {brigadeName} / Join the brigade |
+| Join success toast | Welcome to {brigadeName}! |
+| Role change notice | {actorName} made you a {roleLabel} |
+| Leave button / confirm | Leave brigade / Your recipes leave with you. (matches §6.5) |
+| Delete button / confirm | Delete brigade / Recipes stay with their owners; they're just no longer shared here. |
+| ShareSheet heading | Share with your brigades |
+| Editor sharing row | Sharing: {brigadeName or "Only me"} ▸ |
+| Detail badge | In {brigadeName} (or "In {n} brigades") |
+| Last owner can't leave (400 from I3) | Every brigade needs a Chef. Make someone else Chef before you leave. |
 
 ---
 
@@ -788,12 +829,12 @@ export type FeedScope = { kind: 'all' } | { kind: 'mine' } | { kind: 'circle'; i
   - a "Public" toggle with a confirm dialog (`ConfirmDialog.tsx`) worded like "Anyone on the internet can see this"
   - Save calls `setSharing`
 - **EditorScreen.** On create, show a compact "Sharing: Maggie's Kitchen ▸" row that opens the ShareSheet, defaulting to `lastSharing`. On save, send `sharing`. On a 409, show a kitchen-themed message and reload.
-- **Circles screens.** New routes:
-  - `/circles` (list + create)
-  - `/circles/:id` (members, roles, invites, leave/delete)
+- **Brigades screens.** All copy comes from `src/lib/brigadeCopy.ts` (§3.2). New routes. These are user-facing URLs, so they say "brigades", while the API stays `/circles`:
+  - `/brigades` (list + create, with the "What's a brigade?" explainer)
+  - `/brigades/:id` (members with role labels and descriptions, invites, leave/delete)
   - `/join` (reads `?code=`, requires sign-in, calls `joinCircle`, then navigates to `/` with that circle's scope)
 
-  Add an entry point from the account sheet or the TabBar. TabBar real estate is tight (Recipes / + / Favorites), so put Circles in the account sheet.
+  Add an entry point from the account sheet or the TabBar. TabBar real estate is tight (Recipes / + / Favorites), so put "Your brigades" in the account sheet.
 - **Errors.** Keep the kitchen-themed copy (`src/lib/kitchenTalk.ts`). Add lines for 403 ("That's not your recipe to change") and 409.
 - **Tests** (vitest + jsdom, following `screens.test.tsx`):
   - pencil hidden when `canEdit` is false
@@ -815,6 +856,7 @@ Mirror the web, and keep the Swift comments pointing at the web sources (per `CL
 - `RecipeStore.swift`: add `circles`, `scope`, and reload on auth change.
 - `RecipeListView.swift`: add the chip row.
 - `RecipeDetailView.swift`: gate the edit button on `recipe.access?.canEdit == true` (lines 39–51), and add share and copy buttons.
+- Put every brigade string and role label in `BrigadeCopy.swift`, mirroring `src/lib/brigadeCopy.ts` (§3.2).
 - Handle universal links for `/join?code=`. That needs Associated Domains, which needs a paid team; until then, add a "Join with code" text field in the account view.
 - Add `ios/MealsByMaggieTests` coverage for decoding the new fields, including old payloads without them.
 
@@ -1007,7 +1049,7 @@ Order matters:
   - A circle code without `allowSignup` can't create an account.
 
 ### Phase 3: web UI
-- [ ] Data layer (§9.1), Home chips, Detail gating, ShareSheet, editor sharing row, Circles screens, `/join`.
+- [ ] Data layer (§9.1), Home chips, Detail gating, ShareSheet, editor sharing row, Brigades screens with `brigadeCopy.ts`, `/join`.
 - [ ] `npm test` and `npm run test:ios-overflow` both pass. Update the visual regression snapshots (`src/visual-regression.test.tsx`) intentionally.
 
 ### Phase 4: iOS parity
@@ -1020,7 +1062,7 @@ Order matters:
 
 ## 14. Open questions (need Rob/Maggie)
 
-1. **UI name** for a circle: Circle, Kitchen, Cookbook or Family? The code stays `circle`.
+1. ~~**UI name** for a circle~~ **Decided 2026-10-17:** "Brigade", with Chef de cuisine / Sous-chef / Commis role labels. See §3.2. The code stays `circle`.
 2. **Who can let new people into the app?** Proposal: only admin-minted codes (`allowSignup = true`) create accounts, and circle codes only work for existing users. Alternative: allow circle owners to mint sign-up codes, with a per-circle cap.
 3. **Default visibility for new recipes** once legacy mode is off: private, or "my last choice"? The proposal is last choice, which starts as the founding circle for migrated users.
 4. **Founding circle roles.** Should everyone stay `editor`, preserving today's everyone-edits behavior, or should some people become `member`?

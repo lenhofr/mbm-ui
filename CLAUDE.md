@@ -158,4 +158,4 @@ When porting a web screen, read its `.tsx` + `.css` and keep the Swift view's co
 
 ## Planned Work
 
-- **Recipe circles (groups, sharing, per-recipe visibility):** full design in `docs/recipe-circles.md`. Read it before touching recipe authorization, the recipes/circles tables, or sharing UI; it also lists security fixes (ownership checks, mass assignment, unpaginated scan) planned for Phase 1.
+- **Recipe circles (groups, sharing, per-recipe visibility):** full design in `docs/recipe-circles.md`. Read it before touching recipe authorization, the recipes/circles tables, or sharing UI. It also lists security fixes (ownership checks, mass assignment, unpaginated scan) planned for Phase 1. In the UI, circles are called "brigades" (§3.2), but code and API keep `circle`.
