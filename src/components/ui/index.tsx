@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Icon, type IconName } from '../../icons/Icons'
-import { resolveImageUrl } from '../../lib/images'
+import { isAiSketch, resolveImageUrl } from '../../lib/images'
 import './ui.css'
 
 export function GlassButton({ icon, onClick, label, active, dark, filled }: { icon: IconName; onClick: () => void; label: string; active?: boolean; dark?: boolean; filled?: boolean }) {
@@ -21,7 +21,10 @@ export function Toast({ msg }: { msg: { text: string; k: number } | null }) {
   )
 }
 
-/** Recipe image with a striped monogram fallback when there's no photo (or it fails to load). */
+/**
+ * Recipe image with a striped monogram fallback when there's no photo (or it fails to load).
+ * AI sketches get an "AI sketch" tag so nobody mistakes them for the real dish.
+ */
 export function RecipeThumb({ title, image, className }: { title: string; image?: string; className?: string }) {
   const [failed, setFailed] = useState(false)
   const src = resolveImageUrl(image)
@@ -35,6 +38,7 @@ export function RecipeThumb({ title, image, className }: { title: string; image?
   return (
     <div className={'rimg ' + (className || '')}>
       <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+      {isAiSketch(image) && <span className="ai-tag"><Icon name="spark" size={12} weight="bold" />AI sketch</span>}
     </div>
   )
 }

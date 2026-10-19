@@ -7,6 +7,7 @@ import { parseServings } from '../lib/quantity'
 import IngredientChecklist, { toggleIn } from '../components/IngredientChecklist'
 import { relativeTime } from '../lib/search'
 import { DEFAULT_SERVINGS } from '../lib/draft'
+import { isAiSketch } from '../lib/images'
 import type { Recipe } from '../types'
 import './DetailScreen.css'
 
@@ -50,6 +51,17 @@ function Detail({ r }: { r: Recipe }) {
           <h1 className="d-title">{r.title}</h1>
           {r.description && <p className="d-desc">{r.description}</p>}
           {by && <div className="d-by">{by}</div>}
+          {isAiSketch(r.image) && (
+            <div className="d-sketch">
+              <Icon name="camera" size={18} />
+              <p>That picture is an AI sketch, not the real dish. Next cook up: snap a photo of yours!</p>
+              {app.auth.isAuthed && (
+                <button type="button" className="link-btn strong" onClick={() => navigate(`/recipe/${encodeURIComponent(r.id)}/edit`, { state: { fromDetail: true } })}>
+                  Add photo
+                </button>
+              )}
+            </div>
+          )}
           {!!r.tags?.length && <div className="d-tags">{r.tags.map(t => <span key={t} className="chip on">{t.toLowerCase()}</span>)}</div>}
 
           <div className="d-meta">

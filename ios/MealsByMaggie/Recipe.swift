@@ -33,6 +33,10 @@ struct Recipe: Codable, Identifiable, Hashable {
         return URL(string: "\(RecipeAPI.baseURL)/images/\(encoded)")
     }
 
+    /// The image is a pencil sketch an AI drew because nobody had photographed the
+    /// dish yet (`isAiSketch` in images.ts). Real photos upload under "uploads/".
+    var isAiSketch: Bool { image?.hasPrefix("ai-sketches/") == true }
+
     /// Public web page for the recipe (the `/recipe/:id` route in App.tsx); opens
     /// in any browser without the app or an account.
     var webURL: URL? {

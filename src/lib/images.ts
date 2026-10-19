@@ -27,6 +27,17 @@ export function resolveImageUrl(img: string | undefined): string | undefined {
   return img
 }
 
+/**
+ * S3 key prefix for the pencil sketches an AI drew for recipes that had no photo
+ * (scripts/ai-sketches.mjs). Real photos are uploaded under uploads/, so replacing
+ * a sketch with a photo drops the "AI sketch" badge without any extra field.
+ */
+export const AI_SKETCH_PREFIX = 'ai-sketches/'
+
+export function isAiSketch(img: string | undefined): boolean {
+  return !!img && (toStoredImage(img) || '').startsWith(AI_SKETCH_PREFIX)
+}
+
 /** Convert an API-proxied image URL back into its stored key before saving. */
 export function toStoredImage(img: string | undefined): string | undefined {
   if (!img) return undefined
