@@ -927,6 +927,9 @@ Run it after migration and whenever something looks off. Optionally, schedule it
 ## 11. Security notes & adjacent fixes
 
 ### 11.1 Must fix as part of Phase 1 (independent of circles)
+
+**Status (2026-10-17):** items 2–5 and §11.2 are done in `fix/api-hardening` (validation lives in `lambda/recipes/recipe_input.py`). Item 1 is deliberately left for brigades: Rob chose to keep edits open to everyone signed in until per-recipe edit rights exist, so the family can keep fixing each other's recipes.
+
 1. **Ownership / authorization on PUT** (§5, §6.2). DELETE already has a creator-or-admin check (#120); Phase 1 moves it to `recipe_access()` and `ownerSub` (§6.4).
 2. **Mass assignment** on POST and PUT (I4, §7.3).
 3. **`put_item` full replace on PUT**: switch to UpdateItem (§6.2).

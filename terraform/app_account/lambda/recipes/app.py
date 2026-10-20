@@ -4,7 +4,6 @@ from decimal import Decimal
 import uuid
 import time
 import sys
-import base64
 import urllib.error
 import boto3
 from botocore.exceptions import ClientError
@@ -12,9 +11,9 @@ from botocore.exceptions import ClientError
 # Make sibling modules importable when this file is loaded by path (tests).
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ai_extract  # noqa: E402
+from recipe_input import EDITABLE_FIELDS, BadRequest, parse_recipe_body  # noqa: E402
 
 RECIPES_TABLE = os.environ.get('RECIPES_TABLE')
-RATINGS_TABLE = os.environ.get('RATINGS_TABLE')
 # Cognito group whose members can delete any recipe (aws_cognito_user_group.admins).
 ADMIN_GROUP = 'admins'
 
@@ -78,10 +77,6 @@ def response(status_code, body):
     }
 
 
-# Recipe fields the web and iOS editors own; PUT replaces these as a set.
-EDITABLE_FIELDS = ('title', 'description', 'image', 'tags', 'ingredients', 'instructions', 'servings', 'cookTime')
-
-
 def map_recipe_out(item: dict | None) -> dict | None:
     if not item:
         return None
@@ -92,6 +87,29 @@ def map_recipe_out(item: dict | None) -> dict | None:
         out['id'] = rid
         out['recipeId'] = rid
     return out
+
+
+def build_content_update(fields: dict, ident: dict, now: int):
+    """UpdateItem parts for a PUT: SET the editable fields in the body, REMOVE the rest.
+
+    Every attribute name goes through ExpressionAttributeNames, so DynamoDB reserved
+    words never matter. createdAt is backfilled for recipes saved before it existed.
+    """
+    sets, removes, names = [], [], {}
+    values = {':now': now, ':usub': ident.get('sub'), ':uname': ident.get('name')}
+    for i, field in enumerate(EDITABLE_FIELDS):
+        names[f'#f{i}'] = field
+        if field in fields:
+            sets.append(f'#f{i} = :f{i}')
+            values[f':f{i}'] = fields[field]
+        else:
+            removes.append(f'#f{i}')
+    names.update({'#ua': 'updatedAt', '#ubs': 'updatedBySub', '#ubn': 'updatedByName', '#ca': 'createdAt'})
+    sets += ['#ua = :now', '#ubs = :usub', '#ubn = :uname', '#ca = if_not_exists(#ca, :now)']
+    expr = 'SET ' + ', '.join(sets)
+    if removes:
+        expr += ' REMOVE ' + ', '.join(removes)
+    return expr, names, values
 
 
 def _get_table(name, dynamodb):
@@ -109,7 +127,6 @@ def handler(event, context):
     method = (http.get('method') or rc.get('httpMethod') or event.get('httpMethod') or '').upper()
     route_key = rc.get('routeKey', '')  # e.g., "POST /recipes"
     path_params = event.get('pathParameters') or {}
-    query = event.get('queryStringParameters') or {}
 
     # Fallback for local tests or environments that don't set routeKey
     if not route_key:
@@ -121,8 +138,6 @@ def handler(event, context):
                 route_key = f'{method} /recipes'
             elif path.startswith('/recipes/') and method in ('GET', 'PUT', 'DELETE'):
                 route_key = f'{method} /recipes/{{id}}'
-            elif path == '/ratings' and method in ('GET', 'POST'):
-                route_key = f'{method} /ratings'
             elif path == '/ai/extract-recipe' and method == 'POST':
                 route_key = 'POST /ai/extract-recipe'
 
@@ -133,8 +148,6 @@ def handler(event, context):
         'POST /recipes',
         'PUT /recipes/{id}',
         'DELETE /recipes/{id}',
-        'GET /ratings',
-        'POST /ratings',
         'POST /ai/extract-recipe',
     }
     if route_key and route_key not in expected:
@@ -149,8 +162,6 @@ def handler(event, context):
                 route_key = f'{method} /recipes'
             elif path.startswith('/recipes/') and method in ('GET', 'PUT', 'DELETE'):
                 route_key = f'{method} /recipes/{{id}}'
-            elif path == '/ratings' and method in ('GET', 'POST'):
-                route_key = f'{method} /ratings'
 
     # Normalize path for method+path matching
     norm_path = raw_path or ''
@@ -172,26 +183,9 @@ def handler(event, context):
         auth_ctx = (rc.get('authorizer') or {})
         claims = (auth_ctx.get('jwt') or {}).get('claims') or auth_ctx.get('claims') or {}
 
-        # Fallback: decode JWT from Authorization header without verification.
-        # API Gateway already enforced the JWT authorizer for protected routes, so we only use this
-        # to extract display attributes (nickname/email/etc.).
-        if not claims:
-            try:
-                authz = (event.get('headers') or {}).get('authorization') or (event.get('headers') or {}).get('Authorization')
-                if authz and isinstance(authz, str) and authz.lower().startswith('bearer '):
-                    token = authz.split(' ', 1)[1].strip()
-                    parts = token.split('.')
-                    if len(parts) == 3:
-                        payload_b64 = parts[1]
-                        # Base64url decode
-                        rem = len(payload_b64) % 4
-                        if rem:
-                            payload_b64 += '=' * (4 - rem)
-                        payload_json = base64.urlsafe_b64decode(payload_b64.encode('utf-8')).decode('utf-8')
-                        claims = json.loads(payload_json)
-            except Exception:
-                # Ignore failures; we'll fall back to defaults
-                pass
+        # Identity comes only from claims the API Gateway JWT authorizer verified. Never
+        # decode the Authorization header here: on a route without the authorizer that
+        # token is unverified, and anyone could put any sub or group in it.
 
         # Pull out common user identifiers from either ID or Access token
         sub = (claims.get('sub')
@@ -245,8 +239,15 @@ def handler(event, context):
 
         if route_key == 'GET /recipes' or (method == 'GET' and norm_path == '/recipes'):
             try:
-                res = table.scan()
-                items = res.get('Items', [])
+                # Scan returns at most 1 MB per call; follow LastEvaluatedKey so a growing
+                # recipe box doesn't silently lose its oldest recipes.
+                items, kwargs = [], {}
+                while True:
+                    res = table.scan(**kwargs)
+                    items.extend(res.get('Items', []))
+                    if 'LastEvaluatedKey' not in res:
+                        break
+                    kwargs['ExclusiveStartKey'] = res['LastEvaluatedKey']
                 return response(200, [map_recipe_out(i) for i in items])
             except ClientError as e:
                 return response(500, {'error': str(e)})
@@ -266,14 +267,15 @@ def handler(event, context):
 
         if route_key == 'POST /recipes':
             try:
-                body = json.loads(event.get('body') or '{}')
+                # Only editable fields are taken from the body (recipe_input.py); ids,
+                # attribution and timestamps are always set here.
+                fields = parse_recipe_body(event.get('body'))
                 recipe_id = str(uuid.uuid4())
                 ident = get_identity()
                 now = int(time.time())
-                # Stamp attribution and timestamps
                 item = {
                     'recipeId': recipe_id,
-                    **body,
+                    **fields,
                     'createdAt': now,
                     'createdBySub': ident.get('sub'),
                     'createdByName': ident.get('name'),
@@ -281,8 +283,10 @@ def handler(event, context):
                     'updatedBySub': ident.get('sub'),
                     'updatedByName': ident.get('name'),
                 }
-                table.put_item(Item=item)
+                table.put_item(Item=item, ConditionExpression='attribute_not_exists(recipeId)')
                 return response(201, map_recipe_out(item))
+            except BadRequest as e:
+                return response(400, {'message': str(e)})
             except ClientError as e:
                 return response(500, {'error': str(e)})
 
@@ -291,37 +295,32 @@ def handler(event, context):
             if not recipe_id:
                 return response(400, {'message': 'Missing id'})
             try:
-                body = json.loads(event.get('body') or '{}')
+                fields = parse_recipe_body(event.get('body'))
                 ident = get_identity()
                 now = int(time.time())
-
-                # Load existing to preserve created* fields if present
-                existing = table.get_item(Key={'recipeId': recipe_id}).get('Item') or {}
-                created_at = existing.get('createdAt') or now
-                created_by_sub = existing.get('createdBySub')
-                created_by_name = existing.get('createdByName')
-
-                # Clients send the whole recipe and leave out empty fields, so a content
-                # field missing from the body was cleared in the editor: drop it instead
-                # of letting the old value survive the merge. Other stored fields
-                # (attribution, anything not editable) are kept.
-                kept = {k: v for k, v in existing.items() if k not in EDITABLE_FIELDS}
-                item = {
-                    'recipeId': recipe_id,
-                    **kept,
-                    **body,
-                    # preserve original creation metadata
-                    'createdAt': created_at,
-                    'createdBySub': created_by_sub,
-                    'createdByName': created_by_name,
-                    # update modification metadata
-                    'updatedAt': now,
-                    'updatedBySub': ident.get('sub'),
-                    'updatedByName': ident.get('name'),
-                }
-                table.put_item(Item=item)
-                return response(200, map_recipe_out(item))
+                # Anyone signed in can edit (only deletes are limited); per-recipe edit
+                # rights arrive with brigades (docs/recipe-circles.md).
+                #
+                # Clients send the whole recipe and leave out empty fields, so an editable
+                # field missing from the body was cleared in the editor: REMOVE it. Update
+                # only the editable fields and updated*, so attribution and anything else
+                # stored on the item is left alone. The condition stops PUT from creating
+                # a recipe under an id the client made up.
+                expr, names, values = build_content_update(fields, ident, now)
+                res = table.update_item(
+                    Key={'recipeId': recipe_id},
+                    UpdateExpression=expr,
+                    ConditionExpression='attribute_exists(recipeId)',
+                    ExpressionAttributeNames=names,
+                    ExpressionAttributeValues=values,
+                    ReturnValues='ALL_NEW',
+                )
+                return response(200, map_recipe_out(res.get('Attributes')))
+            except BadRequest as e:
+                return response(400, {'message': str(e)})
             except ClientError as e:
+                if e.response.get('Error', {}).get('Code') == 'ConditionalCheckFailedException':
+                    return response(404, {'message': 'Not found'})
                 return response(500, {'error': str(e)})
 
         if route_key == 'DELETE /recipes/{id}':
@@ -342,31 +341,6 @@ def handler(event, context):
                 return response(204, {})
             except ClientError as e:
                 return response(500, {'error': str(e)})
-
-    # Ratings
-    if route_key in ('POST /ratings', 'GET /ratings'):
-        table = _get_table(RATINGS_TABLE, get_dynamodb())
-
-        if route_key == 'POST /ratings':
-            try:
-                body = json.loads(event.get('body') or '{}')
-                rating_id = str(uuid.uuid4())
-                item = {'ratingId': rating_id, **body}
-                table.put_item(Item=item)
-                return response(201, item)
-            except ClientError as e:
-                return response(500, {'error': str(e)})
-
-        if route_key == 'GET /ratings':
-            try:
-                res = table.scan()
-                items = res.get('Items', [])
-                if 'recipeId' in query:
-                    items = [i for i in items if i.get('recipeId') == query['recipeId']]
-                return response(200, items)
-            except ClientError as e:
-                return response(500, {'error': str(e)})
-
     # AI recipe extraction
     if route_key == 'POST /ai/extract-recipe':
         try:

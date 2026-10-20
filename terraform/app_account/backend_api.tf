@@ -2,7 +2,7 @@
 # Backend API resources
 ##########################
 
-# DynamoDB tables for recipes and ratings
+# DynamoDB tables
 resource "aws_dynamodb_table" "recipes" {
   name         = "mbm-recipes"
   billing_mode = "PAY_PER_REQUEST"
@@ -23,6 +23,8 @@ resource "aws_dynamodb_table" "recipes" {
   }
 }
 
+# Ratings were never used by the web or iOS app; their API routes and Lambda access
+# were removed. The table is kept so no data is lost; delete it once it's confirmed empty.
 resource "aws_dynamodb_table" "ratings" {
   name         = "mbm-ratings"
   billing_mode = "PAY_PER_REQUEST"
@@ -123,7 +125,7 @@ data "aws_iam_policy_document" "lambda_policy" {
       "dynamodb:UpdateItem",
       "dynamodb:DeleteItem"
     ]
-    resources = [aws_dynamodb_table.recipes.arn, aws_dynamodb_table.ratings.arn]
+    resources = [aws_dynamodb_table.recipes.arn]
   }
 
   statement {
@@ -276,7 +278,6 @@ resource "aws_lambda_function" "recipes_fn" {
   environment {
     variables = {
       RECIPES_TABLE    = aws_dynamodb_table.recipes.name
-      RATINGS_TABLE    = aws_dynamodb_table.ratings.name
       IMAGES_BUCKET    = aws_s3_bucket.images.id
       BEDROCK_ROLE_ARN = "arn:aws:iam::923988301699:role/mbm-bedrock-access"
     }
@@ -521,21 +522,6 @@ resource "aws_apigatewayv2_route" "recipes_item_delete" {
   authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
 }
 
-# Ratings
-resource "aws_apigatewayv2_route" "ratings_get" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "GET /ratings"
-  target    = "integrations/${aws_apigatewayv2_integration.recipes_integration.id}"
-}
-
-resource "aws_apigatewayv2_route" "ratings_post" {
-  api_id             = aws_apigatewayv2_api.http_api.id
-  route_key          = "POST /ratings"
-  target             = "integrations/${aws_apigatewayv2_integration.recipes_integration.id}"
-  authorization_type = "JWT"
-  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
-}
-
 # AI extraction
 resource "aws_apigatewayv2_route" "ai_extract" {
   api_id             = aws_apigatewayv2_api.http_api.id
@@ -566,7 +552,7 @@ resource "aws_lambda_permission" "allow_apigw_recipes" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.recipes_fn.function_name
   principal     = "apigateway.amazonaws.com"
-  # Allow all routes on this API to call this Lambda (covers /recipes, /recipes/{id}, /ratings)
+  # Allow all routes on this API to call this Lambda (covers /recipes, /recipes/{id}, /ai/extract-recipe)
   source_arn = "arn:aws:execute-api:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${aws_apigatewayv2_api.http_api.id}/*/*/*"
 }
 
