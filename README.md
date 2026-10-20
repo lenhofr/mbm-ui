@@ -39,11 +39,12 @@ What it does:
 The script is at `scripts/ios-overflow-check.mjs`.
 
 iOS app → TestFlight
+Merging iOS changes to `main` builds and uploads automatically through Xcode Cloud. Fallback from your Mac:
 ```bash
 git checkout main && git pull
 npm run ios:testflight   # archive + upload to App Store Connect
 ```
-See `docs/ios-release.md` for what it does and troubleshooting.
+See `docs/ios-release.md` for both paths and troubleshooting.
 
 Build & preview
 ```bash
