@@ -7,19 +7,19 @@ New iOS builds go to testers through TestFlight.
 Every merge to `main` that changes something under `ios/` starts an Xcode Cloud build. It archives, signs and uploads the app to TestFlight, and internal testers get it automatically. Nothing to run.
 
 - **Watch builds:** Xcode → Report Navigator (⌘9) → Cloud, or App Store Connect → your app → Xcode Cloud.
-- **Start one by hand:** Xcode → Product → Xcode Cloud → Start Build (or "Start Build" on the workflow in App Store Connect).
+- **Start one by hand:** Report Navigator (⌘9) → Cloud, right-click the workflow → Start Build (or "Start Build" on the workflow in App Store Connect).
 - **External testers** still need each build added to their group (see below).
 - **Plugin trust:** [`ios/ci_scripts/ci_post_clone.sh`](../ios/ci_scripts/ci_post_clone.sh) runs on Xcode Cloud after the clone and trusts the AWS SDK's `smithy-swift` plugin, the cloud equivalent of clicking "Trust & Enable". It must stay executable, in `ios/ci_scripts/` next to the `.xcodeproj`.
-- **Build numbers:** Xcode Cloud numbers builds itself, counting up from the "next build number" in App Store Connect → Xcode Cloud → Settings. It was set above the timestamp numbers the script used before (e.g. `202610161152`), since App Store Connect rejects a build number lower than one it already has.
+- **Build numbers:** Xcode Cloud numbers builds itself, counting up from the "next build number" in App Store Connect → Xcode Cloud → Settings. It's set above the timestamp numbers the script used before (e.g. `202610161152`), so new builds sort as newer than the old ones in TestFlight.
 
 ### Workflow setup (one time, done in Xcode)
 
-Product → Xcode Cloud → Create Workflow, MealsByMaggie app, grant access to the `lenhofr/mbm-ui` GitHub repo. Then:
+Integrate → Create Workflow… (or Report Navigator (⌘9) → Cloud → Get Started), MealsByMaggie app. When asked to connect GitHub, authorize Xcode Cloud and install its GitHub app on `lenhofr/mbm-ui` only; the listed package repos (apple/…, awslabs/…, aws-amplify/…) are public and need no access. Then edit the workflow:
 
 - **Start condition:** Branch Changes on `main`, only when files in `ios/` change.
 - **Environment:** latest Xcode and macOS.
-- **Action:** Archive – iOS, deployment preparation "TestFlight (Internal Testing Only)".
-- **Post-action:** TestFlight Internal Testing, to the internal group.
+- **Action:** Archive – iOS, deployment preparation "TestFlight (Internal Testing Only)". Xcode's default workflow has only a Build action, which compiles and uploads nothing; remove it.
+- **Post-action:** TestFlight Internal Testing, to the internal group (only offered once the Archive action exists).
 
 PR builds and tests stay on GitHub Actions (`.github/workflows/ios.yml`).
 
