@@ -4,11 +4,12 @@ New iOS builds go to testers through TestFlight.
 
 ## Xcode Cloud (the normal path)
 
-Every merge to `main` that changes something under `ios/` starts an Xcode Cloud build. It archives, signs and uploads the app to TestFlight, and internal testers get it automatically. Nothing to run.
+Every merge to `main` that changes something under `ios/` starts an Xcode Cloud build. It archives, signs and uploads the app to TestFlight, then sends it to the internal group and the external testers group. Nothing to run.
 
 - **Watch builds:** Xcode → Report Navigator (⌘9) → Cloud, or App Store Connect → your app → Xcode Cloud.
 - **Start one by hand:** Report Navigator (⌘9) → Cloud, right-click the workflow → Start Build (or "Start Build" on the workflow in App Store Connect).
-- **External testers** still need each build added to their group (see below).
+- **External testers** get the build once Apple's beta review passes (usually minutes to hours for an already-approved app).
+- **What to Test notes:** [`ios/ci_scripts/ci_post_xcodebuild.sh`](../ios/ci_scripts/ci_post_xcodebuild.sh) writes them after the archive, from the titles of the last three merged PRs that changed `ios/MealsByMaggie/`. PR titles are what testers read, so write them for testers. The generated file (`ios/ci_scripts/TestFlight/`) is gitignored.
 - **Plugin trust:** [`ios/ci_scripts/ci_post_clone.sh`](../ios/ci_scripts/ci_post_clone.sh) runs on Xcode Cloud after the clone and trusts the AWS SDK's `smithy-swift` plugin, the cloud equivalent of clicking "Trust & Enable". It must stay executable, in `ios/ci_scripts/` next to the `.xcodeproj`.
 - **Build numbers:** Xcode Cloud numbers builds itself, counting up from the "next build number" in App Store Connect → Xcode Cloud → Settings. It's set above the timestamp numbers the script used before (e.g. `202610161152`), so new builds sort as newer than the old ones in TestFlight.
 
@@ -18,8 +19,8 @@ Integrate → Create Workflow… (or Report Navigator (⌘9) → Cloud → Get S
 
 - **Start condition:** Branch Changes on `main`, only when files in `ios/` change.
 - **Environment:** latest Xcode and macOS.
-- **Action:** Archive – iOS, deployment preparation "TestFlight (Internal Testing Only)". Xcode's default workflow has only a Build action, which compiles and uploads nothing; remove it.
-- **Post-action:** TestFlight Internal Testing, to the internal group (only offered once the Archive action exists).
+- **Action:** Archive – iOS, deployment preparation "TestFlight and App Store" ("Internal Testing Only" builds can never go to external groups). Xcode's default workflow has only a Build action, which compiles and uploads nothing; remove it.
+- **Post-actions:** TestFlight Internal Testing (the internal group) and TestFlight External Testing (the external group). Both are only offered once the Archive action exists.
 
 PR builds and tests stay on GitHub Actions (`.github/workflows/ios.yml`).
 
@@ -44,7 +45,7 @@ The script ([`scripts/ios-testflight.sh`](../scripts/ios-testflight.sh)):
 
 - **Processing:** App Store Connect emails you when the build is processed, usually 5–30 minutes.
 - **Internal testers** (people on your App Store Connect team) get each processed build automatically.
-- **External testers** (invited by email or public link) don't: add each build to the group yourself. In App Store Connect → TestFlight, open the external group, add the build under Builds, fill in "What to Test", and submit. Apple's beta review is usually quick for later builds of an already-approved app. Testers then see an Update button in the TestFlight app.
+- **External testers** (invited by email or public link) get Xcode Cloud builds through its post-action. For builds from the script, add each one to the group yourself. In App Store Connect → TestFlight, open the external group, add the build under Builds, fill in "What to Test", and submit. Apple's beta review is usually quick for later builds of an already-approved app. Testers then see an Update button in the TestFlight app.
 
 ## Requirements
 
