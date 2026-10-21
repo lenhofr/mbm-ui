@@ -126,7 +126,31 @@ struct RecipeListView: View {
                 RecipeEditorView(draft: RecipeDraft()) { saved in path.append(saved.id) }
             }
             .task { if store.recipes.isEmpty { await store.load() } }
+            // A tapped mealsbymaggie.com/recipe/<id> link (DeepLink.swift), also on a cold launch.
+            .onOpenURL { url in
+                guard let id = DeepLink.recipeID(from: url) else { return }
+                Task { await openLinkedRecipe(id) }
+            }
         }
+    }
+
+    /// Shows a recipe from a shared link. Like DetailScreen.tsx, an unknown id doesn't
+    /// open a page; the web sends you home, here a toast says so.
+    private func openLinkedRecipe(_ id: String) async {
+        showLogin = false
+        showAccount = false
+        showAddSheet = false
+        showPaste = false
+        // Not loaded yet (cold launch) or added since the list was fetched.
+        if store.recipe(id: id) == nil { await store.load() }
+        // Offline: the list already shows the load error with "Try again".
+        guard store.loadError == nil else { return }
+        guard store.recipe(id: id) != nil else {
+            store.toast = "That recipe isn't in the box anymore"
+            return
+        }
+        // Push rather than replace, so an open editor further back isn't thrown away.
+        if path.last != id { path.append(id) }
     }
 
     /// Opens the scanner, paste sheet or blank editor after the add sheet closes

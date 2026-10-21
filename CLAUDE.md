@@ -31,6 +31,7 @@ npm run install-hooks       # Set up git pre-commit hooks (runs tf:fmt check)
 
 ```
 Browser/PWA → CloudFront → S3 (static SPA)
+                        ↳ /recipe/* → Lambda@Edge (per-recipe og: tags, falls back to index.html)
                         → API Gateway → Lambda functions → DynamoDB + S3 (images)
                                      → Cognito (auth)
 ```
@@ -44,6 +45,8 @@ Browser/PWA → CloudFront → S3 (static SPA)
 **Search:** Fuse.js with debouncing. Supports scoped queries: `tag:<term>` and `ing:<term>` in addition to full-text.
 
 **AI sketches:** recipes without a photo can get a black-ink line-art sketch from `scripts/ai-sketches.mjs` (Stability AI image model on Bedrock; `generate` to review locally, then `apply`). They're stored under the `ai-sketches/` S3 prefix, which is how web (`isAiSketch` in `images.ts`) and iOS (`Recipe.isAiSketch`) know to show the "add a real photo" nudge (no badge on the image itself; the line art is obviously not a photo). Sketches are never generated automatically on save.
+
+**Link previews & Universal Links:** `/recipe/*` has its own CloudFront behavior whose origin-request Lambda@Edge (`terraform/app_account/link_previews.tf`, code in `lambda/preview/app.py`, us-east-1, no env vars so the API URL ships as `config.json`) serves the normal `index.html` with the recipe's `og:`/`twitter:` tags swapped into the `<!-- og:start -->…<!-- og:end -->` block; keep those markers in `index.html`. Unknown ids or API errors fall back to the plain `index.html`; responses are cached 5 minutes. `public/.well-known/apple-app-site-association` (applinks for `/recipe/*` + webcredentials) is uploaded separately in `deploy.yml` as `application/json`, apex domain only (www redirects, and Apple doesn't follow redirects).
 
 **Modal pattern:** Modal components render into `document.getElementById('modal-root')` (separate from `#root`).
 
@@ -132,8 +135,10 @@ ios/MealsByMaggie/
 ├── RecipeAPI.swift          # Mirrors RemoteAdapter (storage.ts) + uploadImage (images.ts)
 ├── RecipeStore.swift        # Shared recipe list + save/delete + toast (AppContext.tsx)
 ├── RecipeDraft.swift        # Editor state + conversions (draft.ts), parseIngredientLine port (quantity.ts)
+├── MealsByMaggie.entitlements # Associated Domains: applinks + webcredentials for mealsbymaggie.com
 ├── ContentView.swift        # Root: recipe list, toast, nickname prompt on launch (App.tsx)
-├── RecipeListView.swift     # HomeScreen.tsx + floating "+" add button
+├── RecipeListView.swift     # HomeScreen.tsx + floating "+" add button; .onOpenURL for Universal Links
+├── DeepLink.swift           # mealsbymaggie.com/recipe/<id> link → recipe id (routes in App.tsx)
 ├── RecipeDetailView.swift   # DetailScreen.tsx; share button, edit pencil when signed in
 ├── PhotoViewer.swift        # Full-screen zoomable recipe photo (iOS only)
 ├── RecipeEditorView.swift   # EditorScreen.tsx (add/edit/delete, photo, AI review banner + flag answers)

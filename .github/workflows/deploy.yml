@@ -6,6 +6,7 @@ on:
     paths:
       - 'src/**'
       - 'public/**'
+      - 'index.html'
       - 'package.json'
       - 'vite.config.ts'
       - 'terraform/app_account/**'
@@ -131,7 +132,16 @@ jobs:
 
       - name: Sync to S3
         if: steps.tfout.outputs.site_bucket
-        run: aws s3 sync dist s3://${{ steps.tfout.outputs.site_bucket }}/ --delete
+        run: aws s3 sync dist s3://${{ steps.tfout.outputs.site_bucket }}/ --delete --exclude ".well-known/*"
+
+      # apple-app-site-association has no extension, so sync would guess the wrong
+      # content type; iOS requires application/json (Universal Links, shared passwords).
+      - name: Upload apple-app-site-association
+        if: steps.tfout.outputs.site_bucket
+        run: |
+          aws s3 cp dist/.well-known/apple-app-site-association \
+            s3://${{ steps.tfout.outputs.site_bucket }}/.well-known/apple-app-site-association \
+            --content-type application/json
 
       - name: Invalidate CloudFront
         if: steps.tfout.outputs.distribution_id

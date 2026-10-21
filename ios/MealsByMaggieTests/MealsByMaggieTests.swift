@@ -166,3 +166,28 @@ struct TokenGroupsTests {
         #expect(AuthModel.groups(inToken: "not-a-jwt").isEmpty)
     }
 }
+
+// Universal Links (DeepLink.swift): the same /recipe/:id routes as App.tsx.
+struct DeepLinkTests {
+    @Test(arguments: [
+        ("https://mealsbymaggie.com/recipe/7f62e8e7-f297-4d22-90fc-8c01ab491c7d", "7f62e8e7-f297-4d22-90fc-8c01ab491c7d"),
+        ("https://mealsbymaggie.com/recipe/abc/cook", "abc"),
+        ("https://mealsbymaggie.com/recipe/abc/edit?x=1", "abc"),
+        ("https://MealsByMaggie.com/recipe/abc", "abc"),
+        ("https://mealsbymaggie.com/recipe/a%20b", "a b"),
+    ])
+    func findsRecipeID(link: String, id: String) {
+        #expect(DeepLink.recipeID(from: URL(string: link)!) == id)
+    }
+
+    @Test(arguments: [
+        "https://mealsbymaggie.com/",
+        "https://mealsbymaggie.com/recipe/",
+        "https://mealsbymaggie.com/new",
+        "https://example.com/recipe/abc",
+        "http://mealsbymaggie.com/recipe/abc",
+    ])
+    func ignoresOtherLinks(link: String) {
+        #expect(DeepLink.recipeID(from: URL(string: link)!) == nil)
+    }
+}
