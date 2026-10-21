@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["V92G57KLG3.com.mealsbymaggie.app"],
+        "components": [
+          { "/": "/recipe/*", "comment": "Recipe pages open in the iOS app (DeepLink.swift)" }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["V92G57KLG3.com.mealsbymaggie.app"]
+  }
+}

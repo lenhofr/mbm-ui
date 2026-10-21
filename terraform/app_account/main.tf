@@ -54,6 +54,39 @@ resource "aws_cloudfront_distribution" "cdn" {
     }
   }
 
+  # Recipe pages: same SPA, with per-recipe link-preview tags (link_previews.tf).
+  # Cached at most 5 minutes so edits (and a fallback after an API hiccup) don't linger.
+  ordered_cache_behavior {
+    path_pattern     = "/recipe/*"
+    allowed_methods  = ["GET", "HEAD", "OPTIONS"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "s3-site-origin"
+
+    viewer_protocol_policy = "redirect-to-https"
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 300
+    max_ttl     = 300
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.redirect_www.arn
+    }
+
+    lambda_function_association {
+      event_type   = "origin-request"
+      lambda_arn   = aws_lambda_function.recipe_preview.qualified_arn
+      include_body = false
+    }
+  }
+
   custom_error_response {
     error_code            = 403
     response_code         = 200

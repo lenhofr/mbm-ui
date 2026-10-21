@@ -19,24 +19,10 @@ Add the app to the iOS share sheet so a recipe page in Safari (or text, or a scr
 ### App Store
 - App Store review requires in-app **account deletion** (a new Lambda + button), a privacy policy URL, and screenshots.
 
-## Sharing recipes
-
-### Rich link previews for shared recipes
-The share button (#117) sends `mealsbymaggie.com/recipe/<id>`, but Messages shows the site's generic preview, not the recipe's photo and title: every recipe URL serves the same `index.html`, with no per-recipe details for link previews (`og:title`, `og:image`). Fixing it is a small web-side change, e.g. a CloudFront function or Lambda@Edge that fills in those tags for `/recipe/*` from the API. Pairs well with Universal Links, which touches the same website hosting.
-
-### Open shared links in the app (Universal Links)
-When someone who has the app taps a `mealsbymaggie.com/recipe/<id>` link, open that recipe in the app instead of Safari.
-- Host `/.well-known/apple-app-site-association` on the website (served as JSON from the S3/CloudFront site) listing the app (`<team id>.com.mealsbymaggie.app`) and the `/recipe/*` paths.
-- Add the **Associated Domains** capability (`applinks:mealsbymaggie.com`, plus `www`) to the app; needs the paid developer account, which is now in place.
-- Handle the incoming URL in the app (`onOpenURL`) by pushing the recipe's detail screen.
-
 ## Sign-in
 
 ### Passkeys ("Sign in with Face ID")
-Passwordless sign-in with Face ID / Touch ID that works in the iOS app and on the website (passkeys sync through iCloud Keychain). Added from the account sheet after signing in, so the invite-code sign-up and password fallback stay as they are. Needs Cognito's Essentials tier and a sign-in policy change, an apple-app-site-association file on the website, and new buttons on both clients. Full plan: [`passkeys-plan.md`](passkeys-plan.md).
-
-### Saved passwords shared between the site and the app
-Add a `webcredentials:mealsbymaggie.com` Associated Domain plus the matching apple-app-site-association entry, so iOS offers passwords saved for mealsbymaggie.com inside the app's login form (and saves new ones for both). Same website file as passkeys and Universal Links; small on its own.
+Passwordless sign-in with Face ID / Touch ID that works in the iOS app and on the website (passkeys sync through iCloud Keychain). Added from the account sheet after signing in, so the invite-code sign-up and password fallback stay as they are. Needs Cognito's Essentials tier and a sign-in policy change, a `webcredentials` entry that already exists in the website's apple-app-site-association file, and new buttons on both clients. Full plan: [`passkeys-plan.md`](passkeys-plan.md).
 
 ### Sign in with Apple (set aside)
 Conflicts with the invite-code gate: `pre_sign_up` runs for every new account, and Apple sign-in has no step to enter a code. Revisit only with an invite-flow redesign (e.g. enter the code first, then sign in with Apple).
