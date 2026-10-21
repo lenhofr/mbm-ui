@@ -79,9 +79,7 @@ private struct RecipeDetailBody: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // The tag sits above the body's rounded top, which overlaps the photo by 28pt.
-                RecipeImage(url: recipe.imageURL, title: recipe.title, letterSize: 110,
-                            aiTag: recipe.isAiSketch ? .init(fontSize: 13, inset: EdgeInsets(top: 0, leading: 16, bottom: 40, trailing: 0)) : nil)
+                RecipeImage(url: recipe.imageURL, title: recipe.title, letterSize: 110)
                     .frame(height: 330)
                     .frame(maxWidth: .infinity)
                     .clipped()

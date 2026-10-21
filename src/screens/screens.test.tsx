@@ -51,14 +51,14 @@ describe('mobile screens', () => {
     expect(screen.getByText('· scaled')).toBeInTheDocument()
   })
 
-  it('an AI sketch is tagged on the card and the recipe asks for a real photo', async () => {
+  it('an AI sketch is untagged on the card and the recipe asks for a real photo', async () => {
     window.localStorage.setItem('mbm:recipes', JSON.stringify([
       { ...RECIPES[1], image: 'ai-sketches/chili.png' },
       { ...RECIPES[0], image: 'uploads/cookies.webp' },
     ]))
     at('/')
     expect(await screen.findByText("Nana's Chili")).toBeInTheDocument()
-    expect(screen.getAllByText('AI sketch')).toHaveLength(1)
+    expect(screen.queryByText('AI sketch')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: "Nana's Chili" }))
     expect(await screen.findByText(/AI sketch, not the real dish/)).toBeInTheDocument()
   })
