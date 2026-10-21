@@ -30,7 +30,7 @@ export function resolveImageUrl(img: string | undefined): string | undefined {
 /**
  * S3 key prefix for the pencil sketches an AI drew for recipes that had no photo
  * (scripts/ai-sketches.mjs). Real photos are uploaded under uploads/, so replacing
- * a sketch with a photo drops the "AI sketch" badge without any extra field.
+ * a sketch with a photo drops the "AI sketch" note without any extra field.
  */
 export const AI_SKETCH_PREFIX = 'ai-sketches/'
 
