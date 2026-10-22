@@ -1,10 +1,14 @@
 import SwiftUI
 
-/// Tappable ingredient rows with a plum check and strikethrough when used.
-/// Shared by the detail screen and cook mode (IngredientChecklist.tsx in mbm-ui).
+/// Tappable ingredient rows (IngredientChecklist.tsx in mbm-ui). `used` (detail screen,
+/// cook mode): plum check + strikethrough. `have` (pantry quick view): green check +
+/// muted text, no strikethrough.
 struct IngredientChecklist: View {
+    enum Variant { case used, have }
+
     let ingredients: [Recipe.Ingredient]
     @Binding var checked: Set<Int>
+    var variant = Variant.used
     var large = false
     /// Scales amounts when the servings are changed (1 = as written).
     var multiplier: Double = 1
@@ -17,12 +21,12 @@ struct IngredientChecklist: View {
                     if done { checked.remove(index) } else { checked.insert(index) }
                 } label: {
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        CheckBox(done: done)
+                        CheckBox(done: done, color: variant == .have ? Color.ok : Color.plum)
                             .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
                         Text(item.displayText(scaledBy: multiplier))
                             .font(.inter(large ? 17 : 16))
-                            .foregroundStyle(done ? Color(hex: 0xB9A6B0) : Color.text)
-                            .strikethrough(done)
+                            .foregroundStyle(done ? (variant == .have ? Color.muted : Color(hex: 0xB9A6B0)) : Color.text)
+                            .strikethrough(done && variant == .used)
                             .multilineTextAlignment(.leading)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -42,11 +46,12 @@ struct IngredientChecklist: View {
 
 private struct CheckBox: View {
     let done: Bool
+    let color: Color
 
     var body: some View {
         RoundedRectangle(cornerRadius: 7)
-            .strokeBorder(done ? Color.plum : Color.dash, lineWidth: 2)
-            .background(done ? Color.plum : Color.clear, in: RoundedRectangle(cornerRadius: 7))
+            .strokeBorder(done ? color : Color.dash, lineWidth: 2)
+            .background(done ? color : Color.clear, in: RoundedRectangle(cornerRadius: 7))
             .overlay {
                 if done {
                     Image(systemName: "checkmark")

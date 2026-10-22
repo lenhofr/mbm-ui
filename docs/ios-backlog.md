@@ -27,12 +27,6 @@ Passwordless sign-in with Face ID / Touch ID that works in the iOS app and on th
 ### Sign in with Apple (set aside)
 Conflicts with the invite-code gate: `pre_sign_up` runs for every new account, and Apple sign-in has no step to enter a code. Revisit only with an invite-flow redesign (e.g. enter the code first, then sign in with Apple).
 
-## Feature parity with the web
-
-- **Quick tips** (`QuickTips.tsx`): the tips sheet and inline tips in search.
-- **Quick view** (long-press a card on the web): a peek at the ingredients without opening the recipe.
-- **Search**: the web uses Fuse.js fuzzy matching; iOS uses plain substring matching on title, tags and ingredients.
-
 ## Cross-platform improvements
 
 - **Favorites sync**: favorites live on each device (web `localStorage`, iOS `UserDefaults`), keyed by Cognito sub. Syncing needs API storage, e.g. `GET/PUT /favorites` backed by DynamoDB.
