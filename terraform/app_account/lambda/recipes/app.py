@@ -346,14 +346,16 @@ def handler(event, context):
         try:
             body = json.loads(event.get('body') or '{}')
             known_tags = [t for t in (body.get('knownTags') or []) if isinstance(t, str)][:30]
+            main_tags = [t for t in (body.get('mainTags') or []) if isinstance(t, str)][:30]
+            tags = {'known_tags': known_tags, 'main_tags': main_tags}
             extract_type = body.get('type')
             if extract_type == 'image':
                 result = ai_extract.extract_from_images(get_bedrock(), BEDROCK_MODEL, body.get('images') or [],
-                                                        source=body.get('source') or 'scan', known_tags=known_tags)
+                                                        source=body.get('source') or 'scan', **tags)
             elif extract_type == 'url':
-                result = ai_extract.extract_from_url(get_bedrock(), BEDROCK_MODEL, (body.get('url') or '').strip(), known_tags=known_tags)
+                result = ai_extract.extract_from_url(get_bedrock(), BEDROCK_MODEL, (body.get('url') or '').strip(), **tags)
             elif extract_type == 'text':
-                result = ai_extract.extract_from_text(get_bedrock(), BEDROCK_MODEL, body.get('text') or '', known_tags=known_tags)
+                result = ai_extract.extract_from_text(get_bedrock(), BEDROCK_MODEL, body.get('text') or '', **tags)
             else:
                 return response(400, {'error': 'type must be "image", "url" or "text"'})
             return response(200, result)

@@ -42,3 +42,20 @@ export function chipTags(recipes: Recipe[]): string[] {
   const present = new Set(recipes.flatMap(recipeTags))
   return CHIP_TAGS.filter(t => present.has(t))
 }
+
+/** Tags across all recipes, lowercased, most used first. */
+export function topTags(recipes: Recipe[], limit = 8): string[] {
+  const counts = new Map<string, number>()
+  recipes.forEach(r => new Set((r.tags || []).map(t => t.trim().toLowerCase())).forEach(t => counts.set(t, (counts.get(t) || 0) + 1)))
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, limit).map(([t]) => t)
+}
+
+/**
+ * Tags sent to the AI importer so new recipes reuse the box's words: the chip tags as main
+ * tags, then the most-used others. Alias spellings are left out so it says "crockpot",
+ * not "slow cooker". The Lambda accepts up to 30 in all.
+ */
+export function importerTags(recipes: Recipe[]): { mainTags: string[]; knownTags: string[] } {
+  const others = topTags(recipes, Infinity).filter(t => !TAG_ALIASES[t] && !CHIP_TAGS.includes(t))
+  return { mainTags: CHIP_TAGS, knownTags: others.slice(0, 30 - CHIP_TAGS.length) }
+}

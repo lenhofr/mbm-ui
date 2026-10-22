@@ -76,21 +76,21 @@ enum ExtractAPI {
         case failed
     }
 
-    static func extract(_ job: ImportJob, token: String, knownTags: [String]) async throws -> ExtractResult {
+    static func extract(_ job: ImportJob, token: String, tags: (main: [String], known: [String])) async throws -> ExtractResult {
         do {
-            return try await send(job, token: token, knownTags: knownTags)
+            return try await send(job, token: token, tags: tags)
         } catch ExtractError.failed {
             // Some big recipe sites block the server's page fetch; fetch the page from
             // the phone instead (sites rarely block real devices) and send its text.
             guard case .link(let url) = job.kind, let text = await PageReader.recipeText(from: url) else {
                 throw ExtractError.failed
             }
-            return try await send(ImportJob(kind: .text("Web page: \(url)\n\n---\n\(text)")), token: token, knownTags: knownTags)
+            return try await send(ImportJob(kind: .text("Web page: \(url)\n\n---\n\(text)")), token: token, tags: tags)
         }
     }
 
-    private static func send(_ job: ImportJob, token: String, knownTags: [String]) async throws -> ExtractResult {
-        var body: [String: Any] = ["knownTags": Array(knownTags.prefix(30))]
+    private static func send(_ job: ImportJob, token: String, tags: (main: [String], known: [String])) async throws -> ExtractResult {
+        var body: [String: Any] = ["mainTags": tags.main, "knownTags": tags.known]
         switch job.kind {
         case .link(let url):
             body["type"] = "url"

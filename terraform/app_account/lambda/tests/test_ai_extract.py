@@ -66,7 +66,15 @@ def test_images_forces_tool_and_passes_known_tags():
     assert content[0]['image']['format'] == 'jpeg'
     assert 'front and back' in content[2]['text']
     assert 'dinner, dessert' in content[3]['text']
+    assert 'Main tags' not in content[3]['text']
     assert out['title'] == "Gram's Cornbread"
+
+
+def test_text_passes_main_tags_first():
+    bedrock = FakeBedrock(SCAN)
+    ai_extract.extract_from_text(bedrock, 'm', 'Cornbread', known_tags=['bread'], main_tags=['dinner', 'crockpot'])
+    tags_text = bedrock.calls[0]['messages'][0]['content'][-1]['text']
+    assert tags_text == "Main tags (the recipe box's filters): dinner, crockpot\nOther tags already in the box: bread"
 
 
 def test_images_rejects_bad_input():
@@ -121,13 +129,15 @@ def test_iso_duration():
 def test_handler_routes_extract(monkeypatch):
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'recipes'))
     import app
-    monkeypatch.setattr(app, 'get_bedrock', lambda: FakeBedrock(SCAN))
     event = {
         'requestContext': {'http': {'method': 'POST'}, 'routeKey': 'POST /ai/extract-recipe'},
         'rawPath': '/ai/extract-recipe',
-        'body': json.dumps({'type': 'text', 'text': 'Cornbread: 1 cup cornmeal...', 'knownTags': ['dinner']}),
+        'body': json.dumps({'type': 'text', 'text': 'Cornbread: 1 cup cornmeal...', 'knownTags': ['bread'], 'mainTags': ['dinner', 7]}),
     }
+    bedrock = FakeBedrock(SCAN)
+    monkeypatch.setattr(app, 'get_bedrock', lambda: bedrock)
     res = app.handler(event, None)
+    assert 'Main tags (the recipe box\'s filters): dinner\n' in bedrock.calls[0]['messages'][0]['content'][-1]['text']
     assert res['statusCode'] == 200
     assert json.loads(res['body'])['ingredients'][1]['flag']['q'] == 'Smudged. tbsp or tsp?'
 

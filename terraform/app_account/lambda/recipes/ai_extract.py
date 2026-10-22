@@ -25,7 +25,7 @@ Call the save_recipe tool exactly once. Rules:
 - One ingredient per entry, written as it would appear on a card: quantity, unit, item, preparation (e.g. "1/4 cup butter, melted"). Use plain fractions like 1/2, not ½.
 - One step per entry, in order, without numbering.
 - servings is a number when one is given; cookTime is total time as short text like "35 min" or "1 hr 10 min".
-- tags: up to 5 short lowercase tags. Prefer the user's existing tags when they fit.
+- tags: up to 5 short lowercase tags. Use every main tag that fits (spelled exactly as given), then the box's other tags. Make up a new tag only when none fits, and never a different spelling or synonym of a listed one (no "slow cooker" when "crockpot" is listed).
 - Ignore ads, navigation, comments, life stories and anything that isn't the recipe.
 
 Uncertainty (handwriting, smudges, blur, cut-off text):
@@ -166,9 +166,16 @@ def normalize(raw):
 
 # ── Model call ───────────────────────────────────────────────────────────────
 
-def _call_model(bedrock, model_id, content, known_tags):
+def _call_model(bedrock, model_id, content, known_tags, main_tags=None):
+    # main_tags are the Home filter chips (CHIP_TAGS in src/lib/tags.ts); older iOS builds
+    # send only known_tags.
+    lines = []
+    if main_tags:
+        lines.append("Main tags (the recipe box's filters): " + ", ".join(main_tags[:30]))
     if known_tags:
-        content = content + [{"text": "The user's existing tags: " + ", ".join(known_tags[:30])}]
+        lines.append("Other tags already in the box: " + ", ".join(known_tags[:30]))
+    if lines:
+        content = content + [{"text": "\n".join(lines)}]
     resp = bedrock.converse(
         modelId=model_id,
         system=[{"text": SYSTEM_PROMPT}],
@@ -183,7 +190,7 @@ def _call_model(bedrock, model_id, content, known_tags):
     return {"readable": False}
 
 
-def extract_from_images(bedrock, model_id, images, source="scan", known_tags=None):
+def extract_from_images(bedrock, model_id, images, source="scan", known_tags=None, main_tags=None):
     """images: [{"data": base64, "mediaType": "image/jpeg"}]"""
     if not images or len(images) > 4:
         raise ExtractError("Send between 1 and 4 images")
@@ -201,15 +208,15 @@ def extract_from_images(bedrock, model_id, images, source="scan", known_tags=Non
     what = "a screenshot of a recipe" if source == "screenshot" else (
         "the front and back of a recipe card" if len(images) > 1 else "a photo of a recipe card or cookbook page")
     content.append({"text": f"These images are {what}. Extract the recipe."})
-    return normalize(_call_model(bedrock, model_id, content, known_tags))
+    return normalize(_call_model(bedrock, model_id, content, known_tags, main_tags))
 
 
-def extract_from_text(bedrock, model_id, text, known_tags=None):
+def extract_from_text(bedrock, model_id, text, known_tags=None, main_tags=None):
     text = (text or "").strip()
     if not text:
         raise ExtractError("Missing text")
     content = [{"text": f"Recipe text pasted by the user:\n\n---\n{text[:MAX_TEXT_CHARS]}"}]
-    return normalize(_call_model(bedrock, model_id, content, known_tags))
+    return normalize(_call_model(bedrock, model_id, content, known_tags, main_tags))
 
 
 # ── URLs ─────────────────────────────────────────────────────────────────────
@@ -345,7 +352,7 @@ def fetch_page(url):
         return r.read(3_000_000).decode("utf-8", errors="replace")
 
 
-def extract_from_url(bedrock, model_id, url, known_tags=None, fetch=fetch_page):
+def extract_from_url(bedrock, model_id, url, known_tags=None, main_tags=None, fetch=fetch_page):
     parser = _PageParser()
     parser.feed(fetch(url))
     ld = find_ld_recipe(parser.ld_json)
@@ -355,4 +362,4 @@ def extract_from_url(bedrock, model_id, url, known_tags=None, fetch=fetch_page):
             return result
     text = "\n".join(parser.chunks)[:MAX_TEXT_CHARS]
     content = [{"text": f"Web page: {url}\n\n---\n{text}"}]
-    return normalize(_call_model(bedrock, model_id, content, known_tags))
+    return normalize(_call_model(bedrock, model_id, content, known_tags, main_tags))

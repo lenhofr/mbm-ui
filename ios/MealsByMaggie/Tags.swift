@@ -31,6 +31,26 @@ enum Tags {
         let present = Set(recipes.flatMap(\.allTags))
         return chips.filter(present.contains)
     }
+
+    /// Tags across all recipes, lowercased, most used first (topTags).
+    static func top(in recipes: [Recipe], limit: Int = .max) -> [String] {
+        var counts: [String: Int] = [:]
+        for recipe in recipes {
+            for tag in Set((recipe.tags ?? []).map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }) {
+                counts[tag, default: 0] += 1
+            }
+        }
+        let sorted = counts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+        return sorted.prefix(limit).map(\.key)
+    }
+
+    /// Tags sent to the AI importer so new recipes reuse the box's words: the chips as main
+    /// tags, then the most-used others, minus alias spellings so it says "crockpot", not
+    /// "slow cooker". The Lambda accepts up to 30 in all (importerTags).
+    static func forImporter(_ recipes: [Recipe]) -> (main: [String], known: [String]) {
+        let others = top(in: recipes).filter { aliases[$0] == nil && !chips.contains($0) }
+        return (chips, Array(others.prefix(30 - chips.count)))
+    }
 }
 
 extension Recipe {
