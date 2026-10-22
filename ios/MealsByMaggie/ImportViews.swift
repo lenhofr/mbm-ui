@@ -317,7 +317,7 @@ struct ImportFlowView: View {
             return
         }
         do {
-            let result = try await ExtractAPI.extract(job, token: token, knownTags: store.topTags(limit: 30))
+            let result = try await ExtractAPI.extract(job, token: token, tags: Tags.forImporter(store.recipes))
             guard isCurrent() else { return }
             withAnimation { phase = .review(RecipeDraft(extract: result, job: job)) }
         } catch ExtractAPI.ExtractError.unreadable where job.source == .scan {

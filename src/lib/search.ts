@@ -54,13 +54,6 @@ export function searchRecipes(index: ReturnType<typeof buildIndex>, query: strin
   return sets.reduce((acc, s) => new Set([...acc].filter(x => s.has(x))))
 }
 
-/** Tags across all recipes, lowercased, most used first. */
-export function topTags(recipes: Recipe[], limit = 8): string[] {
-  const counts = new Map<string, number>()
-  recipes.forEach(r => new Set((r.tags || []).map(t => t.toLowerCase())).forEach(t => counts.set(t, (counts.get(t) || 0) + 1)))
-  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, limit).map(([t]) => t)
-}
-
 export function relativeTime(ts?: number): string {
   if (!ts) return ''
   const days = Math.round((Date.now() - ts * 1000) / 86400000)

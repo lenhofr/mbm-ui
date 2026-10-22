@@ -13,13 +13,14 @@ export class UnreadableError extends Error {}
 export async function extractRecipe(
   input: ExtractInput,
   authHeaders: Record<string, string | undefined>,
-  opts: { knownTags?: string[]; signal?: AbortSignal } = {},
+  opts: { mainTags?: string[]; knownTags?: string[]; signal?: AbortSignal } = {},
 ): Promise<ExtractResult> {
-  const { knownTags = [], signal } = opts
+  const { mainTags = [], knownTags = [], signal } = opts
+  const tags = { mainTags, knownTags }
   let body: object
-  if (input.kind === 'link') body = { type: 'url', url: input.url, knownTags }
-  else if (input.kind === 'text') body = { type: 'text', text: input.text, knownTags }
-  else body = { type: 'image', source: input.kind, images: await Promise.all(input.files.map(f => compressForExtract(f))), knownTags }
+  if (input.kind === 'link') body = { type: 'url', url: input.url, ...tags }
+  else if (input.kind === 'text') body = { type: 'text', text: input.text, ...tags }
+  else body = { type: 'image', source: input.kind, images: await Promise.all(input.files.map(f => compressForExtract(f))), ...tags }
 
   const res = await fetch(`${getApiBase()}/ai/extract-recipe`, {
     method: 'POST',

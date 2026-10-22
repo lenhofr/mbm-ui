@@ -369,6 +369,19 @@ struct TagsTests {
         #expect(Tags.chips(for: RecipeSearchTests.recipes) == ["dinner", "crockpot", "quick & easy", "pasta", "vegetarian", "dessert"])
         #expect(Tags.chips(for: []).isEmpty)
     }
+
+    // Same case as the importerTags test in src/lib/tags.test.ts.
+    @Test func importerGetsChipsThenOtherTagsWithoutAliases() {
+        let tags = Tags.forImporter([
+            Recipe(id: "a", title: "a", tags: ["Slow Cooker", "soup", "Dinner"]),
+            Recipe(id: "b", title: "b", tags: ["soup", "beef", "easy"]),
+            Recipe(id: "c", title: "c", tags: ["beef", "Soup "]),
+        ])
+        #expect(tags.main == Tags.chips)
+        #expect(tags.known == ["soup", "beef"])
+        let many = Tags.forImporter([Recipe(id: "x", title: "x", tags: (0..<40).map { "tag \($0)" })])
+        #expect(many.main.count + many.known.count == 30)
+    }
 }
 
 // Quick tips search (QuickTip.search ↔ searchTips in src/lib/quickTips.ts).
