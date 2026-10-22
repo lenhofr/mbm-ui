@@ -78,6 +78,7 @@ jobs:
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -clonedSourcePackagesDirPath ../.spm \
             -derivedDataPath ../.derived \
+            -resultBundlePath ../TestResults.xcresult \
             -skipPackagePluginValidation \
             -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO \
@@ -93,10 +94,15 @@ jobs:
               | grep -v -E " -W(no-)?error| -Werror" \
               | grep -i -E "error:|✘|recorded an issue|Expectation failed|failed|crash|Test run with|\*\* TEST" \
               | sed 's/^[[:space:]]*//' | awk '!seen[$0]++' | head -40)
+            # Swift Testing's expectation details only go to the result bundle.
+            details=$(xcrun xcresulttool get test-results tests --path ../TestResults.xcresult 2>/dev/null \
+              | jq -r '.. | objects | select(.nodeType? == "Failure Message") | .name' 2>/dev/null | head -20)
+            summary=$(printf '%s\n%s' "$summary" "$details" | sed '/^$/d')
             if [ -n "$summary" ]; then
-              summary=${summary//'%'/'%25'}
-              summary=${summary//$'\r'/'%0D'}
-              echo "::error title=xcodebuild failures::${summary//$'\n'/'%0A'}"
+              # Annotation text is one line: escape %, CR and LF (unquoted replacements for macOS bash 3.2).
+              summary=${summary//%/%25}
+              summary=${summary//$'\r'/%0D}
+              echo "::error title=xcodebuild failures::${summary//$'\n'/%0A}"
             fi
           fi
           exit $status
