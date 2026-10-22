@@ -122,7 +122,7 @@ struct FlowLayout: Layout {
     /// when the width is open-ended) by the height of every row.
     static func size(for sizes: [CGSize], proposedWidth: CGFloat?, spacing: CGFloat) -> CGSize {
         let maxWidth = proposedWidth ?? .infinity
-        let rows = rows(for: sizes, maxWidth: maxWidth, spacing: spacing)
+        let rows = Self.rows(for: sizes, maxWidth: maxWidth, spacing: spacing)
         let height = rows.last.map { $0.y + $0.height } ?? 0
         let widest = rows.map(\.width).max() ?? 0
         return CGSize(width: maxWidth.isFinite ? maxWidth : widest, height: height)
