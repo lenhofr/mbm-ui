@@ -219,13 +219,13 @@ struct RecipeSearchTests {
                createdByName: "Chef Mike Drop"),
         Recipe(id: "pie",
                title: "Apple Pie",
-               tags: ["dessert"],
+               tags: ["dessert", "Easy"],
                ingredients: [.init(name: "apples", amount: "6"), .init(name: "pie crust")],
                instructions: ["Slice the apples."],
                createdByName: "Gram"),
         Recipe(id: "salad",
                title: "Greek Salad",
-               tags: ["side"],
+               tags: ["side", "vegan"],
                ingredients: [.init(name: "feta"), .init(name: "cucumber")],
                createdByName: "user"),
     ]
@@ -251,6 +251,13 @@ struct RecipeSearchTests {
         ("beans", ["chili"]),
         ("350", ["cookies"]),
         ("xyzzy", []),
+        ("tag:crockpot", ["chili"]),
+        ("tag:slow", ["chili"]),
+        ("tag:vegetarian", ["salad"]),
+        ("tag:vegan", ["salad"]),
+        ("vegetarian", ["salad"]),
+        ("tag:\"quick & easy\"", ["pie"]),
+        ("tag:easy", ["pie"]),
         ("fettucine", ["alfredo"]),
         ("fettuxcine", ["alfredo"]),
         ("fettuccine", ["alfredo"]),
@@ -339,6 +346,28 @@ struct RecipeSearchTests {
     @Test func chefSkipsTheOldPlaceholderName() {
         #expect(Self.recipes.first { $0.id == "salad" }?.chefName == "")
         #expect(Self.recipes.first { $0.id == "pie" }?.chefName == "Gram")
+    }
+}
+
+// Tag aliases and filter chips (Tags.swift ↔ src/lib/tags.ts), expected values from the web.
+struct TagsTests {
+    @Test(arguments: [
+        (["Slow Cooker", "Dinner", "crockpot", " vegan "], ["slow cooker", "crockpot", "dinner", "vegan", "vegetarian"]),
+        (["Easy", "quick"], ["easy", "quick & easy", "quick"]),
+        (["keto", "Low-Carb"], ["keto", "low carb", "low-carb"]),
+        (["finger food", "Appetizers"], ["finger food", "appetizer", "appetizers"]),
+        (["desserts"], ["desserts", "dessert"]),
+        (["Weeknight Dinner", "chicken"], ["weeknight dinner", "dinner", "chicken"]),
+        ([], []),
+    ] as [([String], [String])])
+    func addsAliasMainTags(tags: [String], expected: [String]) {
+        let recipe = Recipe(id: "x", title: "x", tags: tags)
+        #expect(recipe.allTags == expected)
+    }
+
+    @Test func chipsMatchTheWeb() {
+        #expect(Tags.chips(for: RecipeSearchTests.recipes) == ["dinner", "crockpot", "quick & easy", "pasta", "vegetarian", "dessert"])
+        #expect(Tags.chips(for: []).isEmpty)
     }
 }
 

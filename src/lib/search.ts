@@ -2,6 +2,7 @@
 // Ported to iOS in RecipeSearch.swift; keep the two in step (its tests use results from here).
 import Fuse from 'fuse.js'
 import type { Recipe } from '../types'
+import { recipeTags } from './tags'
 
 type Rec = Recipe & { ingredientsText: string; instructionsText: string; chef: string }
 
@@ -14,6 +15,8 @@ function chefName(r: Recipe): string {
 export function buildIndex(recipes: Recipe[]) {
   const records: Rec[] = recipes.map(r => ({
     ...r,
+    // With alias main tags added, so "crockpot" also finds the "slow cooker" recipes (tags.ts).
+    tags: recipeTags(r),
     ingredientsText: (r.ingredients || []).map(i => `${i.amount ?? ''} ${i.name}`).join('\n'),
     instructionsText: (r.instructions || []).join('\n'),
     chef: chefName(r),

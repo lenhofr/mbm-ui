@@ -9,7 +9,8 @@ import QuickTipsSheet, { InlineTips } from '../components/QuickTips'
 import { searchTips } from '../lib/quickTips'
 import { fill, talk, usePick } from '../lib/kitchenTalk'
 import CookSpinner from '../components/CookSpinner'
-import { buildIndex, searchRecipes, topTags } from '../lib/search'
+import { buildIndex, searchRecipes } from '../lib/search'
+import { chipTags, recipeTags } from '../lib/tags'
 import type { Recipe } from '../types'
 import './HomeScreen.css'
 
@@ -118,7 +119,7 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
   }, [query])
 
   const index = useMemo(() => buildIndex(recipes), [recipes])
-  const tags = useMemo(() => ['all', ...topTags(recipes)], [recipes])
+  const tags = useMemo(() => ['all', ...chipTags(recipes)], [recipes])
 
   // Recipes tab only: up to 2 tips once the search is 3+ characters.
   const inlineTips = useMemo(() => (!favoritesOnly && debounced.length >= 3 ? searchTips(debounced).slice(0, 2) : []), [favoritesOnly, debounced])
@@ -127,7 +128,7 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
     const hits = debounced ? searchRecipes(index, debounced) : null
     return recipes.filter(r =>
       (!favoritesOnly || favorites.has(r.id)) &&
-      (tag === 'all' || (r.tags || []).some(t => t.toLowerCase() === tag)) &&
+      (tag === 'all' || recipeTags(r).includes(tag)) &&
       (!hits || hits.has(r.id)))
   }, [recipes, index, debounced, tag, favoritesOnly, favorites])
 

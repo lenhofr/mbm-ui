@@ -37,7 +37,7 @@ enum RecipeSearch {
 
         init(_ recipe: Recipe) {
             id = recipe.id
-            tags = (recipe.tags ?? []).map { $0.lowercased() }
+            tags = recipe.allTags  // with alias main tags (Tags.swift)
             ingredientsText = (recipe.ingredients ?? []).map { "\($0.amount ?? "") \($0.name)" }.joined(separator: "\n").lowercased()
             chef = recipe.chefName.lowercased()
             let instructions = (recipe.instructions ?? []).joined(separator: "\n").lowercased()

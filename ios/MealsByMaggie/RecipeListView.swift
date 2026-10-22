@@ -35,16 +35,15 @@ struct RecipeListView: View {
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 2)
 
-    /// The 8 most common tags for the filter row.
-    private var topTags: [String] { store.topTags(limit: 8) }
+    /// The fixed filter chips that some recipe has (Tags.swift, chipTags in tags.ts).
+    private var chipTags: [String] { Tags.chips(for: recipes) }
 
     /// Fuzzy search over title, tags, ingredients, steps and chef (RecipeSearch.swift).
     private var filteredRecipes: [Recipe] {
         let hits = RecipeSearch.matches(in: recipes, query: searchText)
         return recipes.filter { recipe in
-            let tags = (recipe.tags ?? []).map { $0.lowercased() }
             guard !showFavorites || favorites.contains(recipe.id) else { return false }
-            guard selectedTag == "all" || tags.contains(selectedTag) else { return false }
+            guard selectedTag == "all" || recipe.allTags.contains(selectedTag) else { return false }
             return hits?.contains(recipe.id) ?? true
         }
     }
@@ -82,7 +81,7 @@ struct RecipeListView: View {
 
                     SearchField(text: $searchText)
 
-                    if !topTags.isEmpty {
+                    if !chipTags.isEmpty {
                         tagFilter
                             .padding(.top, 12)
                     }
@@ -219,7 +218,7 @@ struct RecipeListView: View {
     private var tagFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(["all"] + topTags, id: \.self) { tag in
+                ForEach(["all"] + chipTags, id: \.self) { tag in
                     Button {
                         selectedTag = tag
                     } label: {

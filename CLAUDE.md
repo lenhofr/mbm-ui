@@ -68,6 +68,7 @@ src/
 ├── lib/
 │   ├── storage.ts           # Storage adapter abstraction
 │   ├── search.ts            # Fuse.js search + tag:/ing:/chef: scopes (fixture in search.fixture.ts)
+│   ├── tags.ts              # Tag aliases (slow cooker → crockpot, added not replaced) + fixed Home chip list
 │   ├── draft.ts             # Recipe ↔ editor draft ↔ AI extract conversions
 │   ├── extract.ts           # /ai/extract-recipe client
 │   ├── images.ts            # Image URL resolution, resize, presigned upload
@@ -139,6 +140,7 @@ ios/MealsByMaggie/
 ├── ContentView.swift        # Root: recipe list, toast, nickname prompt on launch (App.tsx)
 ├── RecipeListView.swift     # HomeScreen.tsx + floating "+" add button; .onOpenURL for Universal Links
 ├── RecipeSearch.swift       # search.ts port: fuzzy (Fuse.js-equivalent) + tag:/ing:/chef: scopes
+├── Tags.swift               # tags.ts port: aliases + chip list (generated from tags.ts; edit there first)
 ├── QuickTips.swift          # quickTips.ts data + QuickTips.tsx (sheet, inline tips in search)
 ├── QuickView.swift          # QuickView.tsx pantry check (card long-press menu or "N ingredients")
 ├── DeepLink.swift           # mealsbymaggie.com/recipe/<id> link → recipe id (routes in App.tsx)
