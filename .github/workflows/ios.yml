@@ -88,7 +88,8 @@ jobs:
           # Also raise compile errors and failed tests as annotations, so they show on the
           # PR (and through the checks API) without downloading the log.
           if [ "$status" -ne 0 ]; then
-            grep -E "error:|✘" ../xcodebuild.log | sort -u | head -20 | while IFS= read -r line; do
+            grep -i -E "error|fail|crash|✘|issue recorded|expectation" ../xcodebuild.log | grep -v -i "warning:" \
+              | sed 's/^[[:space:]]*//' | sort -u | head -30 | while IFS= read -r line; do
               echo "::error::${line//%/%25}"
             done || true
           fi
