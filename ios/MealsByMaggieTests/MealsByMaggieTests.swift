@@ -436,7 +436,8 @@ struct FlowLayoutTests {
     @Test func wrapsWhenTheChipsDoNotFit() {
         let rows = FlowLayout.rows(for: chips, maxWidth: 250, spacing: 8)
         #expect(rows.map(\.indices) == [[0, 1, 2], [3, 4]])
-        #expect(FlowLayout.size(for: chips, proposedWidth: 250, spacing: 8).height == 34 + 8 + 34)
+        let twoRows: CGFloat = 34 + 8 + 34  // typed: inside #expect a bare literal sum stays an Int
+        #expect(FlowLayout.size(for: chips, proposedWidth: 250, spacing: 8).height == twoRows)
     }
 
     @Test func openEndedWidthUsesTheWidestRow() {
