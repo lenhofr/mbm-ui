@@ -409,3 +409,38 @@ struct QuickTipsTests {
         #expect(QuickTip.search(query).map(\.id) == ids)
     }
 }
+
+// Tag rows on the recipe page (FlowLayout in Theme.swift). The chip widths are the
+// ones in the bug report: Chicken, Baked, Easy, Dinner, Quick on a 390pt-wide phone
+// (350pt after the page's 20pt side padding).
+struct FlowLayoutTests {
+    let chips = [71.3, 61.2, 54.4, 64.1, 58.6].map { CGSize(width: $0, height: 34) }
+
+    @Test func reportsTheFullOfferedWidth() {
+        let size = FlowLayout.size(for: chips, proposedWidth: 350, spacing: 8)
+        #expect(size.width == 350)
+    }
+
+    @Test func reservesTheSameRowsItDraws() {
+        // SwiftUI places the layout in bounds of the size it reported, snapped to the
+        // pixel grid; placement must wrap into exactly the rows that were sized for.
+        for offered in stride(from: 300.0, through: 360.0, by: 1.0) {
+            let size = FlowLayout.size(for: chips, proposedWidth: offered, spacing: 8)
+            let snapped = (size.width * 3).rounded(.down) / 3
+            let drawn = FlowLayout.rows(for: chips, maxWidth: snapped, spacing: 8)
+            #expect(drawn.last.map { $0.y + $0.height } == size.height, "offered \(offered)")
+        }
+    }
+
+    @Test func wrapsWhenTheChipsDoNotFit() {
+        let rows = FlowLayout.rows(for: chips, maxWidth: 250, spacing: 8)
+        #expect(rows.map(\.indices) == [[0, 1, 2], [3, 4]])
+        #expect(FlowLayout.size(for: chips, proposedWidth: 250, spacing: 8).height == 34 + 8 + 34)
+    }
+
+    @Test func openEndedWidthUsesTheWidestRow() {
+        let size = FlowLayout.size(for: chips, proposedWidth: nil, spacing: 8)
+        #expect(size.height == 34)
+        #expect(abs(size.width - (71.3 + 61.2 + 54.4 + 64.1 + 58.6 + 4 * 8)) < 0.001)
+    }
+}

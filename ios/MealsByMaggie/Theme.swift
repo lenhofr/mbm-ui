@@ -87,37 +87,53 @@ struct TagChip: View {
 }
 
 /// Lays children out left-to-right, wrapping onto new lines (CSS flex-wrap).
+///
+/// Sizing and placement must wrap at the same width, or the stack reserves room
+/// for fewer rows than get drawn and the last row slides under the next view
+/// (tags under the Time card on the recipe page). So the layout reports the full
+/// width it was offered, not its widest row: SwiftUI places it in bounds of the
+/// reported size, and a row-width report rounded to the pixel grid can come back
+/// a hair narrower than the row, wrapping its last chip during placement only.
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let rows = arrange(width: proposal.width ?? .infinity, subviews: subviews)
-        let height = rows.last.map { $0.y + $0.height } ?? 0
-        let width = rows.map(\.width).max() ?? 0
-        return CGSize(width: width, height: height)
+        Self.size(for: subviews.map { $0.sizeThatFits(.unspecified) }, proposedWidth: proposal.width, spacing: spacing)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        for row in arrange(width: bounds.width, subviews: subviews) {
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        for row in Self.rows(for: sizes, maxWidth: bounds.width, spacing: spacing) {
             var x = bounds.minX
             for index in row.indices {
-                let size = subviews[index].sizeThatFits(.unspecified)
                 subviews[index].place(at: CGPoint(x: x, y: bounds.minY + row.y), proposal: .unspecified)
-                x += size.width + spacing
+                x += sizes[index].width + spacing
             }
         }
     }
 
-    private struct Row { var indices: [Int] = []; var y: CGFloat = 0; var width: CGFloat = 0; var height: CGFloat = 0 }
+    struct Row: Equatable { var indices: [Int] = []; var y: CGFloat = 0; var width: CGFloat = 0; var height: CGFloat = 0 }
 
-    private func arrange(width maxWidth: CGFloat, subviews: Subviews) -> [Row] {
+    /// Rounding room: a row this much wider than the space still fits, so pixel
+    /// snapping of the bounds can't push a chip onto a row nobody made room for.
+    static let tolerance: CGFloat = 0.5
+
+    /// The size the layout reports: the whole offered width (or the widest row
+    /// when the width is open-ended) by the height of every row.
+    static func size(for sizes: [CGSize], proposedWidth: CGFloat?, spacing: CGFloat) -> CGSize {
+        let maxWidth = proposedWidth ?? .infinity
+        let rows = rows(for: sizes, maxWidth: maxWidth, spacing: spacing)
+        let height = rows.last.map { $0.y + $0.height } ?? 0
+        let widest = rows.map(\.width).max() ?? 0
+        return CGSize(width: maxWidth.isFinite ? maxWidth : widest, height: height)
+    }
+
+    static func rows(for sizes: [CGSize], maxWidth: CGFloat, spacing: CGFloat) -> [Row] {
         var rows: [Row] = [Row()]
-        for (index, subview) in subviews.enumerated() {
-            let size = subview.sizeThatFits(.unspecified)
+        for (index, size) in sizes.enumerated() {
             var row = rows[rows.count - 1]
-            if !row.indices.isEmpty && row.width + spacing + size.width > maxWidth {
-                let nextY = row.y + row.height + spacing
-                rows.append(Row(y: nextY))
+            if !row.indices.isEmpty && row.width + spacing + size.width > maxWidth + tolerance {
+                rows.append(Row(y: row.y + row.height + spacing))
                 row = rows[rows.count - 1]
             }
             row.width += (row.indices.isEmpty ? 0 : spacing) + size.width
