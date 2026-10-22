@@ -85,6 +85,13 @@ jobs:
             > ../xcodebuild.log 2>&1 || status=$?
           # Just the useful lines: our errors/warnings, failed tests and the summary.
           grep -E "error:|/ios/MealsByMaggie.*warning:|✘|Test run with|\*\* (BUILD|TEST)" ../xcodebuild.log || true
+          # Also raise compile errors and failed tests as annotations, so they show on the
+          # PR (and through the checks API) without downloading the log.
+          if [ "$status" -ne 0 ]; then
+            grep -E "error:|✘" ../xcodebuild.log | sort -u | head -20 | while IFS= read -r line; do
+              echo "::error::${line//%/%25}"
+            done || true
+          fi
           exit $status
 
       - name: Upload build log

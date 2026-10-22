@@ -428,7 +428,8 @@ struct FlowLayoutTests {
             let size = FlowLayout.size(for: chips, proposedWidth: offered, spacing: 8)
             let snapped = (size.width * 3).rounded(.down) / 3
             let drawn = FlowLayout.rows(for: chips, maxWidth: snapped, spacing: 8)
-            #expect(drawn.last.map { $0.y + $0.height } == size.height, "offered \(offered)")
+            let drawnHeight = drawn.last.map { $0.y + $0.height } ?? 0
+            #expect(drawnHeight == size.height, "offered \(offered)")
         }
     }
 
@@ -440,7 +441,8 @@ struct FlowLayoutTests {
 
     @Test func openEndedWidthUsesTheWidestRow() {
         let size = FlowLayout.size(for: chips, proposedWidth: nil, spacing: 8)
+        let oneRow: CGFloat = 341.6  // the five chips plus four 8pt gaps
         #expect(size.height == 34)
-        #expect(abs(size.width - (71.3 + 61.2 + 54.4 + 64.1 + 58.6 + 4 * 8)) < 0.001)
+        #expect(abs(size.width - oneRow) < 0.001)
     }
 }
