@@ -78,6 +78,7 @@ jobs:
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -clonedSourcePackagesDirPath ../.spm \
             -derivedDataPath ../.derived \
+            -resultBundlePath ../TestResults.xcresult \
             -skipPackagePluginValidation \
             -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO \
@@ -85,6 +86,25 @@ jobs:
             > ../xcodebuild.log 2>&1 || status=$?
           # Just the useful lines: our errors/warnings, failed tests and the summary.
           grep -E "error:|/ios/MealsByMaggie.*warning:|✘|Test run with|\*\* (BUILD|TEST)" ../xcodebuild.log || true
+          # Also raise compile errors and failed tests as one annotation, so they show on the
+          # PR (and through the checks API) without downloading the log. Compiler command
+          # lines are skipped: their -Werror flags would otherwise match.
+          if [ "$status" -ne 0 ]; then
+            summary=$(grep -v -E "^[[:space:]]*(/Applications|cd |export |builtin-|ProcessInfoPlistFile|Ld |CompileC |SwiftCompile )" ../xcodebuild.log \
+              | grep -v -E " -W(no-)?error| -Werror" \
+              | grep -i -E "error:|✘|recorded an issue|Expectation failed|failed|crash|Test run with|\*\* TEST" \
+              | sed 's/^[[:space:]]*//' | awk '!seen[$0]++' | head -40)
+            # Swift Testing's expectation details only go to the result bundle.
+            details=$(xcrun xcresulttool get test-results tests --path ../TestResults.xcresult 2>/dev/null \
+              | jq -r '.. | objects | select(.nodeType? == "Failure Message") | .name' 2>/dev/null | head -20)
+            summary=$(printf '%s\n%s' "$summary" "$details" | sed '/^$/d')
+            if [ -n "$summary" ]; then
+              # Annotation text is one line: escape %, CR and LF (unquoted replacements for macOS bash 3.2).
+              summary=${summary//%/%25}
+              summary=${summary//$'\r'/%0D}
+              echo "::error title=xcodebuild failures::${summary//$'\n'/%0A}"
+            fi
+          fi
           exit $status
 
       - name: Upload build log
