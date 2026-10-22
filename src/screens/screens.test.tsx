@@ -136,7 +136,7 @@ describe('mobile screens', () => {
 
   it('Home search shows matching quick tips inline from 3 characters', async () => {
     at('/')
-    const search = await screen.findByPlaceholderText('Search title, tag or ingredient')
+    const search = await screen.findByPlaceholderText('Search recipes, ingredients or chefs')
     fireEvent.change(search, { target: { value: 'eg' } })
     await new Promise(r => setTimeout(r, 300))
     expect(screen.queryByText('Quick tip')).not.toBeInTheDocument()
@@ -149,7 +149,7 @@ describe('mobile screens', () => {
 
   it('a tip match shows alongside the empty state when no recipe matches', async () => {
     at('/')
-    fireEvent.change(await screen.findByPlaceholderText('Search title, tag or ingredient'), { target: { value: 'bacon' } })
+    fireEvent.change(await screen.findByPlaceholderText('Search recipes, ingredients or chefs'), { target: { value: 'bacon' } })
     expect(await screen.findByRole('heading', { name: 'Oven bacon' })).toBeInTheDocument()
     expect(screen.getByText(oneOf(talk.noMatch, { q: 'bacon' }))).toBeInTheDocument()
   })

@@ -42,7 +42,7 @@ Browser/PWA → CloudFront → S3 (static SPA)
 - `LocalAdapter` — localStorage with in-memory fallback (used in local dev)
 - `RemoteAdapter` — makes authenticated calls to the deployed API
 
-**Search:** Fuse.js with debouncing. Supports scoped queries: `tag:<term>` and `ing:<term>` in addition to full-text.
+**Search:** Fuse.js with debouncing over title, description, tags, ingredients, steps and the chef (`createdByName`). Supports scoped queries: `tag:<term>`, `ing:<term>` and `chef:<name>` (or `by:`) in addition to full-text. iOS ports it in `RecipeSearch.swift`; its tests use expected results generated from the web search (`src/lib/search.fixture.ts`), so change both together.
 
 **AI sketches:** recipes without a photo can get a black-ink line-art sketch from `scripts/ai-sketches.mjs` (Stability AI image model on Bedrock; `generate` to review locally, then `apply`). They're stored under the `ai-sketches/` S3 prefix, which is how web (`isAiSketch` in `images.ts`) and iOS (`Recipe.isAiSketch`) know to show the "add a real photo" nudge (no badge on the image itself; the line art is obviously not a photo). Sketches are never generated automatically on save.
 
@@ -67,7 +67,7 @@ src/
 │   └── useWakeLock.ts       # Keep screen on during cook mode
 ├── lib/
 │   ├── storage.ts           # Storage adapter abstraction
-│   ├── search.ts            # Fuse.js search + tag:/ing: scopes
+│   ├── search.ts            # Fuse.js search + tag:/ing:/chef: scopes (fixture in search.fixture.ts)
 │   ├── draft.ts             # Recipe ↔ editor draft ↔ AI extract conversions
 │   ├── extract.ts           # /ai/extract-recipe client
 │   ├── images.ts            # Image URL resolution, resize, presigned upload
@@ -138,6 +138,9 @@ ios/MealsByMaggie/
 ├── MealsByMaggie.entitlements # Associated Domains: applinks + webcredentials for mealsbymaggie.com
 ├── ContentView.swift        # Root: recipe list, toast, nickname prompt on launch (App.tsx)
 ├── RecipeListView.swift     # HomeScreen.tsx + floating "+" add button; .onOpenURL for Universal Links
+├── RecipeSearch.swift       # search.ts port: fuzzy (Fuse.js-equivalent) + tag:/ing:/chef: scopes
+├── QuickTips.swift          # quickTips.ts data + QuickTips.tsx (sheet, inline tips in search)
+├── QuickView.swift          # QuickView.tsx pantry check (card long-press menu or "N ingredients")
 ├── DeepLink.swift           # mealsbymaggie.com/recipe/<id> link → recipe id (routes in App.tsx)
 ├── RecipeDetailView.swift   # DetailScreen.tsx; share button, edit pencil when signed in
 ├── PhotoViewer.swift        # Full-screen zoomable recipe photo (iOS only)
@@ -151,7 +154,7 @@ ios/MealsByMaggie/
 └── IngredientChecklist.swift
 ```
 
-Deferred ideas (share extension, sharing, sign-in options, parity gaps) live in `docs/ios-backlog.md` as short entries; bigger ones link to their own `docs/<feature>-plan.md` (e.g. `docs/passkeys-plan.md`).
+Deferred ideas (share extension, App Store, sign-in options, cross-platform improvements) live in `docs/ios-backlog.md` as short entries; bigger ones link to their own `docs/<feature>-plan.md` (e.g. `docs/passkeys-plan.md`).
 
 When porting a web screen, read its `.tsx` + `.css` and keep the Swift view's comments pointing at the web source. Styling comes from `Theme.swift`, not ad-hoc colors.
 

@@ -19,6 +19,11 @@ struct RecipeListView: View {
     @State private var searchText = ""
     @State private var selectedTag = "all"
     @State private var showFavorites = false
+    @State private var showTips = false
+    /// Long-pressed or "N ingredients"-tapped card (QuickView), and what to do once it closes.
+    @State private var quickRecipe: Recipe?
+    @State private var quickAction: (QuickView.Action, Recipe)?
+    @State private var cookRecipe: Recipe?
     /// Picked once per launch (talk.loading in kitchenTalk.ts).
     @State private var loadingLine = ["Simmering…", "Preheating the oven…", "Raiding the pantry…",
                                       "Sharpening the knives…", "Letting the dough rise…", "Stirring the pot…"].randomElement()!
@@ -33,17 +38,22 @@ struct RecipeListView: View {
     /// The 8 most common tags for the filter row.
     private var topTags: [String] { store.topTags(limit: 8) }
 
+    /// Fuzzy search over title, tags, ingredients, steps and chef (RecipeSearch.swift).
     private var filteredRecipes: [Recipe] {
-        let query = searchText.trimmingCharacters(in: .whitespaces)
+        let hits = RecipeSearch.matches(in: recipes, query: searchText)
         return recipes.filter { recipe in
             let tags = (recipe.tags ?? []).map { $0.lowercased() }
             guard !showFavorites || favorites.contains(recipe.id) else { return false }
             guard selectedTag == "all" || tags.contains(selectedTag) else { return false }
-            guard !query.isEmpty else { return true }
-            return recipe.title.localizedCaseInsensitiveContains(query)
-                || tags.contains { $0.localizedCaseInsensitiveContains(query) }
-                || (recipe.ingredients ?? []).contains { $0.name.localizedCaseInsensitiveContains(query) }
+            return hits?.contains(recipe.id) ?? true
         }
+    }
+
+    /// Recipes tab only: up to 2 tips once the search is 3+ characters (HomeScreen.tsx).
+    private var inlineTips: [QuickTip] {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        guard !showFavorites, query.count >= 3 else { return [] }
+        return Array(QuickTip.search(query).prefix(2))
     }
 
     var body: some View {
@@ -77,11 +87,29 @@ struct RecipeListView: View {
                             .padding(.top, 12)
                     }
 
-                    Text(isLoading || errorMessage != nil ? " " : "\(filteredRecipes.count) \(filteredRecipes.count == 1 ? "recipe" : "recipes")")
-                        .font(.inter(13))
-                        .foregroundStyle(Color.muted)
-                        .frame(minHeight: 44)
-                        .padding(.horizontal, 2)
+                    // Count row + tips show in every state, so Quick tips still work
+                    // offline (bundled data) even when the recipes fail to load.
+                    HStack {
+                        Text(isLoading || errorMessage != nil ? " " : "\(filteredRecipes.count) \(filteredRecipes.count == 1 ? "recipe" : "recipes")")
+                            .font(.inter(13))
+                            .foregroundStyle(Color.muted)
+                        Spacer()
+                        if !showFavorites {
+                            Button { showTips = true } label: {
+                                Label("Quick tips", systemImage: "lightbulb")
+                                    .font(.inter(13.5, weight: .semibold))
+                                    .foregroundStyle(Color.plum)
+                                    .frame(minHeight: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .frame(minHeight: 44)
+                    .padding(.horizontal, 2)
+                    .padding(.vertical, 4)
+
+                    InlineTips(tips: inlineTips)
 
                     content
                 }
@@ -125,12 +153,27 @@ struct RecipeListView: View {
                 // Open the new recipe once it's saved.
                 RecipeEditorView(draft: RecipeDraft()) { saved in path.append(saved.id) }
             }
+            .sheet(isPresented: $showTips) { QuickTipsSheet() }
+            .sheet(item: $quickRecipe, onDismiss: runQuickAction) { recipe in
+                QuickView(recipe: recipe) { quickAction = ($0, recipe) }
+            }
+            .fullScreenCover(item: $cookRecipe) { CookView(recipe: $0) }
             .task { if store.recipes.isEmpty { await store.load() } }
             // A tapped mealsbymaggie.com/recipe/<id> link (DeepLink.swift), also on a cold launch.
             .onOpenURL { url in
                 guard let id = DeepLink.recipeID(from: url) else { return }
                 Task { await openLinkedRecipe(id) }
             }
+        }
+    }
+
+    /// "Open recipe" / "Start cooking" from the quick view, once its sheet has closed.
+    private func runQuickAction() {
+        guard let pending = quickAction else { return }
+        quickAction = nil
+        switch pending.0 {
+        case .open: path.append(pending.1.id)
+        case .cook: cookRecipe = pending.1
         }
     }
 
@@ -212,19 +255,52 @@ struct RecipeListView: View {
         } else {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
                 ForEach(filteredRecipes) { recipe in
-                    NavigationLink(value: recipe.id) {
-                        RecipeCard(recipe: recipe)
-                    }
-                    .buttonStyle(PressableStyle())
-                    .overlay(alignment: .topTrailing) {
-                        HeartButton(isOn: favorites.contains(recipe.id)) { favorites.toggle(recipe.id) }
-                            .padding(8)
+                    VStack(alignment: .leading, spacing: 0) {
+                        NavigationLink(value: recipe.id) {
+                            RecipeCard(recipe: recipe)
+                        }
+                        .buttonStyle(PressableStyle())
+                        .overlay(alignment: .topTrailing) {
+                            HeartButton(isOn: favorites.contains(recipe.id)) { favorites.toggle(recipe.id) }
+                                .padding(8)
+                        }
+                        // Long-press: the web opens the quick view; iOS shows its usual menu,
+                        // led by the same pantry check.
+                        .contextMenu { cardMenu(recipe) }
+                        RecipeCardMeta(recipe: recipe) { quickRecipe = recipe }
                     }
                 }
             }
         }
     }
 
+}
+
+extension RecipeListView {
+    @ViewBuilder
+    fileprivate func cardMenu(_ recipe: Recipe) -> some View {
+        if !(recipe.ingredients ?? []).isEmpty {
+            Button { quickRecipe = recipe } label: {
+                Label("What do I have?", systemImage: "checklist")
+            }
+        }
+        if !(recipe.instructions ?? []).isEmpty {
+            Button { cookRecipe = recipe } label: {
+                Label("Start cooking", systemImage: "play")
+            }
+        }
+        Button { favorites.toggle(recipe.id) } label: {
+            favorites.contains(recipe.id)
+                ? Label("Remove from favorites", systemImage: "heart.slash")
+                : Label("Add to favorites", systemImage: "heart")
+        }
+        if let link = recipe.webURL {
+            ShareLink(item: link, subject: Text(recipe.title), message: Text(recipe.title),
+                      preview: SharePreview(recipe.title)) {
+                Label("Share", systemImage: "square.and.arrow.up")
+            }
+        }
+    }
 }
 
 /// Recipes · + · Favorites bar along the bottom (TabBar.tsx / TabBar.css).
@@ -328,15 +404,17 @@ private struct AvatarButton: View {
     }
 }
 
-/// White rounded search box (`.search` in HomeScreen.css).
-private struct SearchField: View {
+/// White rounded search box (`.search` in HomeScreen.css); also the Quick tips filter.
+struct SearchField: View {
     @Binding var text: String
+    var prompt = "Search recipes, ingredients or chefs"
+    var clearLabel = "Clear search"
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 17, weight: .medium))
-            TextField("Search title, tag or ingredient", text: $text)
+            TextField(prompt, text: $text)
                 .font(.inter(16))
                 .foregroundStyle(Color.text)
                 .textInputAutocapitalization(.never)
@@ -353,7 +431,7 @@ private struct SearchField: View {
                         .background(Color(hex: 0xD9C5CF), in: Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Clear search")
+                .accessibilityLabel(clearLabel)
             }
         }
         .foregroundStyle(Color.muted)
@@ -380,18 +458,10 @@ private struct TagFilterChip: View {
     }
 }
 
-/// Square photo card with title and meta line (`.rcard` in HomeScreen.css).
+/// Square photo card with its title (`.rcard` in HomeScreen.css); the meta line sits
+/// below it in RecipeCardMeta so its "N ingredients" link isn't part of the card's tap.
 private struct RecipeCard: View {
     let recipe: Recipe
-
-    private var meta: String {
-        let count = recipe.ingredients?.count ?? 0
-        let parts = [
-            recipe.cookTime.flatMap { $0.isEmpty ? nil : $0 },
-            count > 0 ? "\(count) \(count == 1 ? "ingredient" : "ingredients")" : nil,
-        ]
-        return parts.compactMap { $0 }.joined(separator: " · ")
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -406,16 +476,48 @@ private struct RecipeCard: View {
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
                 .padding(.top, 8)
-
-            if !meta.isEmpty {
-                Text(meta)
-                    .font(.inter(13))
-                    .foregroundStyle(Color.muted)
-                    .lineLimit(1)
-                    .padding(.top, 3)
-            }
         }
         .contentShape(Rectangle())
+    }
+}
+
+/// "25 min · 7 ingredients" under a card; the count opens the quick view (`.rmeta`, `.ing-link`).
+private struct RecipeCardMeta: View {
+    let recipe: Recipe
+    let onQuickView: () -> Void
+
+    private var cookTime: String? { recipe.cookTime.flatMap { $0.isEmpty ? nil : $0 } }
+    private var count: Int { recipe.ingredients?.count ?? 0 }
+
+    var body: some View {
+        if cookTime != nil || count > 0 {
+            HStack(spacing: 0) {
+                if let cookTime {
+                    Text(cookTime)
+                        .foregroundStyle(Color.muted)
+                        .layoutPriority(-1)
+                }
+                if cookTime != nil && count > 0 {
+                    Text(" · ").foregroundStyle(Color.muted)
+                }
+                if count > 0 {
+                    Button(action: onQuickView) {
+                        Text("\(count) \(count == 1 ? "ingredient" : "ingredients")")
+                            .font(.inter(13, weight: .semibold))
+                            .foregroundStyle(Color.plum)
+                            .underline(color: Color(hex: 0xE3C3D3))
+                            .padding(.vertical, 4)  // bigger tap target that doesn't push the row
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.vertical, -4)
+                    .fixedSize()
+                }
+            }
+            .font(.inter(13))
+            .lineLimit(1)
+            .padding(.top, 3)
+        }
     }
 }
 

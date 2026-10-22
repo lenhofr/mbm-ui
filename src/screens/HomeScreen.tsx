@@ -160,7 +160,7 @@ export default function HomeScreen({ favoritesOnly }: { favoritesOnly?: boolean 
             spellCheck={false}
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search title, tag or ingredient"
+            placeholder="Search recipes, ingredients or chefs"
           />
           {query && (
             <button type="button" className="search-x" onClick={() => setQuery('')} aria-label="Clear search">

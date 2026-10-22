@@ -191,3 +191,179 @@ struct DeepLinkTests {
         #expect(DeepLink.recipeID(from: URL(string: link)!) == nil)
     }
 }
+
+// Search (RecipeSearch.swift ↔ src/lib/search.ts). The recipes come from
+// src/lib/search.fixture.ts; the expected ids are what the web's Fuse.js search returned
+// for each query, including typo'd words near the edge of what fuzzy matching allows.
+struct RecipeSearchTests {
+    static let recipes: [Recipe] = [
+        Recipe(id: "alfredo",
+               title: "Chicken Alfredo",
+               description: "Creamy weeknight pasta.",
+               tags: ["Pasta", "dinner"],
+               ingredients: [.init(name: "fettuccine", amount: "1 lb"), .init(name: "chicken breasts", amount: "2"), .init(name: "parmesan cheese")],
+               instructions: ["Boil the pasta.", "Simmer the sauce until thick."],
+               createdByName: "Chef Mike Drop"),
+        Recipe(id: "cookies",
+               title: "Chocolate Chip Cookies",
+               tags: ["dessert", "baking"],
+               ingredients: [.init(name: "eggs", amount: "2"), .init(name: "chocolate chips", amount: "1 cup")],
+               instructions: ["Cream the butter and sugar.", "Bake at 350°F for 10 minutes."],
+               createdByName: "Nana"),
+        Recipe(id: "chili",
+               title: "Crockpot Chili",
+               description: "Set it and forget it.",
+               tags: ["Dinner", "slow cooker"],
+               ingredients: [.init(name: "ground beef", amount: "1 lb"), .init(name: "kidney beans", amount: "1 can")],
+               instructions: ["Brown the beef.", "Cook on low for 8 hours."],
+               createdByName: "Chef Mike Drop"),
+        Recipe(id: "pie",
+               title: "Apple Pie",
+               tags: ["dessert"],
+               ingredients: [.init(name: "apples", amount: "6"), .init(name: "pie crust")],
+               instructions: ["Slice the apples."],
+               createdByName: "Gram"),
+        Recipe(id: "salad",
+               title: "Greek Salad",
+               tags: ["side"],
+               ingredients: [.init(name: "feta"), .init(name: "cucumber")],
+               createdByName: "user"),
+    ]
+
+    @Test(arguments: [
+        ("chicken", ["alfredo"]),
+        ("chiken", ["alfredo"]),
+        ("parmesn", ["alfredo"]),
+        ("mike", ["alfredo", "chili"]),
+        ("chef mike", ["alfredo", "chili"]),
+        ("\"mike drop\"", ["alfredo", "chili"]),
+        ("nana", ["cookies"]),
+        ("gram", ["pie"]),
+        ("user", []),
+        ("chef:mike", ["alfredo", "chili"]),
+        ("by:gram", ["pie"]),
+        ("chef:user", []),
+        ("mike dinner", ["alfredo", "chili"]),
+        ("mike dessert", []),
+        ("tag:dessert", ["cookies", "pie"]),
+        ("ing:egg", ["cookies"]),
+        ("dessert apple", ["pie"]),
+        ("beans", ["chili"]),
+        ("350", ["cookies"]),
+        ("xyzzy", []),
+        ("fettucine", ["alfredo"]),
+        ("fettuxcine", ["alfredo"]),
+        ("fettuccine", ["alfredo"]),
+        ("fettuzzccine", ["alfredo"]),
+        ("ettuccin", ["alfredo"]),
+        ("parmsan", ["alfredo"]),
+        ("parmxsan", ["alfredo"]),
+        ("parmsean", []),
+        ("parmzzesan", ["alfredo"]),
+        ("armesa", ["alfredo"]),
+        ("choclate", ["cookies"]),
+        ("chocxlate", ["cookies"]),
+        ("chocloate", []),
+        ("choczzolate", ["cookies"]),
+        ("hocolat", ["cookies"]),
+        ("crocpot", ["chili"]),
+        ("crocxpot", ["chili"]),
+        ("crocpkot", []),
+        ("croczzkpot", ["chili"]),
+        ("rockpo", ["chili"]),
+        ("kidey", ["chili"]),
+        ("kidxey", ["chili"]),
+        ("kideny", []),
+        ("kidzzney", []),
+        ("idne", ["chili"]),
+        ("cucuber", ["salad"]),
+        ("cucuxber", ["salad"]),
+        ("cucubmer", []),
+        ("cucuzzmber", ["salad"]),
+        ("ucumbe", ["salad"]),
+        ("weekight", ["alfredo"]),
+        ("weekxight", ["alfredo"]),
+        ("weekinght", []),
+        ("weekzznight", ["alfredo"]),
+        ("eeknigh", ["alfredo"]),
+        ("simer", ["alfredo"]),
+        ("simxer", ["alfredo"]),
+        ("simemr", []),
+        ("simzzmer", []),
+        ("imme", ["alfredo"]),
+        ("alfedo", ["alfredo"]),
+        ("alfxedo", ["alfredo"]),
+        ("alferdo", []),
+        ("alfzzredo", []),
+        ("lfred", ["alfredo"]),
+        ("cooies", ["cookies"]),
+        ("cooxies", ["cookies"]),
+        ("cooikes", []),
+        ("coozzkies", []),
+        ("ookie", ["chili", "cookies"]),
+        ("chli", []),
+        ("chxli", ["chili"]),
+        ("chlii", []),
+        ("chzzili", []),
+        ("hil", ["chili"]),
+        ("appes", ["pie"]),
+        ("appxes", ["pie"]),
+        ("appels", []),
+        ("appzzles", []),
+        ("pple", ["pie"]),
+        ("drp", []),
+        ("drxp", []),
+        ("drpo", []),
+        ("drzzop", []),
+        ("ro", ["alfredo", "chili"]),
+        ("buter", ["cookies"]),
+        ("butxer", ["cookies"]),
+        ("butetr", []),
+        ("butzzter", []),
+        ("utte", ["cookies"]),
+        ("mintes", ["cookies"]),
+        ("minxtes", ["cookies"]),
+        ("mintues", []),
+        ("minzzutes", []),
+        ("inute", ["cookies"]),
+    ])
+    func matchesTheWebSearch(query: String, ids: [String]) {
+        let hits = RecipeSearch.matches(in: Self.recipes, query: query) ?? []
+        #expect(hits.sorted() == ids)
+    }
+
+    @Test func emptyQueryShowsEverything() {
+        #expect(RecipeSearch.matches(in: Self.recipes, query: "   ") == nil)
+    }
+
+    @Test func chefSkipsTheOldPlaceholderName() {
+        #expect(Self.recipes.first { $0.id == "salad" }?.chefName == "")
+        #expect(Self.recipes.first { $0.id == "pie" }?.chefName == "Gram")
+    }
+}
+
+// Quick tips search (QuickTip.search ↔ searchTips in src/lib/quickTips.ts).
+struct QuickTipsTests {
+    @Test(arguments: [
+        ("egg", ["eggs"]),
+        ("boiled eggs", ["eggs", "poach-chicken"]),
+        ("chicken", ["poach-chicken", "safe-temps"]),
+        ("carrots", ["roast-veg", "boiled-carrots"]),
+        ("steak", ["steak"]),
+        ("temp", ["steak", "safe-temps"]),
+        ("potato", ["roast-veg", "baked-potato"]),
+        ("oz", ["conversions"]),
+        ("convert", ["conversions"]),
+        ("corn", ["corn"]),
+        ("zzz", []),
+        ("bacon", ["bacon"]),
+        ("fish", ["fish", "safe-temps"]),
+        ("salmon", ["fish"]),
+        ("roast", ["roast-veg"]),
+        ("medium rare", ["steak"]),
+        ("eggs and bacon", ["eggs", "bacon"]),
+    ])
+    func matchesTheWebTips(query: String, ids: [String]) {
+        #expect(QuickTip.search(query).map(\.id) == ids)
+    }
+}
