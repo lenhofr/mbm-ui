@@ -1,6 +1,6 @@
 # Recipe Circles: Groups, Sharing & Per-Recipe Visibility
 
-**Status:** Phase 0 (groundwork) shipped in #136, 2026-10-23. Open questions decided (§14, 2026-10-23); Phase 1 is next. Design Written 2026-10-11 against `main` at the time; current-state notes updated 2026-10-16 for #120 (delete permissions, admins group, recipes backups).
+**Status:** Phase 0 (groundwork) shipped in #136, 2026-10-23. Open questions decided (§14, 2026-10-23); Phase 1 is next. Design written 2026-10-11 against `main` at the time; current-state notes updated 2026-10-16 for #120 (delete permissions, admins group, recipes backups).
 **Scope:** Backend (Lambda + DynamoDB + Terraform), Cognito triggers, web SPA, iOS app, data migration.
 **Audience:** The next engineer or AI session that implements this. Read the whole doc once, then work phase by phase (§13). Every decision below has a stated reason. If you change a decision, update this doc in the same PR.
 
