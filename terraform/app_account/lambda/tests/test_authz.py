@@ -26,6 +26,10 @@ def caller(sub='someone', **memberships):
     return Caller(sub, sub, memberships)
 
 
+def admin(sub='admin', **memberships):
+    return Caller(sub, sub, memberships, is_admin=True)
+
+
 def flags(a):
     return (a.can_read, a.can_edit, a.can_delete, a.can_share, a.relation)
 
@@ -36,7 +40,16 @@ CASES = [
     ('owner private', caller(OWNER), recipe(), (True, True, True, True, 'owner')),
     ('owner public, in a circle they left', caller(OWNER), recipe(['c1'], public=True), (True, True, True, True, 'owner')),
     # Circle roles, recipe shared into that circle.
-    ('circle owner', caller(c1='owner'), recipe(['c1']), (True, True, False, False, 'circle-editor')),
+    # A circle owner deletes only what lives entirely in circles they run.
+    ('circle owner', caller(c1='owner'), recipe(['c1']), (True, True, True, False, 'circle-editor')),
+    ('circle owner of both circles', caller(c1='owner', c2='owner'), recipe(['c1', 'c2']),
+     (True, True, True, False, 'circle-editor')),
+    ('circle owner, also in a circle they edit', caller(c1='owner', c2='editor'), recipe(['c1', 'c2']),
+     (True, True, False, False, 'circle-editor')),
+    ('circle owner, also in a circle they are not in', caller(c1='owner'), recipe(['c1', 'c2']),
+     (True, True, False, False, 'circle-editor')),
+    ('owner of an unrelated circle, public', caller(c2='owner'), recipe(['c1'], public=True),
+     (True, False, False, False, 'public')),
     ('circle editor', caller(c1='editor'), recipe(['c1']), (True, True, False, False, 'circle-editor')),
     ('circle member', caller(c1='member'), recipe(['c1']), (True, False, False, False, 'circle-member')),
     ('member of public recipe', caller(c1='member'), recipe(['c1'], public=True), (True, False, False, False, 'circle-member')),
@@ -52,8 +65,15 @@ CASES = [
     ('stranger public', caller(), recipe(public=True), (True, False, False, False, 'public')),
     ('anonymous private', ANONYMOUS, recipe(['c1']), (False, False, False, False, 'none')),
     ('anonymous public', ANONYMOUS, recipe(public=True), (True, False, False, False, 'public')),
+    # Super admins read and delete anything, but don't edit or share.
+    ('admin, private', admin(), recipe(), (True, False, True, False, 'admin')),
+    ('admin, public', admin(), recipe(public=True), (True, False, True, False, 'public')),
+    ('admin, circle editor', admin(c1='editor'), recipe(['c1']), (True, True, True, False, 'circle-editor')),
+    ('admin, ownerless', admin(), recipe(owner=None), (True, False, True, False, 'admin')),
+    ('admin owns it', admin(OWNER), recipe(), (True, True, True, True, 'owner')),
     # Fail closed.
     ('unknown role', caller(c1='chef'), recipe(['c1']), (False, False, False, False, 'none')),
+    ('no circles: no chef delete', caller(c1='owner'), recipe(public=True), (True, False, False, False, 'public')),
     ('no ownerSub: nobody owns it', caller(OWNER), recipe(owner=None), (False, False, False, False, 'none')),
     ('no ownerSub, anonymous', ANONYMOUS, recipe(owner=None), (False, False, False, False, 'none')),
     ('publicPk must be exactly PUBLIC', caller(), {**recipe(), 'publicPk': 'public'}, (False, False, False, False, 'none')),

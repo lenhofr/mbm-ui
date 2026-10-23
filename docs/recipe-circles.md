@@ -1,6 +1,6 @@
 # Recipe Circles: Groups, Sharing & Per-Recipe Visibility
 
-**Status:** Phase 0 (groundwork) done on `feat/brigades-phase0`, 2026-10-23; Phase 1 waits on the §14 questions. Design Written 2026-10-11 against `main` at the time; current-state notes updated 2026-10-16 for #120 (delete permissions, admins group, recipes backups).
+**Status:** Phase 0 (groundwork) shipped in #136, 2026-10-23. Open questions decided (§14, 2026-10-23); Phase 1 is next. Design written 2026-10-11 against `main` at the time; current-state notes updated 2026-10-16 for #120 (delete permissions, admins group, recipes backups).
 **Scope:** Backend (Lambda + DynamoDB + Terraform), Cognito triggers, web SPA, iOS app, data migration.
 **Audience:** The next engineer or AI session that implements this. Read the whole doc once, then work phase by phase (§13). Every decision below has a stated reason. If you change a decision, update this doc in the same PR.
 
@@ -12,8 +12,9 @@
 - We introduce:
   - **Owners.** Every recipe has exactly one `ownerSub`.
   - **Circles.** A circle is a named group of users with roles `owner | editor | member`.
-  - **Visibility.** Each recipe is private by default. The owner can share it into any number of circles they belong to and/or mark it public.
-- Home shows **"Your kitchen"**: your recipes plus everything shared into your circles, with a filter chip for each circle. Public recipes from strangers move to a separate **Discover** view.
+  - **Visibility.** The owner can share a recipe into any number of circles they belong to and/or mark it public. New recipes are shared the way the owner shared their last one, starting as public plus all their circles (§14.3), so most recipes stay public. Private is an option, not the default.
+- Home shows **"Your kitchen"**: your recipes plus everything shared into your circles, with a filter chip for each circle. Public recipes from strangers move to a separate **Discover** view, so a big public catalog never crowds Home.
+- **Deletes:** the recipe owner; super admins (the `admins` Cognito group) for any recipe; a circle owner (Chef de cuisine) for a recipe that's only in circles they run (§14.7).
 - Storage:
   - Keep `mbm-recipes` (PK `recipeId`). Add attributes and two GSIs.
   - Add one new single-table `mbm-circles` that holds circles, memberships and share edges.
@@ -133,7 +134,7 @@ Roles rank as `member < editor < owner`.
 |---|---|---|---|---|---|---|
 | Read recipe | ✅ | ✅ if shared to circle | ✅ if shared | ✅ if shared | public only | public only |
 | Edit recipe content (`EDITABLE_FIELDS`) | ✅ | ✅ if shared | ✅ if shared | ❌ | ❌ | ❌ |
-| Delete recipe | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Delete recipe | ✅ | ✅ if every circle it's in is one they own | ❌ | ❌ | ❌ | ❌ |
 | Change sharing (public flag, add/remove circles) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Remove a recipe from *this* circle (unshare) | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Share *own* recipe into circle | – | ✅ | ✅ | ✅ | ❌ | ❌ |
@@ -143,11 +144,13 @@ Roles rank as `member < editor < owner`.
 | Leave circle | – | ✅ unless last owner | ✅ | ✅ | – | – |
 | Rename / delete circle | – | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-**Admins** (the `admins` Cognito group) can also delete any recipe today (#120). Proposed: they keep that once circles exist; see §14.7.
+**Super admins** (the `admins` Cognito group, members added by hand) can read and delete any recipe, as since #120 (§14.7). They get no edit or sharing rights from that alone.
+
+The `member` (Commis, read-only) role exists in code but isn't offered in the v1 UI: everyone joins as `editor`, so brigade members can edit each other's shared recipes (§14.4).
 
 Rationale:
 - **Editors may edit content but not sharing.** Otherwise an editor in circle A could make a recipe public, or push it into circle B. That is privilege escalation across audiences, so content edits and sharing are **separate endpoints** (§7).
-- **Only the owner deletes** (plus admins, if §14.7 is accepted). A circle editor can unshare a recipe from their circle, which removes it from that audience, but can't destroy someone else's data.
+- **Deleting is narrow.** The owner and super admins can delete. A circle owner can delete only a recipe that lives entirely in circles they run, because deleting a recipe that's also in another brigade would destroy it for people that chef doesn't answer for. Otherwise a circle owner or editor can unshare it from their circle, which removes it from that audience without destroying it.
 - `editor` keeps today's family behavior, where everyone edits everything. The migration (§10) makes all current users editors of the founding circle.
 
 ### 3.2 UI naming: the kitchen brigade
@@ -161,7 +164,7 @@ Rationale:
 | `circle` | Brigade (plural: Brigades) | – | A group of people who share recipes |
 | `owner` | Chef de cuisine | Chef | Runs the brigade: renames it, sets roles, removes people |
 | `editor` | Sous-chef | Sous-chef | Edits the brigade's recipes and invites people |
-| `member` | Commis | Commis | Cooks from the brigade's recipes and shares their own |
+| `member` | Commis | Commis | Cooks from the brigade's recipes and shares their own. **Not offered in the v1 UI** (§14.4). |
 
 **Copy rules**
 - **Always pair a French role with its plain description** wherever someone picks or reads a role: the role picker, the member list, and the invite role selector. Many users won't know the terms, and the description is what tells them what they can do.
@@ -184,7 +187,7 @@ Rationale:
 | Join screen title / button | You're invited to join {brigadeName} / Join the brigade |
 | Join success toast | Welcome to {brigadeName}! |
 | Role change notice | {actorName} made you a {roleLabel} |
-| Leave button / confirm | Leave brigade / Your recipes leave with you. (matches §6.5) |
+| Leave button / confirm | Leave brigade / Your recipes stay with the brigade. You can still edit them or stop sharing them. (matches §6.5) |
 | Delete button / confirm | Delete brigade / Recipes stay with their owners; they're just no longer shared here. |
 | ShareSheet heading | Share with your brigades |
 | Editor sharing row | Sharing: {brigadeName or "Only me"} ▸ |
@@ -302,7 +305,7 @@ Item types:
 | ID | Invariant | Enforced by |
 |---|---|---|
 | I1 | A share edge `CIRCLE#c / RECIPE#r` exists **iff** `c ∈ recipes[r].circleIds` | Every mutation touches both in one `TransactWriteItems`. `scripts/reconcile-circles.mjs` detects and repairs drift. |
-| I2 | A recipe is shared into `c` only while its owner is a member of `c` | `ConditionCheck` on the owner's `MEMBER#` item in the sharing transaction. Leave/remove cascades (§6.5). |
+| I2 | A recipe is *added* to `c` only by an owner who is a member of `c` at that moment. It stays shared after the owner leaves or is removed (§14.6). | `ConditionCheck` on the owner's `MEMBER#` item in the sharing transaction. No cascade on leave/remove (§6.5). |
 | I3 | Every non-deleting circle has `ownerCount ≥ 1` | Condition `ownerCount > :one` on demote, remove or leave of an owner |
 | I4 | `ownerSub`, `publicPk`, `circleIds`, `version`, `created*`, `updated*`, `recipeId` are never taken from a request body | Allow-list in `parse_recipe_body()` (§7.3) |
 | I5 | Public routes never return a non-public recipe and never read `Authorization` | Route design (§7.1) plus tests |
@@ -329,78 +332,17 @@ Item types:
 
 This module is pure and does no I/O, so it's trivially unit-testable. Every handler loads the recipe and the caller's memberships, then asks this module.
 
-```python
-# lambda/recipes/authz.py
-from dataclasses import dataclass, asdict
+Built in Phase 0: [`terraform/app_account/lambda/recipes/authz.py`](../terraform/app_account/lambda/recipes/authz.py), tested by `tests/test_authz.py` against the §3.1 matrix. The code is the spec; in short:
 
-ROLE_RANK = {"member": 1, "editor": 2, "owner": 3}
+- `Caller(sub, name, memberships, is_admin)`. `is_admin` comes from `cognito:groups` containing `admins`.
+- `recipe_access(caller, recipe) -> Access(can_read, can_edit, can_delete, can_share, relation)`, where `relation` is `owner | circle-editor | circle-member | public | admin | none`.
+  - Owner: everything.
+  - Best role across the recipe's circles the caller is in: `editor`/`owner` can read and edit, `member` can read.
+  - `can_delete` also holds for a super admin, and for a circle owner when the recipe is in at least one circle and the caller owns every one of them.
+  - Public: read. A super admin with no other relation: read and delete (`admin`).
+- `can_share_into`, `can_unshare_from`, `can_manage_circle`, `visible_circle_ids` as named.
+- `Access.to_json()` is the `access` object in responses (§7.4).
 
-@dataclass(frozen=True)
-class Caller:
-    sub: str | None                 # None = anonymous
-    name: str | None
-    memberships: dict[str, str]     # cid -> role ("member"|"editor"|"owner")
-
-    @property
-    def is_anon(self) -> bool:
-        return self.sub is None
-
-    def role_in(self, cid: str) -> str | None:
-        return self.memberships.get(cid)
-
-@dataclass(frozen=True)
-class Access:
-    can_read: bool
-    can_edit: bool
-    can_delete: bool
-    can_share: bool        # change public flag / circle set
-    relation: str          # "owner" | "circle-editor" | "circle-member" | "public" | "none"
-
-    def to_json(self) -> dict:
-        d = asdict(self)
-        return {"canRead": d["can_read"], "canEdit": d["can_edit"],
-                "canDelete": d["can_delete"], "canShare": d["can_share"],
-                "relation": d["relation"]}
-
-NONE = Access(False, False, False, False, "none")
-
-def recipe_access(caller: Caller, recipe: dict) -> Access:
-    owner = recipe.get("ownerSub")
-    is_public = recipe.get("publicPk") == "PUBLIC"
-    circle_ids = set(recipe.get("circleIds") or ())
-
-    if caller.sub and owner and caller.sub == owner:
-        return Access(True, True, True, True, "owner")
-
-    shared_roles = [caller.memberships[c] for c in circle_ids if c in caller.memberships]
-    best = max((ROLE_RANK[r] for r in shared_roles), default=0)
-
-    if best >= ROLE_RANK["editor"]:
-        return Access(True, True, False, False, "circle-editor")
-    if best >= ROLE_RANK["member"]:
-        return Access(True, False, False, False, "circle-member")
-    if is_public:
-        return Access(True, False, False, False, "public")
-    return NONE
-
-def can_share_into(caller: Caller, cid: str) -> bool:
-    """Owner of a recipe may add it to cid only if they are a member of cid."""
-    return ROLE_RANK.get(caller.role_in(cid) or "", 0) > 0   # unknown role: no (as built)
-
-def can_unshare_from(caller: Caller, cid: str, recipe: dict) -> bool:
-    if caller.sub and caller.sub == recipe.get("ownerSub"):
-        return True
-    return ROLE_RANK.get(caller.role_in(cid) or "", 0) >= ROLE_RANK["editor"]
-
-def can_manage_circle(caller: Caller, cid: str, min_role: str) -> bool:
-    return ROLE_RANK.get(caller.role_in(cid) or "", 0) >= ROLE_RANK[min_role]
-
-def visible_circle_ids(caller: Caller, recipe: dict) -> list[str]:
-    ids = set(recipe.get("circleIds") or ())
-    if caller.sub and caller.sub == recipe.get("ownerSub"):
-        return sorted(ids)
-    return sorted(ids & caller.memberships.keys())
-```
 
 **Fail-closed rules**
 - A missing `ownerSub` means nobody is treated as the owner. The migration must set it on every item, and the reconcile script flags any item without it.
@@ -432,7 +374,7 @@ Request body:
   "sharing": { "isPublic": false, "circleIds": ["c1"] } }
 ```
 
-`sharing` is optional. The default is private. Once the client has the share sheet, it will send the user's last-used choice (§9.3).
+`sharing` is optional. Without it the recipe is **public with no circles** (or the founding circle too, while `LEGACY_DEFAULT_SHARE=founding`, §8.1). New clients always send it: the user's last choice, starting as public plus all their circles (§14.3, §9.1).
 
 1. `fields = parse_recipe_body(body)`. This keeps the allow-list only, validates types and sizes (§7.3), and drops everything else.
 2. Validate `sharing.circleIds`: there can be at most 20, and each needs `can_share_into(caller, cid)`.
@@ -513,8 +455,11 @@ Making a recipe public is a meaningful privacy action, so the UI needs an explic
 
 ### 6.4 Delete recipe: `DELETE /recipes/{id}`
 
-1. GetItem. Not readable gives 404. Not `can_delete` (owner, or admin if §14.7 is accepted) gives 403.
-2. Transaction: `Delete` the recipe with the condition `ownerSub = :sub` (for an admin deleting someone else's recipe, `ownerSub = :owner` with the owner read in step 1), plus `Delete` the edge for each cid in `circleIds`.
+1. GetItem. Not readable gives 404. Not `can_delete` gives 403. `can_delete` holds for the owner, a super admin, or a circle owner of every circle the recipe is in (§3.1).
+2. Transaction: `Delete` the recipe, plus `Delete` the edge for each cid in `circleIds`. The recipe's condition restates why the delete was allowed:
+   - owner: `ownerSub = :sub`
+   - circle owner: `circleIds = :seen` (the set read in step 1), so a recipe shared into another brigade in the meantime isn't deleted. Also `ConditionCheck` each `MEMBER#caller` still has `role = owner`.
+   - super admin: `attribute_exists(recipeId)`
 
 Today's check (#120) compares `createdBySub` instead. The migration copies `createdBySub` into `ownerSub` (§10), so switching the check over is safe once it has run.
 3. Images are not deleted. That's the current behavior, and copies may reference the same key if §6.7 option B is chosen. Image garbage collection is out of scope.
@@ -545,11 +490,10 @@ Today's check (#120) compares `createdBySub` instead. The migration copies `crea
      - `Delete` `MEMBER#sub`.
      - `Update` `META` with `ADD memberCount :neg1`.
      - If the member was an owner, also `ADD ownerCount :neg1` with condition `ownerCount > :one` (I3).
-  2. **Cascade (enforces I2).** Find the departing user's recipes that are shared into this circle:
-     - Query `gsi_owner` for `ownerSub = sub`, filtered with `contains(circleIds, :cid)`.
-     - For each match, run a transaction that updates the recipe with `DELETE circleIds :cidSet` and deletes the edge.
-  3. The cascade isn't atomic with step 1. If the Lambda dies midway, the reconcile script finishes the job. Authz is still correct in the meantime: the departed user loses read access immediately because their membership is gone, and their recipes remain visible to the circle until the cascade finishes. That is acceptable for a short window.
-- **Decision:** when you leave, your recipes leave with you. This is more intuitive and privacy-preserving than leaving them behind. A "leave recipes behind" option would need ownership transfer and is out of scope.
+- **No cascade.** The departing cook's recipes stay shared into the circle (§14.6), so the family keeps grandma's recipes when grandma leaves.
+  - The departed cook loses access to the circle's other recipes immediately, because their membership is gone.
+  - They still own their recipes, so they can still edit them or unshare them from the circle. They can't share anything new into it.
+  - The circle's owners can unshare those recipes, or delete one that's only in circles they run (§6.4).
 
 **Delete circle: `DELETE /circles/{cid}`** (circle owner)
 1. `Update` `META` with `SET deleting = :true`. From now on, authz ignores this circle (§5).
@@ -563,9 +507,9 @@ Today's check (#120) compares `createdBySub` instead. The migration copies `crea
 
 This is v1.1 and optional. Allowed when the caller is the owner and `toSub` shares at least one circle with the caller.
 - Update `ownerSub` and `ownerName` with condition `ownerSub = :caller`.
-- Then re-evaluate I2: remove the recipe from circles the new owner isn't in.
+- Sharing is left as it is (I2 only applies when adding a circle).
 
-This is useful when someone leaves a family circle but the family wants to keep grandma's recipes.
+This is useful when a cook wants someone else to look after their recipes, e.g. before deleting their account.
 
 ### 6.7 Copy a recipe: `POST /recipes/{id}/copy`
 
@@ -588,7 +532,7 @@ Extend `META` items in `mbm-invites` with these optional attributes:
 | Attribute | Meaning |
 |---|---|
 | `circleId` | Joining with this code adds the user to this circle |
-| `circleRole` | `member` or `editor` (never `owner`). Default `member`. |
+| `circleRole` | `member` or `editor` (never `owner`). Default `editor`; the v1 UI never mints `member` codes (§14.4). |
 | `allowSignup` | BOOL. If false or absent, **the code can't be used to create an account**. It only works for existing users. |
 | `createdBySub` | Who minted it, for audit |
 | `kind` | `"signup"` (today's codes) or `"circle"` |
@@ -597,10 +541,10 @@ Why reuse this table:
 - The atomic uses/maxUses/expiry/revoked logic and the `USE#` audit records already exist and are tested in `pre_sign_up.py`.
 - One code format, one "join" UX.
 
-**Security decision.** The app is invite-only today, and Rob controls who gets in. Circle editors can mint circle codes, but those codes **cannot create accounts** unless `allowSignup` is true. Only an admin script (or a member of the `admins` Cognito group, §2) sets that. Otherwise any circle editor could open sign-ups. Update `pre_sign_up.py` so that a code with `kind = "circle"` and no `allowSignup` is rejected. This is open question §14.2.
+**Security decision.** The app is invite-only today, and Rob controls who gets in. Circle editors can mint circle codes, but those codes **cannot create accounts** unless `allowSignup` is true. Only an admin script (or a member of the `admins` Cognito group, §2) sets that. Otherwise any circle editor could open sign-ups. Update `pre_sign_up.py` so that a code with `kind = "circle"` and no `allowSignup` is rejected. **Decided (§14.2):** only admins mint sign-up codes; brigade codes never create accounts.
 
 Endpoints:
-- **`POST /circles/{cid}/invites {maxUses?=10, ttlDays?=14, role?="member"}`** (circle editor or higher)
+- **`POST /circles/{cid}/invites {maxUses?=10, ttlDays?=14, role?="editor"}`** (circle editor or higher)
   - Generates the code server-side with `secrets.token_urlsafe(9)`, about 72 bits, prefixed `C-`.
   - Puts `META`. Returns `{code, url: "https://mealsbymaggie.com/join?code=..."}`.
   - Cap active codes at 20 per circle.
@@ -635,7 +579,7 @@ def handler(event, _ctx):
     meta = invites.get_item(Key={"code": code, "sk": "META"}).get("Item") or {}
     cid = meta.get("circleId")
     if cid:
-        add_member(cid, sub, role=meta.get("circleRole", "member"),
+        add_member(cid, sub, role=meta.get("circleRole", "editor"),
                    display_name=attrs.get("nickname") or attrs.get("email","").split("@")[0],
                    invited_by=meta.get("createdBySub"), invite_code=code)
     return event                         # never raise: a failure here must not block confirmation
@@ -775,9 +719,9 @@ def parse_recipe_body(body: dict) -> dict:
 |---|---|---|
 | Anonymous `GET /recipes` | Returns public recipes. After migration that's every pre-existing recipe. | ✅ Same list until someone makes something private. Private recipes then disappear from old clients, which is correct. |
 | `GET /recipes/{id}` | Public only | ✅ |
-| `POST /recipes` without `sharing` | Created **private** | ⚠️ An old client creates a recipe, then reloads the anonymous list, and the new recipe "disappears". **Mitigation:** env var `LEGACY_DEFAULT_SHARE=founding` makes a create *without* a `sharing` key default to `{isPublic: true, circleIds: [FOUNDING_CIRCLE_ID]}`. New clients always send `sharing`, so they get true private-by-default. Remove the flag once old builds are gone. |
+| `POST /recipes` without `sharing` | Created **public, no circles** (§6.1) | ✅ It shows in the anonymous list. With no circle it wouldn't show in the founding brigade's Home, though. **Mitigation:** env var `LEGACY_DEFAULT_SHARE=founding` makes a create *without* a `sharing` key default to `{isPublic: true, circleIds: [FOUNDING_CIRCLE_ID]}`. New clients always send `sharing`. Remove the flag once old builds are gone. |
 | `PUT /recipes/{id}` (full body, no `version`) | Content-only UpdateItem with no version check | ✅ Same semantics as today, now with an authz check. Old clients show an edit pencil to everyone, so a non-editor gets a 403 and the client shows its existing generic error toast. Acceptable. |
-| `DELETE /recipes/{id}` | Owner only | ✅ Non-owners get a 403 |
+| `DELETE /recipes/{id}` | Owner, super admin, or chef of every circle it's in | ✅ Others get a 403 |
 
 ### 8.2 API versioning
 
@@ -814,7 +758,7 @@ export type FeedScope = { kind: 'all' } | { kind: 'mine' } | { kind: 'circle'; i
 `src/state/AppContext.tsx`:
 - Add the `circles` state and `scope` state. Persist `scope` in `localStorage['mbm:scope:<sub>']`.
 - **Re-run `reload()` whenever `userSub` changes** (sign-in, sign-out, user switch), and also reload `circles`. Clear `recipes` immediately on sign-out so one user's private data isn't left on screen.
-- Add `lastSharing` (localStorage `mbm:lastSharing:<sub>`). It's the default for new recipes.
+- Add `lastSharing` (localStorage `mbm:lastSharing:<sub>`). It's the default for new recipes. With nothing stored it's `{isPublic: true, circleIds: <all the user's circles>}` (§14.3). iOS keeps the same in `UserDefaults`.
 
 ### 9.2 Web: screens
 
@@ -917,7 +861,7 @@ Report by default. Pass `--fix` to repair.
 - **I1.**
   - Recipe has cid in `circleIds` but the edge is missing: put the edge.
   - Edge exists but the recipe is missing or doesn't list cid: delete the edge.
-- **I2.** Recipe shared into a circle its owner isn't in: remove it.
+- **I2.** Recipe shared into a circle its owner isn't in: allowed since §14.6. Report the count only, never remove.
 - **I3.** Circle with `ownerCount < 1` or a mismatched count: report only. A human decides.
 - Recipes without `ownerSub`: report.
 - Circles stuck in `deleting = true`: resume deletion.
@@ -1049,7 +993,7 @@ Order matters:
 - [ ] Route throttles.
 - [ ] Acceptance:
   - Feed correctness across owned, circle and public recipes, with dedupe.
-  - Leave and remove cascade (I2).
+  - Leave and remove keep the departing cook's recipes shared (§14.6).
   - Circle delete is resumable.
   - Join code exhaustion, expiry and revocation.
   - A circle code without `allowSignup` can't create an account.
@@ -1059,22 +1003,24 @@ Order matters:
 - [ ] `npm test` and `npm run test:ios-overflow` both pass. Update the visual regression snapshots (`src/visual-regression.test.tsx`) intentionally.
 
 ### Phase 4: iOS parity
-- [ ] §9.3. Bump the build. Once enough users are on new clients (watch the API access logs for anonymous `GET /recipes` traffic falling), set `LEGACY_DEFAULT_SHARE=off`. New recipes from new clients are already private by default.
+- [ ] §9.3. Bump the build. Once enough users are on new clients (watch the API access logs for anonymous `GET /recipes` traffic falling), set `LEGACY_DEFAULT_SHARE=off`. New clients already send the user's last sharing choice.
 
 ### Phase 5 (optional)
 - [ ] Ownership transfer, server-side favorites, image authz hardening, linked circles (§12), feed pagination.
 
 ---
 
-## 14. Open questions (need Rob/Maggie)
+## 14. Decisions (Rob, 2026-10-23)
 
-1. ~~**UI name** for a circle~~ **Decided 2026-10-17:** "Brigade", with Chef de cuisine / Sous-chef / Commis role labels. See §3.2. The code stays `circle`.
-2. **Who can let new people into the app?** Proposal: only admin-minted codes (`allowSignup = true`) create accounts, and circle codes only work for existing users. Alternative: allow circle owners to mint sign-up codes, with a per-circle cap.
-3. **Default visibility for new recipes** once legacy mode is off: private, or "my last choice"? The proposal is last choice, which starts as the founding circle for migrated users.
-4. **Founding circle roles.** Should everyone stay `editor`, preserving today's everyone-edits behavior, or should some people become `member`?
-5. **Discover.** Should anonymous visitors see public recipes at all, i.e. is the public site a feature? If not, `GET /recipes` could require auth and "public" would mean "all signed-in users". That changes §8.1 and the old iOS builds, which call anonymously.
-6. **Leaving a circle**: confirm that your recipes leave with you (§6.5).
-7. **Admins and deletes.** Since #120, the `admins` group can delete any recipe. Proposal: keep that once circles exist. It's a small family app run by its admins, and it's the only way to clean up after someone who leaves. Alternative: admins delete only within circles they own. If kept, add `is_admin` to `Caller` (from `cognito:groups`) and give admins `can_delete` in `recipe_access()`.
+These were the open questions. Sections above already reflect them.
+
+1. **UI name** (2026-10-17): "Brigade", with Chef de cuisine / Sous-chef / Commis role labels. See §3.2. The code stays `circle`.
+2. **Who can let new people into the app:** only admins mint sign-up codes (`allowSignup = true`). Brigade codes only add people who already have an account (§6.8).
+3. **Default sharing for new recipes:** the user's last choice. With no last choice, public plus all the user's brigades, which matches how things work today. Clients remember it (§9.1); the server default without `sharing` is public with no circles (§6.1).
+4. **Roles:** everyone in the founding brigade is an `editor` (Sous-chef), and new members join as `editor`, so members of a brigade can edit each other's shared recipes. People can be in several brigades. The read-only `member` (Commis) role stays in code but isn't offered in the v1 UI.
+5. **Public recipes:** yes, anonymous visitors can read public recipes, so `GET /recipes` stays public and installed iOS builds keep working. Each recipe can still be private. Home shows only your recipes plus your brigades'; the rest of the public catalog lives in Discover. The concern was scale (hundreds or thousands of recipes from many brigades), which scoped Home solves without making things private.
+6. **Leaving a brigade:** your recipes **stay** with the brigade (no cascade, §6.5). You keep ownership, so you can still edit or unshare them.
+7. **Deletes:** super admins (`admins` Cognito group) can delete any recipe. A brigade's Chef de cuisine can delete a recipe only when every brigade it's shared into is one they run; otherwise they can only remove it from their brigade (§3.1, §6.4). `Caller.is_admin` comes from `cognito:groups`.
 
 ---
 
@@ -1130,15 +1076,15 @@ Cases (minimum):
 
 | Area | Cases |
 |---|---|
-| `authz.recipe_access` | Table-driven over every relation × public/private × role, including an unknown role, a missing `ownerSub`, and a circle in `deleting` |
+| `authz.recipe_access` | Table-driven over every relation × public/private × role, including an unknown role, a missing `ownerSub`, a circle in `deleting`, super admin, and circle-owner delete (only when every circle is theirs) |
 | Mass assignment | POST/PUT with `ownerSub`, `publicPk`, `circleIds`, `createdBySub`, `version` or junk keys in the body: none are persisted |
 | PUT semantics | Clears omitted editable fields (keep the existing test). Preserves `circleIds`/`publicPk`. Bumps `version`. Stale `version` returns 409. Non-editor gets 403. Unreadable gets 404. |
 | PUT race | Recipe unshared between the GetItem and the UpdateItem (simulate by deleting `circleIds` before the call with a patched getter): conditional failure, then 403 |
-| DELETE | Owner gives 204 and removes edges. Circle editor gets 403. Stranger gets 404. |
+| DELETE | Owner gives 204 and removes edges. Super admin gives 204. Circle owner gives 204 when the recipe is only in their circles, 403 when it's also elsewhere (including a share added between read and delete). Circle editor gets 403. Stranger gets 404. |
 | Public routes | Private recipe returns 404 even with a valid-looking `Authorization` header. List contains only public recipes. No `*Sub` fields. Pagination beyond 1 page (insert more than 1 MB, or monkeypatch `Limit`). |
 | Feed | owned ∪ circles deduped; `scope=circle` for a non-member gives 404; `includePublic`; `sharedIn` filtered to the caller's circles; recipe deleted with a dangling edge is skipped |
 | Sharing | Add/remove circles (edges match I1). Adding to a non-member circle gives 400. Non-owner gives 403. Public toggle sets/removes `publicPk`, and the item appears in or leaves `gsi_public`. |
-| Circles | Create, list mine, rename fan-out, demote last owner gives 400 (I3), leave cascade removes the leaver's shares (I2), delete is resumable (mark `deleting`, then partial, then rerun) |
+| Circles | Create, list mine, rename fan-out, demote last owner gives 400 (I3), leave keeps the leaver's shares (§14.6) and the leaver can still edit and unshare them, delete is resumable (mark `deleting`, then partial, then rerun) |
 | Invites / join | Valid join, idempotent rejoin, exhausted, expired, revoked, wrong circle; non-editor can't mint |
 | Triggers | `pre_sign_up` rejects `kind=circle` without `allowSignup`; `post_confirmation` adds membership, is idempotent, never raises, and ignores `PostConfirmation_ConfirmForgotPassword` |
 | Copy | Readable source gives a new private recipe owned by the caller with `sourceRecipeId`; unreadable gives 404; S3 copy (moto S3) |
