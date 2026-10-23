@@ -24,12 +24,13 @@ def test_get_presigned_url(monkeypatch):
     module_path = os.path.join(repo_root, 'images', 'app.py')
     images_app = load_module(module_path)
 
-    event = {'requestContext': {'http': {'method': 'GET'}}, 'rawPath': '/images'}
+    event = {'requestContext': {'http': {'method': 'POST'}}, 'rawPath': '/images',
+             'body': json.dumps({'filename': 'pie.jpg', 'type': 'image/jpeg'})}
     res = images_app.handler(event, None)
     assert res['statusCode'] == 200
     body = json.loads(res['body'])
     assert 'uploadUrl' in body
-    assert 'key' in body
+    assert body['key'].startswith('uploads/') and body['key'].endswith('.jpg')
 
 
 @mock_aws()
