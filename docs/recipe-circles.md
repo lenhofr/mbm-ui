@@ -970,7 +970,7 @@ Each phase is a PR (or a few) with its own tests. Respect the pre-commit `terraf
 ### Phase 1: ownership & hardening, together with the migration
 Order matters:
 1. [ ] Merge the Phase 0 infra.
-2. [ ] Run `migrate-circles.mjs` (dry-run, review, then `--apply`). Run `reconcile-circles.mjs` and confirm it reports zero issues.
+2. [ ] Run `migrate-circles.mjs` (dry-run, review, then `--apply`). Run `reconcile-circles.mjs` and confirm it reports zero issues. Both scripts are written (planning logic in `scripts/lib/circles.mjs`, tested by `circles.test.mjs`) and were run end to end against moto server; the migration takes the on-demand backup itself on `--apply`.
 3. [ ] Deploy the Lambda with:
    - authz on PUT/DELETE
    - the allow-list
