@@ -19,6 +19,7 @@ class Caller:
     sub: str | None              # None = anonymous
     name: str | None
     memberships: dict            # cid -> role ("member" | "editor" | "owner")
+    is_admin: bool = False       # in the "admins" Cognito group: may read and delete any recipe
 
     @property
     def is_anon(self) -> bool:
@@ -37,7 +38,7 @@ class Access:
     can_edit: bool
     can_delete: bool
     can_share: bool              # change the public flag or the circle set
-    relation: str                # "owner" | "circle-editor" | "circle-member" | "public" | "none"
+    relation: str                # "owner" | "circle-editor" | "circle-member" | "public" | "admin" | "none"
 
     def to_json(self) -> dict:
         return {'canRead': self.can_read, 'canEdit': self.can_edit,
@@ -59,12 +60,18 @@ def recipe_access(caller: Caller, recipe: dict) -> Access:
 
     circle_ids = set(recipe.get('circleIds') or ())
     best = max((_rank(caller.memberships[c]) for c in circle_ids if c in caller.memberships), default=0)
+    # A circle owner can delete a recipe that lives only in circles they run; one that's
+    # also in another brigade they can only unshare (docs/recipe-circles.md §14.7).
+    chef_of_all = bool(circle_ids) and all(caller.role_in(c) == 'owner' for c in circle_ids)
+    can_delete = chef_of_all or caller.is_admin
     if best >= ROLE_RANK['editor']:
-        return Access(True, True, False, False, 'circle-editor')
+        return Access(True, True, can_delete, False, 'circle-editor')
     if best >= ROLE_RANK['member']:
-        return Access(True, False, False, False, 'circle-member')
+        return Access(True, False, can_delete, False, 'circle-member')
     if recipe.get('publicPk') == 'PUBLIC':
-        return Access(True, False, False, False, 'public')
+        return Access(True, False, can_delete, False, 'public')
+    if caller.is_admin:
+        return Access(True, False, True, False, 'admin')
     return NONE
 
 
