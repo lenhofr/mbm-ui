@@ -7,7 +7,8 @@
 // Dry run by default; --apply writes (after an on-demand backup of the recipes table).
 //
 // Usage (macOS zsh):
-//   # 1. Pick the founding circle id once (prints one if FOUNDING_CIRCLE_ID is unset), then pin it.
+//   # 1. FOUNDING_CIRCLE_ID is pinned in terraform/app_account/backend_api.tf (local.founding_circle_id,
+//   #    3c5342e4efa44ad68937eaed08036dda); the Lambda reads the same value, so use that one.
 //   # 2. Dry run, review the output:
 //   AWS_REGION=us-east-1 USER_POOL_ID=us-east-1_XXXX FOUNDING_CIRCLE_ID=<hex> \
 //     FOUNDING_OWNER_SUBS=<rob-sub>,<maggie-sub> FALLBACK_OWNER_SUB=<rob-sub> \
@@ -17,7 +18,6 @@
 // Optional env: RECIPES_TABLE (mbm-recipes), CIRCLES_TABLE (mbm-circles),
 // INVITES_TABLE (mbm-invites), FOUNDING_CIRCLE_NAME ("Maggie's Kitchen").
 
-import crypto from "node:crypto"
 import { CreateBackupCommand, DynamoDBClient } from "@aws-sdk/client-dynamodb"
 import {
   DynamoDBDocumentClient, PutCommand, QueryCommand, ScanCommand, TransactWriteCommand, UpdateCommand,
@@ -39,8 +39,7 @@ const FALLBACK_OWNER_SUB = process.env.FALLBACK_OWNER_SUB
 const APPLY = process.argv.includes("--apply")
 
 if (!CID) {
-  console.error("FOUNDING_CIRCLE_ID is required. Pick one and keep it (it also goes in the Lambda env):")
-  console.error(`  FOUNDING_CIRCLE_ID=${crypto.randomUUID().replace(/-/g, "")}`)
+  console.error("FOUNDING_CIRCLE_ID is required: use local.founding_circle_id from terraform/app_account/backend_api.tf")
   process.exit(1)
 }
 if (!USER_POOL_ID || !OWNER_SUBS.length || !FALLBACK_OWNER_SUB) {
