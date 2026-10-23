@@ -7,6 +7,7 @@ import os
 import time
 from decimal import Decimal
 import boto3
+from boto3.dynamodb.types import TypeSerializer
 
 # BatchGetItem takes at most 100 keys per call.
 BATCH_GET_MAX = 100
@@ -59,11 +60,16 @@ def batch_get(tbl, key_name: str, ids, retries: int = 5) -> list[dict]:
 
     Order isn't preserved: BatchGetItem returns items in any order.
     """
-    unique = list(dict.fromkeys(ids))
+    return batch_get_keys(tbl, [{key_name: i} for i in ids], retries)
+
+
+def batch_get_keys(tbl, keys, retries: int = 5) -> list[dict]:
+    """batch_get for full keys (e.g. {'pk': ..., 'sk': ...}) on tables with a sort key."""
+    unique = list({tuple(sorted(k.items())): k for k in keys}.values())
     resource = get_dynamodb()
     items = []
     for start in range(0, len(unique), BATCH_GET_MAX):
-        request = {tbl.name: {'Keys': [{key_name: i} for i in unique[start:start + BATCH_GET_MAX]]}}
+        request = {tbl.name: {'Keys': unique[start:start + BATCH_GET_MAX]}}
         for attempt in range(retries + 1):
             res = resource.batch_get_item(RequestItems=request)
             items.extend(res.get('Responses', {}).get(tbl.name, []))
@@ -74,6 +80,39 @@ def batch_get(tbl, key_name: str, ids, retries: int = 5) -> list[dict]:
                 raise RuntimeError(f'batch_get: keys still unprocessed after {retries} retries')
             time.sleep(0.05 * 2 ** attempt)
     return items
+
+
+_serializer = TypeSerializer()
+_MARSHALLED = ('Item', 'Key', 'ExpressionAttributeValues')
+
+
+def get_client():
+    region = os.environ.get('AWS_REGION', 'us-east-1')
+    return boto3.client('dynamodb', region_name=region)
+
+
+def transact(actions: list[dict]):
+    """TransactWriteItems with plain Python values in Item, Key and ExpressionAttributeValues.
+
+    Each action is {'Put' | 'Update' | 'Delete' | 'ConditionCheck': {...}} as for the
+    low-level client, with Table objects or names in TableName.
+    """
+    out = []
+    for action in actions:
+        (kind, params), = action.items()
+        params = dict(params)
+        if not isinstance(params['TableName'], str):
+            params['TableName'] = params['TableName'].name
+        for field in _MARSHALLED:
+            if field in params:
+                params[field] = {k: _serializer.serialize(v) for k, v in params[field].items()}
+        out.append({kind: params})
+    return get_client().transact_write_items(TransactItems=out)
+
+
+def cancellation_codes(err) -> list[str]:
+    """Per-action reason codes ('None', 'ConditionalCheckFailed', ...) of a cancelled transaction."""
+    return [r.get('Code', 'None') for r in err.response.get('CancellationReasons', [])]
 
 
 def to_jsonable(obj):
