@@ -72,6 +72,12 @@ resource "aws_dynamodb_table" "ratings" {
   }
 }
 
+locals {
+  # "Maggie's Kitchen", the brigade everyone was put in by scripts/migrate-circles.mjs.
+  # The migration must be run with this same FOUNDING_CIRCLE_ID.
+  founding_circle_id = "3c5342e4efa44ad68937eaed08036dda"
+}
+
 # Brigades (circles in code): circles, memberships and recipe share edges in one table.
 # Layout and access patterns: docs/recipe-circles.md §4.4–4.6. Nothing reads it yet.
 resource "aws_dynamodb_table" "circles" {
@@ -190,16 +196,24 @@ resource "aws_iam_policy" "lambda_policy" {
 }
 
 data "aws_iam_policy_document" "lambda_policy" {
+  # Recipes plus brigades (docs/recipe-circles.md §11.5). No Scan: the public list is a
+  # Query on gsi_public. Transactions are authorized per item against these actions.
   statement {
     actions = [
       "dynamodb:PutItem",
       "dynamodb:GetItem",
       "dynamodb:Query",
-      "dynamodb:Scan",
       "dynamodb:UpdateItem",
-      "dynamodb:DeleteItem"
+      "dynamodb:DeleteItem",
+      "dynamodb:BatchGetItem",
+      "dynamodb:ConditionCheckItem"
     ]
-    resources = [aws_dynamodb_table.recipes.arn]
+    resources = [
+      aws_dynamodb_table.recipes.arn,
+      "${aws_dynamodb_table.recipes.arn}/index/*",
+      aws_dynamodb_table.circles.arn,
+      "${aws_dynamodb_table.circles.arn}/index/*",
+    ]
   }
 
   statement {
@@ -349,11 +363,19 @@ resource "aws_lambda_function" "recipes_fn" {
   source_code_hash = archive_file.recipes_zip.output_base64sha256
   timeout          = 30
 
+  # The new code needs the new table and index permissions in place first.
+  depends_on = [aws_iam_role_policy_attachment.lambda_policy_attach]
+
   environment {
     variables = {
-      RECIPES_TABLE    = aws_dynamodb_table.recipes.name
-      IMAGES_BUCKET    = aws_s3_bucket.images.id
-      BEDROCK_ROLE_ARN = "arn:aws:iam::923988301699:role/mbm-bedrock-access"
+      RECIPES_TABLE      = aws_dynamodb_table.recipes.name
+      CIRCLES_TABLE      = aws_dynamodb_table.circles.name
+      FOUNDING_CIRCLE_ID = local.founding_circle_id
+      # Creates without a "sharing" key (installed apps that predate brigades) also go
+      # into the founding brigade. Set to "off" once old builds are gone (§8.1, Phase 4).
+      LEGACY_DEFAULT_SHARE = "founding"
+      IMAGES_BUCKET        = aws_s3_bucket.images.id
+      BEDROCK_ROLE_ARN     = "arn:aws:iam::923988301699:role/mbm-bedrock-access"
     }
   }
 }
