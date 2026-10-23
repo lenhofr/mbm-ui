@@ -65,7 +65,7 @@ Terraform (infrastructure)
 - Hosted zone + SES (DKIM/Mail From): `terraform/route53.tf`
 - Backend API (DynamoDB, S3 images, IAM, Lambdas, API Gateway, Cognito): `terraform/backend_api.tf`
 - S3 static site module: `terraform/modules/s3-static-site/main.tf`
-- Lambda handlers: `terraform/lambda/recipes/app.py`, `terraform/lambda/images/app.py`
+- Lambda handlers: `terraform/app_account/lambda/recipes/app.py` (routes; `router.py`, `repo.py`, `authz.py`, `recipe_input.py` beside it), `terraform/app_account/lambda/images/app.py`
 - Lambda tests (pytest + moto): `terraform/lambda/tests/`
 
 Frontend (application)

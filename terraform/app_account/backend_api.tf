@@ -13,6 +13,38 @@ resource "aws_dynamodb_table" "recipes" {
     type = "S"
   }
 
+  # Brigades (docs/recipe-circles.md §4.3). Nothing writes ownerSub or publicPk yet;
+  # the migration backfills them. Both indexes are sparse: an item without the key
+  # attributes (including updatedAt) just isn't in the index.
+  attribute {
+    name = "ownerSub"
+    type = "S"
+  }
+  attribute {
+    name = "publicPk"
+    type = "S"
+  }
+  attribute {
+    name = "updatedAt"
+    type = "N"
+  }
+
+  # A cook's own recipes, newest first.
+  global_secondary_index {
+    name            = "gsi_owner"
+    hash_key        = "ownerSub"
+    range_key       = "updatedAt"
+    projection_type = "ALL"
+  }
+
+  # Public recipes, newest first (publicPk is "PUBLIC" when set, absent when private).
+  global_secondary_index {
+    name            = "gsi_public"
+    hash_key        = "publicPk"
+    range_key       = "updatedAt"
+    projection_type = "ALL"
+  }
+
   # Restore to any second in the last 35 days if recipes are deleted or overwritten.
   point_in_time_recovery {
     enabled = true
@@ -37,6 +69,48 @@ resource "aws_dynamodb_table" "ratings" {
 
   tags = {
     Name = "mbm-ratings"
+  }
+}
+
+# Brigades (circles in code): circles, memberships and recipe share edges in one table.
+# Layout and access patterns: docs/recipe-circles.md §4.4–4.6. Nothing reads it yet.
+resource "aws_dynamodb_table" "circles" {
+  name         = "mbm-circles"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "pk"
+  range_key    = "sk"
+
+  attribute {
+    name = "pk"
+    type = "S"
+  }
+  attribute {
+    name = "sk"
+    type = "S"
+  }
+  attribute {
+    name = "gsi1pk"
+    type = "S"
+  }
+  attribute {
+    name = "gsi1sk"
+    type = "S"
+  }
+
+  # Inverted index: USER#<sub> -> the circles that user belongs to.
+  global_secondary_index {
+    name            = "gsi1"
+    hash_key        = "gsi1pk"
+    range_key       = "gsi1sk"
+    projection_type = "ALL"
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  tags = {
+    Name = "mbm-circles"
   }
 }
 
@@ -213,7 +287,7 @@ resource "aws_iam_policy" "pre_signup_ddb_policy" {
       {
         Effect   = "Allow",
         Action   = ["dynamodb:TransactWriteItems"],
-        Resource = "*"
+        Resource = aws_dynamodb_table.invites.arn
       },
       {
         Effect = "Allow",
@@ -284,13 +358,45 @@ resource "aws_lambda_function" "recipes_fn" {
   }
 }
 
+# The images Lambda only presigns S3 uploads and views, so it gets its own role with no
+# DynamoDB access (it used to share lambda_exec with the recipes Lambda).
+resource "aws_iam_role" "images_exec" {
+  name               = "mbm-images-exec"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+data "aws_iam_policy_document" "images_policy" {
+  statement {
+    actions   = ["s3:PutObject", "s3:GetObject"]
+    resources = ["${aws_s3_bucket.images.arn}/*"]
+  }
+
+  statement {
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+    resources = ["arn:aws:logs:*:*:*"]
+  }
+}
+
+resource "aws_iam_role_policy" "images_policy" {
+  name   = "mbm-images-policy"
+  role   = aws_iam_role.images_exec.id
+  policy = data.aws_iam_policy_document.images_policy.json
+}
+
 resource "aws_lambda_function" "images_fn" {
   filename         = archive_file.images_zip.output_path
   function_name    = "mbm-images-fn"
-  role             = aws_iam_role.lambda_exec.arn
+  role             = aws_iam_role.images_exec.arn
   handler          = "app.handler"
   runtime          = "python3.10"
   source_code_hash = archive_file.images_zip.output_base64sha256
+
+  # Attach S3 access before the function switches to the new role.
+  depends_on = [aws_iam_role_policy.images_policy]
 
   environment {
     variables = {

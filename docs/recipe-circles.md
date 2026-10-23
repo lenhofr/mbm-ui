@@ -1,6 +1,6 @@
 # Recipe Circles: Groups, Sharing & Per-Recipe Visibility
 
-**Status:** Design, not started. Written 2026-10-11 against `main` at the time; current-state notes updated 2026-10-16 for #120 (delete permissions, admins group, recipes backups).
+**Status:** Phase 0 (groundwork) done on `feat/brigades-phase0`, 2026-10-23; Phase 1 waits on the §14 questions. Design Written 2026-10-11 against `main` at the time; current-state notes updated 2026-10-16 for #120 (delete permissions, admins group, recipes backups).
 **Scope:** Backend (Lambda + DynamoDB + Terraform), Cognito triggers, web SPA, iOS app, data migration.
 **Audience:** The next engineer or AI session that implements this. Read the whole doc once, then work phase by phase (§13). Every decision below has a stated reason. If you change a decision, update this doc in the same PR.
 
@@ -34,11 +34,12 @@ File references are relative to the repo root.
 
 | Resource | Details |
 |---|---|
-| `aws_dynamodb_table.recipes` | `mbm-recipes`, PAY_PER_REQUEST, hash key `recipeId` (S). No sort key, no GSIs. |
+| `aws_dynamodb_table.recipes` | `mbm-recipes`, PAY_PER_REQUEST, hash key `recipeId` (S). No sort key. GSIs `gsi_owner` and `gsi_public` (§4.3) since Phase 0; both empty until the migration sets `ownerSub`/`publicPk`. |
+| `aws_dynamodb_table.circles` | `mbm-circles` (§4.4), added in Phase 0. Empty; nothing reads or writes it yet. |
 | `aws_dynamodb_table.ratings` | `mbm-ratings`, hash key `ratingId`. **No client uses ratings** (grep `src/` and `ios/`: no references). |
 | `aws_dynamodb_table.invites` | `mbm-invites`, hash `code`, range `sk` (`META` / `USE#<iso>#<email>`). GSI `gsi_email` (email, usedAt). Supports `maxUses`, `uses`, `unlimited`, `revoked`, `expiresAt`. |
-| `aws_lambda_function.recipes_fn` | `mbm-recipes-fn`, python3.10, `lambda/recipes/app.py`. Handles recipes, ratings and AI extract. Role `lambda_exec`. |
-| `aws_lambda_function.images_fn` | `mbm-images-fn`. **Shares the same `lambda_exec` role** and therefore the same DynamoDB permissions. |
+| `aws_lambda_function.recipes_fn` | `mbm-recipes-fn`, python3.10, `lambda/recipes/app.py`. Handles recipes and AI extract (ratings removed in #126). Role `lambda_exec`. |
+| `aws_lambda_function.images_fn` | `mbm-images-fn`. Own role `images_exec` (S3 get/put + logs, no DynamoDB) since Phase 0. |
 | `aws_lambda_function.cognito_pre_signup` | `lambda/auth/pre_sign_up.py`. Consumes the invite code atomically with `TransactWriteItems`. |
 | `aws_cognito_user_pool.mbm` | Email as the username. Custom attribute `custom:invite`. Only the `pre_sign_up` trigger is configured. |
 | `aws_apigatewayv2_authorizer.cognito_jwt` | JWT authorizer. Audience is the SPA client id. Clients send the **ID token** (`storage.ts` `getAuthHeader`, `RecipeAPI.swift`). |
@@ -52,6 +53,8 @@ Routes (see `aws_apigatewayv2_route.*`):
 | `POST /recipes`, `PUT /recipes/{id}`, `DELETE /recipes/{id}`, `POST /ratings`, `POST /ai/extract-recipe`, `POST /images` | JWT |
 
 ### 1.2 Recipes Lambda (`terraform/app_account/lambda/recipes/app.py`)
+
+> **Since #126 and Phase 0** several bullets below describe the old code and are kept for the reasoning. Now: `router.py` matches the event to a `ROUTES` dict in `app.py` (one handler per route); `repo.py` holds DynamoDB access (`scan_all`, `query_all`, `batch_get`, `to_jsonable`; table names read from env when used); `recipe_input.py` is the §7.3 validation (the plan called it `validation.py`); `authz.py` is §5, tested but not yet called. The list is paginated, bodies are allow-listed, PUT is an `UpdateItem`, and identity comes only from verified claims.
 
 - **Routing.** A long chain of `if route_key == ...` blocks, plus fallback path matching for tests. Tests invoke with only `requestContext.http.method` and `rawPath`, with no `routeKey`.
 - **`GET /recipes`** runs `table.scan()` **without pagination**. DynamoDB returns at most 1 MB per scan page, so past roughly 200–500 recipes the list will be **silently truncated**. This is a latent bug that exists independently of this feature.
@@ -382,7 +385,7 @@ def recipe_access(caller: Caller, recipe: dict) -> Access:
 
 def can_share_into(caller: Caller, cid: str) -> bool:
     """Owner of a recipe may add it to cid only if they are a member of cid."""
-    return caller.role_in(cid) is not None
+    return ROLE_RANK.get(caller.role_in(cid) or "", 0) > 0   # unknown role: no (as built)
 
 def can_unshare_from(caller: Caller, cid: str, recipe: dict) -> bool:
     if caller.sub and caller.sub == recipe.get("ownerSub"):
@@ -947,7 +950,7 @@ Run it after migration and whenever something looks off. Optionally, schedule it
 - Accept this for v1 and document it. A v2 hardening would:
   - make `GET /images/{key}` look up which recipe references the key (this needs a `imageKey → recipeId` index) and apply recipe read authz, or
   - have `map_recipe_out` return short-lived presigned URLs directly, and make the bucket accessible only via those URLs.
-- **Split the IAM role.** `images_fn` currently has the recipes Lambda's DynamoDB permissions through the shared `lambda_exec` role. Give it its own role with S3 permissions only.
+- **Split the IAM role** (done in Phase 0). `images_fn` used to have the recipes Lambda's DynamoDB permissions through the shared `lambda_exec` role. Give it its own role with S3 permissions only.
 
 ### 11.4 PII in responses
 - Recipes expose `createdBySub` and `updatedBySub` on public routes. Subs aren't secret, but they're stable identifiers that can link activity across recipes.
@@ -1014,11 +1017,11 @@ Other future items: favorites stored server-side as `USER#sub / FAV#rid` in `mbm
 Each phase is a PR (or a few) with its own tests. Respect the pre-commit `terraform fmt` hook (`npm run install-hooks`). Terraform is applied by `.github/workflows/deploy.yml` on merge to `main` (`terraform/app_account/**`), so **merging Terraform = applying to prod**. Read the PR plan output from `terraform-plan.yml` carefully, especially for Cognito.
 
 ### Phase 0: groundwork (no behavior change)
-- [ ] Terraform: create `mbm-circles` and add GSIs `gsi_owner` and `gsi_public` to `mbm-recipes`. If the provider complains, do one GSI per apply.
-- [ ] Terraform: enable PITR on `mbm-recipes`.
-- [ ] Terraform: split the `images_fn` IAM role (§11.3) and tighten the `pre_signup` transact resource.
-- [ ] Lambda refactor with no behavior change: split `app.py` into `router.py` (a dict of `route_key → handler` that keeps the current path-fallback for tests), `repo.py` (DynamoDB access: `query_all`, `batch_get`, serializers), `authz.py` (§5, unit-tested now, wired in later), and `validation.py` (§7.3).
-- [ ] Tests: add a `conftest.py` fixture creating all three tables **with their GSIs** under `@mock_aws` (sketch in §15).
+- [x] Terraform: create `mbm-circles` and add GSIs `gsi_owner` and `gsi_public` to `mbm-recipes`. If the provider complains, do one GSI per apply.
+- [x] Terraform: enable PITR on `mbm-recipes` (#120).
+- [x] Terraform: split the `images_fn` IAM role (§11.3) and tighten the `pre_signup` transact resource.
+- [x] Lambda refactor with no behavior change: split `app.py` into `router.py` (a dict of `route_key → handler` that keeps the current path-fallback for tests), `repo.py` (DynamoDB access: `query_all`, `batch_get`, serializers), `authz.py` (§5, unit-tested now, wired in later), and `validation.py` (§7.3; already existed as `recipe_input.py` from #126, kept under that name).
+- [x] Tests: add a `conftest.py` fixture creating all three tables **with their GSIs** under `@mock_aws` (sketch in §15).
 
 ### Phase 1: ownership & hardening, together with the migration
 Order matters:
