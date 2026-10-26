@@ -42,7 +42,10 @@ def handler(event, _ctx):
           "(attribute_exists(unlimited) AND unlimited = :true) OR "
           "(attribute_exists(maxUses) AND (attribute_not_exists(uses) OR uses < maxUses)) OR "
           "(attribute_not_exists(maxUses) AND (attribute_not_exists(#used) OR #used = :false))"
-        ")"
+        ") AND "
+        # Brigade codes (kind "circle") only add existing users to a brigade; only codes an
+        # admin minted for sign-up (allowSignup) or older codes with no kind create accounts.
+        "(attribute_not_exists(kind) OR allowSignup = :true)"
     )
 
     try:

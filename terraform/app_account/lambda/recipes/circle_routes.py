@@ -47,7 +47,7 @@ def _still_chef(circles, cid, sub):
                                'ExpressionAttributeValues': {':owner': 'owner'}}}
 
 
-def _summary(meta, role):
+def summary(meta, role):
     out = {'id': meta['pk'][len('CIRCLE#'):], 'name': meta.get('name'), 'role': role,
            'memberCount': meta.get('memberCount', 0)}
     if meta.get('emoji'):
@@ -69,7 +69,7 @@ def _detail(circles, cid, role):
         return None
     members = [_member_out(r) for r in rows if r['sk'].startswith('MEMBER#')]
     members.sort(key=lambda m: (-authz.ROLE_RANK.get(m['role'] or '', 0), (m['displayName'] or '').lower()))
-    return {**_summary(meta, role), 'ownerCount': meta.get('ownerCount', 0),
+    return {**summary(meta, role), 'ownerCount': meta.get('ownerCount', 0),
             'recipeCount': sum(r['sk'].startswith('RECIPE#') for r in rows), 'members': members}
 
 
@@ -80,7 +80,7 @@ def list_mine(event, params):
         if not caller.memberships:
             return response(200, [])
         metas = repo.batch_get_keys(repo.circles_table(), [_meta_key(cid) for cid in caller.memberships])
-        out = [_summary(m, caller.role_in(m['pk'][len('CIRCLE#'):])) for m in metas]
+        out = [summary(m, caller.role_in(m['pk'][len('CIRCLE#'):])) for m in metas]
         out.sort(key=lambda c: ((c['name'] or '').lower(), c['id']))
         return response(200, out)
     except ClientError as e:

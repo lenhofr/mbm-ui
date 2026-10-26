@@ -545,7 +545,7 @@ Why reuse this table:
 
 Endpoints:
 - **`POST /circles/{cid}/invites {maxUses?=10, ttlDays?=14, role?="editor"}`** (circle editor or higher)
-  - Generates the code server-side with `secrets.token_urlsafe(9)`, about 72 bits, prefixed `C-`.
+  - Generates the code server-side: `C-` plus 14 characters from an uppercase alphabet without look-alikes (0/O, 1/I/L), about 69 bits. Uppercase so a code read aloud or typed in any case still works.
   - Puts `META`. Returns `{code, url: "https://mealsbymaggie.com/join?code=..."}`.
   - Cap active codes at 20 per circle.
 - **`GET /circles/{cid}/invites`** (editor or higher): lists codes. This needs a way to find a circle's codes. Two options:
@@ -561,6 +561,8 @@ Endpoints:
   - `Update` `META` `memberCount`.
 
   Returns the circle summary.
+
+  Any code with a `circleId` works here, including the admin sign-up codes the migration pointed at the founding circle, so an existing user can join with one too. The code is tried as typed, then uppercased, like `pre_sign_up.py`.
 
 Code lookup is by the exact key, so a brute-force guess needs about 2^72 attempts. Add an API Gateway route throttle on `POST /circles/join` anyway (default stage settings, `throttling_burst_limit = 5`, `throttling_rate_limit = 2` per route).
 
@@ -991,9 +993,11 @@ Order matters:
 - [ ] Routes and handlers (§7.1):
   - [x] `/me/recipes`, `/me/recipes/{id}`, `PUT /recipes/{id}/sharing`, `DELETE /circles/{cid}/recipes/{rid}` (`feed.py`, `app.py`)
   - [x] `/me/circles`, create, get, rename, change role, leave/remove, delete (`circle_routes.py`). New routes are one `for_each` in `backend_api.tf` (`local.brigade_routes`); `tests/test_router.py` checks it matches `ROUTES`.
-  - [ ] copy (§6.7), invites and join (§6.8)
-- [ ] The post-confirmation trigger (§6.9) and the `pre_sign_up.py` `allowSignup` rule (§6.8).
-- [ ] Route throttles.
+  - [x] copy (§6.7): the photo is copied to a new key in the same folder (`uploads/` or `ai-sketches/`); if that fails the copy keeps the original key
+  - [x] invites and join (§6.8) (`invite_routes.py`)
+- [x] The post-confirmation trigger (§6.9) and the `pre_sign_up.py` `allowSignup` rule (§6.8): codes with a `kind` need `allowSignup` to create an account; older codes with no `kind` still work. `scripts/seed-invites.mjs` marks new codes as sign-up codes and takes an optional `CIRCLE_ID`.
+- [x] Route throttles: `POST /circles/join` (burst 5, 2/s).
+- [x] Member display names follow the cook's nickname: new cooks join before choosing one, so `load_caller` copies a changed `nickname` claim onto their memberships.
 - [ ] Acceptance:
   - Feed correctness across owned, circle and public recipes, with dedupe.
   - Leave and remove keep the departing cook's recipes shared (§14.6).
