@@ -970,7 +970,7 @@ Each phase is a PR (or a few) with its own tests. Respect the pre-commit `terraf
 ### Phase 1: ownership & hardening, together with the migration
 Order matters:
 1. [x] Merge the Phase 0 infra (#136).
-2. [ ] Run `migrate-circles.mjs` (dry-run, review, then `--apply`). Run `reconcile-circles.mjs` and confirm it reports zero issues.
+2. [x] Run `migrate-circles.mjs` (dry-run, review, then `--apply`). Run `reconcile-circles.mjs` and confirm it reports zero issues. Both scripts are written (planning logic in `scripts/lib/circles.mjs`, tested by `circles.test.mjs`); the migration takes the on-demand backup itself on `--apply`. Ran on prod 2026-10-26: 12 members, 37 recipes, 7 sign-up codes, reconcile clean.
 3. [ ] Deploy the Lambda (`feat/brigades-authz`; merging it deploys, so **only merge after step 2**, then re-run the migration to pick up recipes created in between):
    - [x] authz on PUT/DELETE (`load_caller` + `authz.recipe_access`; conditions restate the decision)
    - [x] the allow-list (#126)
