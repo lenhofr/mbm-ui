@@ -898,7 +898,7 @@ Run it after migration and whenever something looks off. Optionally, schedule it
 
 ### 11.4 PII in responses
 - Recipes expose `createdBySub` and `updatedBySub` on public routes. Subs aren't secret, but they're stable identifiers that can link activity across recipes.
-- For anonymous `GET /recipes*`, strip `*Sub` fields and keep only names.
+- For anonymous `GET /recipes*`, strip `*Sub` fields and keep only names. **Deferred** until both clients use `access` for the Delete button instead of `createdBySub` (Phase 3/4).
 - Circle member lists return `displayName` and `sub`, **never email**.
 
 ### 11.5 IAM delta for `lambda_policy` (recipes)
@@ -969,18 +969,18 @@ Each phase is a PR (or a few) with its own tests. Respect the pre-commit `terraf
 
 ### Phase 1: ownership & hardening, together with the migration
 Order matters:
-1. [ ] Merge the Phase 0 infra.
-2. [ ] Run `migrate-circles.mjs` (dry-run, review, then `--apply`). Run `reconcile-circles.mjs` and confirm it reports zero issues. Both scripts are written (planning logic in `scripts/lib/circles.mjs`, tested by `circles.test.mjs`) and were run end to end against moto server; the migration takes the on-demand backup itself on `--apply`.
-3. [ ] Deploy the Lambda with:
-   - authz on PUT/DELETE
-   - the allow-list
-   - content-only UpdateItem with optional `version`
-   - `GET /recipes` from `gsi_public`, fully paginated, with subs stripped
-   - `get_identity` fallback removed
-   - ratings routes removed
-   - `LEGACY_DEFAULT_SHARE=founding`
-   - `POST /recipes` accepting `sharing`
-   - IAM delta
+1. [x] Merge the Phase 0 infra (#136).
+2. [x] Run `migrate-circles.mjs` (dry-run, review, then `--apply`). Run `reconcile-circles.mjs` and confirm it reports zero issues. Both scripts are written (planning logic in `scripts/lib/circles.mjs`, tested by `circles.test.mjs`); the migration takes the on-demand backup itself on `--apply`. Ran on prod 2026-10-26: 12 members, 37 recipes, 7 sign-up codes, reconcile clean.
+3. [ ] Deploy the Lambda (`feat/brigades-authz`; merging it deploys, so **only merge after step 2**, then re-run the migration to pick up recipes created in between):
+   - [x] authz on PUT/DELETE (`load_caller` + `authz.recipe_access`; conditions restate the decision)
+   - [x] the allow-list (#126)
+   - [x] content-only UpdateItem with optional `version` (409 with the current recipe on a stale version)
+   - [x] `GET /recipes` from `gsi_public`, fully paginated; `GET /recipes/{id}` 404 unless public. **Subs not stripped yet:** both clients decide whether to show Delete from `createdBySub` until they read `access` (§11.4, Phase 3/4).
+   - [x] `get_identity` fallback removed (#126)
+   - [x] ratings routes removed (#126)
+   - [x] `LEGACY_DEFAULT_SHARE=founding`, `FOUNDING_CIRCLE_ID` pinned in `backend_api.tf` (`local.founding_circle_id`)
+   - [x] `POST /recipes` accepting `sharing`; signed-out creates get 401
+   - [x] IAM delta (no `Scan`; circles table and both tables' indexes)
 4. [ ] Acceptance:
    - The family sees an identical list.
    - Everyone can still edit everything, because they're all editors of the founding circle.

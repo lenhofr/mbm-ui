@@ -25,6 +25,8 @@ MAX_TAG = 60
 MAX_LINES = 300          # ingredients, instructions
 MAX_INGREDIENT_NAME = 500
 MAX_STEP = 5000
+MAX_CIRCLES = 20         # brigades one recipe can be shared into (docs/recipe-circles.md §11.6)
+MAX_CIRCLE_ID = 64
 
 
 class BadRequest(Exception):
@@ -119,12 +121,7 @@ _PARSERS = {
 assert set(_PARSERS) == set(EDITABLE_FIELDS)
 
 
-def parse_recipe_body(raw):
-    """Return {field: value} for the editable fields present and non-empty in the body.
-
-    `raw` is the request body string (or None). Raises BadRequest on invalid JSON,
-    a non-object body, an oversized body, a bad field, or a missing title.
-    """
+def _load(raw):
     raw = raw or '{}'
     if len(raw.encode('utf-8')) > MAX_BODY_BYTES:
         raise BadRequest('That recipe is too big to save')
@@ -134,7 +131,16 @@ def parse_recipe_body(raw):
         raise BadRequest('Body must be JSON')
     if not isinstance(body, dict):
         raise BadRequest('Body must be a JSON object')
+    return body
 
+
+def parse_recipe_body(raw):
+    """Return {field: value} for the editable fields present and non-empty in the body.
+
+    `raw` is the request body string (or None). Raises BadRequest on invalid JSON,
+    a non-object body, an oversized body, a bad field, or a missing title.
+    """
+    body = _load(raw)
     out = {}
     for field in EDITABLE_FIELDS:
         v = body.get(field)
@@ -146,3 +152,36 @@ def parse_recipe_body(raw):
     if not out.get('title'):
         raise BadRequest('title is required')
     return out
+
+
+def parse_sharing(raw):
+    """The optional "sharing" object of POST /recipes: {isPublic, circleIds} or None if absent.
+
+    circleIds are de-duplicated; whether the caller may share into them is checked by
+    the handler (authz.can_share_into).
+    """
+    sharing = _load(raw).get('sharing')
+    if sharing is None:
+        return None
+    if not isinstance(sharing, dict):
+        raise BadRequest('sharing must be an object')
+    is_public = sharing.get('isPublic', False)
+    if not isinstance(is_public, bool):
+        raise BadRequest('sharing.isPublic must be true or false')
+    circle_ids = []
+    for cid in _list('sharing.circleIds', sharing.get('circleIds') or [], MAX_CIRCLES):
+        if not isinstance(cid, str) or not cid.strip() or len(cid) > MAX_CIRCLE_ID:
+            raise BadRequest('sharing.circleIds must be brigade ids')
+        if cid not in circle_ids:
+            circle_ids.append(cid)
+    return {'isPublic': is_public, 'circleIds': circle_ids}
+
+
+def parse_version(raw):
+    """The optional "version" a client read the recipe at (optimistic locking), or None."""
+    v = _load(raw).get('version')
+    if v is None:
+        return None
+    if isinstance(v, bool) or not isinstance(v, int) or v < 1:
+        raise BadRequest('version must be a positive whole number')
+    return v
