@@ -444,8 +444,8 @@ Body: `{ "isPublic": bool, "circleIds": [..], "version"?: n }`. This is the **fu
    - `Update` the recipe:
      - `SET circleIds = :set` (or `REMOVE circleIds` if empty)
      - `SET publicPk = :pub` or `REMOVE publicPk`
-     - `SET updatedAt = :now`
      - `ADD version :one`
+     - `updatedAt` is **not** changed: sharing isn't an edit, so it shouldn't move the recipe up the list or show as "updated" on its page. The same goes for unsharing from a circle and for circle delete.
      - Condition: `ownerSub = :sub` (plus `version = :v` if sent)
    - For each add: `ConditionCheck` the owner's membership exists, `ConditionCheck` the circle isn't deleting, and `Put` the edge.
    - For each remove: `Delete` the edge with no condition, so the operation is idempotent.
@@ -651,7 +651,7 @@ return sorted(result, key=updatedAt desc), each passed through map_recipe_out(r,
 ```
 
 Implementation notes:
-- **Parallelism.** Use `concurrent.futures.ThreadPoolExecutor(max_workers=8)`. **`boto3` clients are thread-safe. `boto3.resource` objects are not.** Use a module-level `boto3.client('dynamodb')` for the parallel queries and deserialize with `TypeDeserializer`. Alternatively, create one resource per thread.
+- **Parallelism.** Built sequentially for now (one query per circle; users are in one or two). If that gets slow, use `concurrent.futures.ThreadPoolExecutor(max_workers=8)`. **`boto3` clients are thread-safe. `boto3.resource` objects are not.** Use a module-level `boto3.client('dynamodb')` for the parallel queries and deserialize with `TypeDeserializer`. Alternatively, create one resource per thread.
 - **`query_all`** loops on `LastEvaluatedKey`. Today's `table.scan()` doesn't, and that's the 1 MB truncation bug.
 - **`batch_get`**:
   - chunks of 100 keys
@@ -971,7 +971,7 @@ Each phase is a PR (or a few) with its own tests. Respect the pre-commit `terraf
 Order matters:
 1. [x] Merge the Phase 0 infra (#136).
 2. [x] Run `migrate-circles.mjs` (dry-run, review, then `--apply`). Run `reconcile-circles.mjs` and confirm it reports zero issues. Both scripts are written (planning logic in `scripts/lib/circles.mjs`, tested by `circles.test.mjs`); the migration takes the on-demand backup itself on `--apply`. Ran on prod 2026-10-26: 12 members, 37 recipes, 7 sign-up codes, reconcile clean.
-3. [ ] Deploy the Lambda (`feat/brigades-authz`; merging it deploys, so **only merge after step 2**, then re-run the migration to pick up recipes created in between):
+3. [x] Deploy the Lambda (#139, deployed 2026-10-26; the migration re-run afterwards found nothing new):
    - [x] authz on PUT/DELETE (`load_caller` + `authz.recipe_access`; conditions restate the decision)
    - [x] the allow-list (#126)
    - [x] content-only UpdateItem with optional `version` (409 with the current recipe on a stale version)
@@ -988,7 +988,10 @@ Order matters:
    - Unit tests for every row of the §3.1 matrix.
 
 ### Phase 2: circles API
-- [ ] Routes and handlers for `/me/recipes`, `/me/recipes/{id}`, sharing, copy, all circle routes, invites, and join (§7.1).
+- [ ] Routes and handlers (§7.1):
+  - [x] `/me/recipes`, `/me/recipes/{id}`, `PUT /recipes/{id}/sharing`, `DELETE /circles/{cid}/recipes/{rid}` (`feed.py`, `app.py`)
+  - [x] `/me/circles`, create, get, rename, change role, leave/remove, delete (`circle_routes.py`). New routes are one `for_each` in `backend_api.tf` (`local.brigade_routes`); `tests/test_router.py` checks it matches `ROUTES`.
+  - [ ] copy (§6.7), invites and join (§6.8)
 - [ ] The post-confirmation trigger (§6.9) and the `pre_sign_up.py` `allowSignup` rule (§6.8).
 - [ ] Route throttles.
 - [ ] Acceptance:

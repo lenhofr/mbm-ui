@@ -1,4 +1,4 @@
-"""Validate the body of POST /recipes and PUT /recipes/{id}.
+"""Validate request bodies: recipes (POST /recipes, PUT /recipes/{id}), sharing and brigades.
 
 Only the editable recipe fields are accepted; everything else in the body
 (attribution, ids, timestamps, unknown keys) is dropped, so clients can't
@@ -154,6 +154,22 @@ def parse_recipe_body(raw):
     return out
 
 
+def _sharing(sharing, prefix):
+    """{isPublic, circleIds} from a sharing object; circleIds de-duplicated, in order."""
+    if not isinstance(sharing, dict):
+        raise BadRequest(f'{prefix.rstrip(".") or "body"} must be an object')
+    is_public = sharing.get('isPublic', False)
+    if not isinstance(is_public, bool):
+        raise BadRequest(f'{prefix}isPublic must be true or false')
+    circle_ids = []
+    for cid in _list(f'{prefix}circleIds', sharing.get('circleIds') or [], MAX_CIRCLES):
+        if not isinstance(cid, str) or not cid.strip() or len(cid) > MAX_CIRCLE_ID:
+            raise BadRequest(f'{prefix}circleIds must be brigade ids')
+        if cid not in circle_ids:
+            circle_ids.append(cid)
+    return {'isPublic': is_public, 'circleIds': circle_ids}
+
+
 def parse_sharing(raw):
     """The optional "sharing" object of POST /recipes: {isPublic, circleIds} or None if absent.
 
@@ -163,18 +179,19 @@ def parse_sharing(raw):
     sharing = _load(raw).get('sharing')
     if sharing is None:
         return None
-    if not isinstance(sharing, dict):
-        raise BadRequest('sharing must be an object')
-    is_public = sharing.get('isPublic', False)
-    if not isinstance(is_public, bool):
-        raise BadRequest('sharing.isPublic must be true or false')
-    circle_ids = []
-    for cid in _list('sharing.circleIds', sharing.get('circleIds') or [], MAX_CIRCLES):
-        if not isinstance(cid, str) or not cid.strip() or len(cid) > MAX_CIRCLE_ID:
-            raise BadRequest('sharing.circleIds must be brigade ids')
-        if cid not in circle_ids:
-            circle_ids.append(cid)
-    return {'isPublic': is_public, 'circleIds': circle_ids}
+    return _sharing(sharing, 'sharing.')
+
+
+def parse_sharing_state(raw):
+    """The body of PUT /recipes/{id}/sharing: the full desired {isPublic, circleIds}.
+
+    Both keys are required, so a client that forgets one can't make a recipe private
+    or take it out of every brigade by accident.
+    """
+    body = _load(raw)
+    if 'isPublic' not in body or 'circleIds' not in body:
+        raise BadRequest('isPublic and circleIds are both required')
+    return _sharing(body, '')
 
 
 def parse_version(raw):
@@ -185,3 +202,39 @@ def parse_version(raw):
     if isinstance(v, bool) or not isinstance(v, int) or v < 1:
         raise BadRequest('version must be a positive whole number')
     return v
+
+
+MAX_CIRCLE_NAME = 60
+MAX_EMOJI = 16
+ROLES = ('member', 'editor', 'owner')
+
+
+def parse_circle_body(raw, partial=False):
+    """{name, emoji} for POST /circles, or the keys present for PATCH (partial=True).
+
+    An emoji of null or "" in a PATCH removes it (returned as None).
+    """
+    body = _load(raw)
+    out = {}
+    if 'name' in body or not partial:
+        name = body.get('name')
+        name = _text('name', name, MAX_CIRCLE_NAME) if name is not None else ''
+        if not name:
+            raise BadRequest('Give your brigade a name')
+        out['name'] = name
+    if 'emoji' in body:
+        emoji = body.get('emoji')
+        emoji = _text('emoji', emoji, MAX_EMOJI) if emoji is not None else ''
+        if emoji or partial:
+            out['emoji'] = emoji or None
+    if partial and not out:
+        raise BadRequest('Nothing to change')
+    return out
+
+
+def parse_role(raw):
+    """The "role" of PUT /circles/{cid}/members/{sub}."""
+    role = _load(raw).get('role')
+    if role not in ROLES:
+        raise BadRequest(f'role must be one of {", ".join(ROLES)}')
+    return role
