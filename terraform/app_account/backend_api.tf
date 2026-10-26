@@ -213,6 +213,8 @@ data "aws_iam_policy_document" "lambda_policy" {
       "${aws_dynamodb_table.recipes.arn}/index/*",
       aws_dynamodb_table.circles.arn,
       "${aws_dynamodb_table.circles.arn}/index/*",
+      # Brigade invite codes and joins (§6.8)
+      aws_dynamodb_table.invites.arn,
     ]
   }
 
@@ -336,6 +338,64 @@ resource "aws_lambda_function" "cognito_pre_signup" {
   }
 }
 
+# Post-confirmation trigger: a new cook joins the brigade their sign-up code points at
+# (docs/recipe-circles.md §6.9). Same package as pre-sign-up, its own least-privilege role.
+resource "aws_iam_role" "post_confirmation_role" {
+  name               = "mbm-cognito-post-confirmation-role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+resource "aws_iam_policy" "post_confirmation_policy" {
+  name = "mbm-post-confirmation"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = ["dynamodb:GetItem"],
+        Resource = [aws_dynamodb_table.invites.arn, aws_dynamodb_table.circles.arn]
+      },
+      {
+        # The membership and memberCount go in one TransactWriteItems.
+        Effect   = "Allow",
+        Action   = ["dynamodb:PutItem", "dynamodb:UpdateItem"],
+        Resource = aws_dynamodb_table.circles.arn
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        Resource = "arn:aws:logs:*:*:*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "post_confirmation_attach" {
+  role       = aws_iam_role.post_confirmation_role.name
+  policy_arn = aws_iam_policy.post_confirmation_policy.arn
+}
+
+resource "aws_lambda_function" "cognito_post_confirmation" {
+  filename         = archive_file.auth_zip.output_path
+  function_name    = "mbm-cognito-post-confirmation"
+  role             = aws_iam_role.post_confirmation_role.arn
+  handler          = "post_confirmation.handler"
+  runtime          = "python3.10"
+  source_code_hash = archive_file.auth_zip.output_base64sha256
+  depends_on       = [aws_iam_role_policy_attachment.post_confirmation_attach]
+
+  environment {
+    variables = {
+      INVITES_TABLE = aws_dynamodb_table.invites.name
+      CIRCLES_TABLE = aws_dynamodb_table.circles.name
+    }
+  }
+}
+
 resource "aws_iam_role_policy_attachment" "lambda_policy_attach" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = aws_iam_policy.lambda_policy.arn
@@ -370,6 +430,7 @@ resource "aws_lambda_function" "recipes_fn" {
     variables = {
       RECIPES_TABLE      = aws_dynamodb_table.recipes.name
       CIRCLES_TABLE      = aws_dynamodb_table.circles.name
+      INVITES_TABLE      = aws_dynamodb_table.invites.name
       FOUNDING_CIRCLE_ID = local.founding_circle_id
       # Creates without a "sharing" key (installed apps that predate brigades) also go
       # into the founding brigade. Set to "off" once old builds are gone (§8.1, Phase 4).
@@ -460,7 +521,8 @@ resource "aws_cognito_user_pool" "mbm" {
   }
 
   lambda_config {
-    pre_sign_up = aws_lambda_function.cognito_pre_signup.arn
+    pre_sign_up       = aws_lambda_function.cognito_pre_signup.arn
+    post_confirmation = aws_lambda_function.cognito_post_confirmation.arn
   }
 
   # Send verification and other emails via SES using our domain
@@ -544,6 +606,14 @@ resource "aws_lambda_permission" "allow_cognito_pre_signup" {
   statement_id  = "AllowCognitoPreSignUp"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.cognito_pre_signup.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.mbm.arn
+}
+
+resource "aws_lambda_permission" "allow_cognito_post_confirmation" {
+  statement_id  = "AllowCognitoPostConfirmation"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.cognito_post_confirmation.function_name
   principal     = "cognito-idp.amazonaws.com"
   source_arn    = aws_cognito_user_pool.mbm.arn
 }
@@ -665,6 +735,11 @@ locals {
     "PUT /circles/{cid}/members/{sub}",
     "DELETE /circles/{cid}/members/{sub}",
     "DELETE /circles/{cid}/recipes/{rid}",
+    "POST /recipes/{id}/copy",
+    "POST /circles/{cid}/invites",
+    "GET /circles/{cid}/invites",
+    "DELETE /circles/{cid}/invites/{code}",
+    "POST /circles/join",
   ])
 }
 
@@ -725,6 +800,15 @@ resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.http_api.id
   name        = "$default"
   auto_deploy = true
+
+  # Joining by code is the one route worth guessing at; codes are ~69 bits, so this is
+  # belt and braces (§6.8). Per route, across all callers.
+  route_settings {
+    route_key              = "POST /circles/join"
+    throttling_burst_limit = 5
+    throttling_rate_limit  = 2
+  }
+  depends_on = [aws_apigatewayv2_route.brigades]
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api.arn
     # Structured JSON for easier filtering in CloudWatch Logs Insights

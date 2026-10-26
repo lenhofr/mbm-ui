@@ -17,6 +17,7 @@ import router  # noqa: E402
 from api import get_identity, load_caller, map_recipe_out, response  # noqa: E402
 import circle_routes  # noqa: E402
 import feed  # noqa: E402
+import invite_routes  # noqa: E402
 from recipe_input import (EDITABLE_FIELDS, BadRequest, parse_recipe_body, parse_sharing,  # noqa: E402
                           parse_sharing_state, parse_version)
 
@@ -383,6 +384,66 @@ def delete_recipe(event, params):
         return response(500, {'error': str(e)})
 
 
+def _copy_image(image: str | None) -> str | None:
+    """A copy of the recipe's photo under a new key in the same folder (uploads/ or
+    ai-sketches/, which is how the clients tell sketches from photos), so each recipe owns
+    its image (§6.7 option A). Web URLs are kept as they are. If the copy fails, the copy
+    points at the original image rather than losing it."""
+    bucket = os.environ.get('IMAGES_BUCKET')
+    if not image or '://' in image or '/' not in image or not bucket:
+        return image
+    folder, name = image.rsplit('/', 1)
+    ext = os.path.splitext(name)[1]
+    key = f'{folder}/{uuid.uuid4()}{ext}'
+    try:
+        s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        s3.copy_object(Bucket=bucket, Key=key, CopySource={'Bucket': bucket, 'Key': image})
+        return key
+    except ClientError as e:
+        print(f'copy image {image}: {e}')
+        return image
+
+
+def copy_recipe(event, params):
+    """POST /recipes/{id}/copy: "Save to my recipes". Any recipe the caller can read becomes
+    a new private recipe they own, remembering where it came from (§6.7)."""
+    try:
+        caller = load_caller(event)
+        if caller.is_anon:
+            return response(401, {'message': 'Sign in to save a recipe'})
+        table = repo.recipes_table()
+        source = table.get_item(Key={'recipeId': params['id']}).get('Item')
+        if not source or not authz.recipe_access(caller, source).can_read:
+            return response(404, {'message': 'Not found'})
+
+        ident = get_identity(event)
+        now = int(time.time())
+        item = {f: source[f] for f in EDITABLE_FIELDS if f in source}
+        if item.get('image'):
+            item['image'] = _copy_image(item['image'])
+        item.update({
+            'recipeId': str(uuid.uuid4()),
+            'ownerSub': caller.sub,
+            'ownerName': ident.get('name'),
+            'createdAt': now,
+            'createdBySub': caller.sub,
+            'createdByName': ident.get('name'),
+            'updatedAt': now,
+            'updatedBySub': caller.sub,
+            'updatedByName': ident.get('name'),
+            'version': 1,
+            'schemaV': 2,
+            'sourceRecipeId': source['recipeId'],
+        })
+        source_owner = source.get('ownerName') or source.get('createdByName')
+        if source_owner:
+            item['sourceOwnerName'] = source_owner
+        table.put_item(Item=item, ConditionExpression='attribute_not_exists(recipeId)')
+        return response(201, map_recipe_out(item, caller))
+    except ClientError as e:
+        return response(500, {'error': str(e)})
+
+
 def extract_recipe(event, params):
     try:
         body = json.loads(event.get('body') or '{}')
@@ -421,6 +482,7 @@ ROUTES = {
     'PUT /recipes/{id}': update_recipe,
     'DELETE /recipes/{id}': delete_recipe,
     'PUT /recipes/{id}/sharing': set_sharing,
+    'POST /recipes/{id}/copy': copy_recipe,
     'GET /me/recipes': feed.list_feed,
     'GET /me/recipes/{id}': feed.get_mine,
     'GET /me/circles': circle_routes.list_mine,
@@ -431,6 +493,10 @@ ROUTES = {
     'PUT /circles/{cid}/members/{sub}': circle_routes.set_role,
     'DELETE /circles/{cid}/members/{sub}': circle_routes.remove_member,
     'DELETE /circles/{cid}/recipes/{rid}': circle_routes.unshare_recipe,
+    'POST /circles/{cid}/invites': invite_routes.create,
+    'GET /circles/{cid}/invites': invite_routes.list_codes,
+    'DELETE /circles/{cid}/invites/{code}': invite_routes.revoke,
+    'POST /circles/join': invite_routes.join,
     'POST /ai/extract-recipe': extract_recipe,
 }
 

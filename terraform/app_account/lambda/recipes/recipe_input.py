@@ -238,3 +238,37 @@ def parse_role(raw):
     if role not in ROLES:
         raise BadRequest(f'role must be one of {", ".join(ROLES)}')
     return role
+
+
+MAX_INVITE_USES = 100
+MAX_INVITE_DAYS = 90
+
+
+def _whole(field, v, default, lo, hi):
+    if v is None:
+        return default
+    if isinstance(v, bool) or not isinstance(v, int) or not lo <= v <= hi:
+        raise BadRequest(f'{field} must be a whole number from {lo} to {hi}')
+    return v
+
+
+def parse_invite_body(raw):
+    """{maxUses, ttlDays, role} for POST /circles/{cid}/invites, with the defaults filled in.
+
+    Never "owner": a code can't make someone a Chef.
+    """
+    body = _load(raw)
+    role = body.get('role') or 'editor'
+    if role not in ('member', 'editor'):
+        raise BadRequest('role must be member or editor')
+    return {'maxUses': _whole('maxUses', body.get('maxUses'), 10, 1, MAX_INVITE_USES),
+            'ttlDays': _whole('ttlDays', body.get('ttlDays'), 14, 1, MAX_INVITE_DAYS),
+            'role': role}
+
+
+def parse_join_body(raw):
+    """The code of POST /circles/join, trimmed."""
+    code = _load(raw).get('code')
+    if not isinstance(code, str) or not code.strip() or len(code) > 64:
+        raise BadRequest('Enter an invite code')
+    return code.strip()
