@@ -54,3 +54,13 @@ def test_unknown_route_key_falls_back_to_the_path():
 def test_v1_payload_method():
     e = {'httpMethod': 'GET', 'path': '/recipes/r1', 'requestContext': {}}
     assert router.resolve(e, ROUTES) == ('GET /recipes/{id}', {'id': 'r1'})
+
+
+def test_every_api_gateway_route_has_a_handler_and_back():
+    # A route in backend_api.tf without a handler is a 400; a handler without a route is unreachable.
+    import re
+    from test_recipes import load_app
+    tf = open(os.path.join(os.path.dirname(__file__), '..', '..', 'backend_api.tf')).read()
+    keys = set(re.findall(r'"((?:GET|POST|PUT|PATCH|DELETE) /[^"]*)"', tf))
+    keys = {k for k in keys if not k.split(' ', 1)[1].startswith('/images')}
+    assert keys == set(load_app().ROUTES)

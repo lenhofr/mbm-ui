@@ -14,10 +14,11 @@ import ai_extract  # noqa: E402
 import authz  # noqa: E402
 import repo  # noqa: E402
 import router  # noqa: E402
-from recipe_input import EDITABLE_FIELDS, BadRequest, parse_recipe_body, parse_sharing, parse_version  # noqa: E402
-
-# Cognito group whose members can read and delete any recipe (aws_cognito_user_group.admins).
-ADMIN_GROUP = 'admins'
+from api import get_identity, load_caller, map_recipe_out, response  # noqa: E402
+import circle_routes  # noqa: E402
+import feed  # noqa: E402
+from recipe_input import (EDITABLE_FIELDS, BadRequest, parse_recipe_body, parse_sharing,  # noqa: E402
+                          parse_sharing_state, parse_version)
 
 BEDROCK_MODEL = "us.anthropic.claude-sonnet-4-6"
 # For ~10x cost reduction with slightly lower quality, switch to: us.anthropic.claude-haiku-4-5
@@ -51,40 +52,6 @@ def get_bedrock():
     return _bedrock
 
 
-def response(status_code, body):
-    return {
-        'statusCode': status_code,
-        'body': json.dumps(repo.to_jsonable(body)),
-        'headers': {'Content-Type': 'application/json'}
-    }
-
-
-# Stored for the indexes and authz, never sent to clients (docs/recipe-circles.md §7.4).
-_INTERNAL = ('publicPk', 'circleIds', 'schemaV')
-
-
-def map_recipe_out(item: dict | None, caller: authz.Caller | None = None) -> dict | None:
-    """API shape of a stored recipe: isPublic instead of publicPk, and sharedIn (the
-    circles the caller may see) instead of circleIds, when there's a signed-in caller.
-
-    createdBySub/updatedBySub stay in public responses for now: both clients decide
-    whether to show Delete from createdBySub until they read `access` (§11.4, Phase 3).
-    """
-    if not item:
-        return None
-    out = {k: v for k, v in item.items() if k not in _INTERNAL}
-    rid = out.get('recipeId')
-    if rid is not None:
-        # Keep both for backward compatibility
-        out['id'] = rid
-        out['recipeId'] = rid
-    out['isPublic'] = item.get('publicPk') == 'PUBLIC'
-    if caller is not None and not caller.is_anon:
-        out['sharedIn'] = authz.visible_circle_ids(caller, item)
-        out['access'] = authz.recipe_access(caller, item).to_json()
-    return out
-
-
 def build_content_update(fields: dict, ident: dict, now: int):
     """UpdateItem parts for a PUT: SET the editable fields in the body, REMOVE the rest.
 
@@ -109,78 +76,6 @@ def build_content_update(fields: dict, ident: dict, now: int):
         expr += ' REMOVE ' + ', '.join(removes)
     expr += ' ADD #ver :one'
     return expr, names, values
-
-
-def get_identity(event):
-    """The caller's sub, email, display name and Cognito groups from the verified JWT claims."""
-    rc = (event or {}).get('requestContext') or {}
-    auth_ctx = (rc.get('authorizer') or {})
-    claims = (auth_ctx.get('jwt') or {}).get('claims') or auth_ctx.get('claims') or {}
-
-    # Identity comes only from claims the API Gateway JWT authorizer verified. Never
-    # decode the Authorization header here: on a route without the authorizer that
-    # token is unverified, and anyone could put any sub or group in it.
-
-    # Pull out common user identifiers from either ID or Access token
-    sub = (claims.get('sub')
-           or claims.get('cognito:username')
-           or claims.get('username'))
-    email = claims.get('email')
-
-    # Prefer friendly names if present
-    nickname = (claims.get('nickname')
-                or claims.get('preferred_username')
-                or claims.get('name'))
-    given = claims.get('given_name')
-    family = claims.get('family_name')
-
-    friendly_from_email = None
-    if email and isinstance(email, str) and '@' in email:
-        friendly_from_email = email.split('@')[0]
-
-    # Derive display name by precedence
-    name = (
-        nickname
-        or (f"{given} {family}".strip() if given or family else None)
-        or friendly_from_email
-        or (claims.get('cognito:username') or claims.get('username'))
-        or sub
-        or 'user'
-    )
-
-    # Cognito groups: a list in a decoded token; API Gateway's JWT authorizer
-    # passes list claims as a string like "[admins]".
-    groups = claims.get('cognito:groups') or []
-    if isinstance(groups, str):
-        groups = groups.strip('[]').replace(',', ' ').split()
-
-    return {
-        'sub': sub,
-        'email': email,
-        'name': name,
-        'groups': list(groups),
-    }
-
-
-def load_caller(event) -> authz.Caller:
-    """The signed-in caller with their circle roles, or anonymous (§5 "Loading the caller").
-
-    Memberships of circles being deleted are left out, so they grant nothing. Loaded on
-    every request, never cached: a removed member loses access immediately.
-    """
-    ident = get_identity(event)
-    sub = ident.get('sub')
-    if not sub:
-        return authz.ANONYMOUS
-    circles = repo.circles_table()
-    rows = repo.query_all(circles, IndexName='gsi1',
-                          KeyConditionExpression=Key('gsi1pk').eq(f'USER#{sub}') & Key('gsi1sk').begins_with('CIRCLE#'))
-    roles = {r['gsi1sk'][len('CIRCLE#'):]: r.get('role') for r in rows}
-    if roles:
-        metas = repo.batch_get_keys(circles, [{'pk': f'CIRCLE#{cid}', 'sk': 'META'} for cid in roles])
-        live = {m['pk'][len('CIRCLE#'):] for m in metas if not m.get('deleting')}
-        roles = {cid: role for cid, role in roles.items() if cid in live}
-    return authz.Caller(sub, ident.get('name'), roles, is_admin=ADMIN_GROUP in ident.get('groups', []))
 
 
 def _is_public(item) -> bool:
@@ -358,6 +253,90 @@ def update_recipe(event, params):
         return response(500, {'error': str(e)})
 
 
+def set_sharing(event, params):
+    """PUT /recipes/{id}/sharing {isPublic, circleIds, version?}: the owner sets who sees a
+    recipe (§6.3). The body is the full desired state, so repeating it changes nothing.
+
+    updatedAt is left alone: sharing isn't an edit, and it shouldn't move the recipe up
+    the list or show as "updated" on its page.
+    """
+    recipe_id = params['id']
+    try:
+        raw = event.get('body')
+        desired = parse_sharing_state(raw)
+        version = parse_version(raw)
+        caller = load_caller(event)
+        recipes, circles = repo.recipes_table(), repo.circles_table()
+        existing = recipes.get_item(Key={'recipeId': recipe_id}).get('Item')
+        access = authz.recipe_access(caller, existing) if existing else authz.NONE
+        if not access.can_read:
+            return response(404, {'message': 'Not found'})
+        if not access.can_share:
+            return response(403, {'message': 'Only the cook who added this recipe can change who sees it'})
+
+        current, wanted = set(existing.get('circleIds') or ()), set(desired['circleIds'])
+        to_add, to_remove = sorted(wanted - current), sorted(current - wanted)
+        not_mine = [cid for cid in to_add if not authz.can_share_into(caller, cid)]
+        if not_mine:
+            return response(400, {'message': "You can only share into brigades you're in", 'circleIds': not_mine})
+
+        sets, removes = [], []
+        names = {'#ver': 'version', '#c': 'circleIds', '#pub': 'publicPk', '#owner': 'ownerSub'}
+        values = {':one': 1, ':sub': caller.sub}
+        if wanted:
+            sets.append('#c = :cids')
+            values[':cids'] = wanted
+        else:
+            removes.append('#c')
+        if desired['isPublic']:
+            sets.append('#pub = :pub')
+            values[':pub'] = 'PUBLIC'
+        else:
+            removes.append('#pub')
+        expr = (f'SET {", ".join(sets)} ' if sets else '') + (f'REMOVE {", ".join(removes)} ' if removes else '')
+        cond = '#owner = :sub'
+        if version is not None:
+            cond += ' AND #ver = :v'
+            values[':v'] = version
+        now = int(time.time())
+        actions = [{'Update': {'TableName': recipes, 'Key': {'recipeId': recipe_id},
+                               'UpdateExpression': expr + 'ADD #ver :one', 'ConditionExpression': cond,
+                               'ExpressionAttributeNames': names, 'ExpressionAttributeValues': values}}]
+        for cid in to_add:
+            actions += _share_edge_actions(circles, cid, recipe_id, caller.sub, now)
+        for cid in to_remove:
+            # The owner may always unshare; no condition, so a retry is harmless.
+            actions.append({'Delete': {'TableName': circles, 'Key': {'pk': f'CIRCLE#{cid}', 'sk': f'RECIPE#{recipe_id}'}}})
+        try:
+            repo.transact(actions)
+        except ClientError as e:
+            if e.response.get('Error', {}).get('Code') != 'TransactionCanceledException':
+                raise
+            if repo.cancellation_codes(e)[0] != 'ConditionalCheckFailed':
+                # A membership or circle check failed: left or deleted since load_caller.
+                return response(400, {'message': "You can only share into brigades you're in"})
+            current_item = recipes.get_item(Key={'recipeId': recipe_id}).get('Item')
+            now_access = authz.recipe_access(caller, current_item) if current_item else authz.NONE
+            if not now_access.can_read:
+                return response(404, {'message': 'Not found'})
+            if not now_access.can_share:
+                return response(403, {'message': 'Only the cook who added this recipe can change who sees it'})
+            return response(409, {'message': 'Someone else just changed this recipe',
+                                  'recipe': map_recipe_out(current_item, caller)})
+
+        item = {k: v for k, v in existing.items() if k not in ('circleIds', 'publicPk')}
+        item['version'] = existing.get('version', 0) + 1
+        if wanted:
+            item['circleIds'] = wanted
+        if desired['isPublic']:
+            item['publicPk'] = 'PUBLIC'
+        return response(200, map_recipe_out(item, caller))
+    except BadRequest as e:
+        return response(400, {'message': str(e)})
+    except ClientError as e:
+        return response(500, {'error': str(e)})
+
+
 def delete_recipe(event, params):
     recipe_id = params['id']
     try:
@@ -441,6 +420,17 @@ ROUTES = {
     'POST /recipes': create_recipe,
     'PUT /recipes/{id}': update_recipe,
     'DELETE /recipes/{id}': delete_recipe,
+    'PUT /recipes/{id}/sharing': set_sharing,
+    'GET /me/recipes': feed.list_feed,
+    'GET /me/recipes/{id}': feed.get_mine,
+    'GET /me/circles': circle_routes.list_mine,
+    'POST /circles': circle_routes.create,
+    'GET /circles/{cid}': circle_routes.get,
+    'PATCH /circles/{cid}': circle_routes.update,
+    'DELETE /circles/{cid}': circle_routes.delete,
+    'PUT /circles/{cid}/members/{sub}': circle_routes.set_role,
+    'DELETE /circles/{cid}/members/{sub}': circle_routes.remove_member,
+    'DELETE /circles/{cid}/recipes/{rid}': circle_routes.unshare_recipe,
     'POST /ai/extract-recipe': extract_recipe,
 }
 

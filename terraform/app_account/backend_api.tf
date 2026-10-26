@@ -571,7 +571,7 @@ resource "aws_apigatewayv2_api" "http_api" {
 
   cors_configuration {
     allow_origins = ["*"]
-    allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     allow_headers = ["content-type", "authorization"]
     max_age       = 3600
   }
@@ -645,6 +645,33 @@ resource "aws_apigatewayv2_route" "recipes_item_put" {
 resource "aws_apigatewayv2_route" "recipes_item_delete" {
   api_id             = aws_apigatewayv2_api.http_api.id
   route_key          = "DELETE /recipes/{id}"
+  target             = "integrations/${aws_apigatewayv2_integration.recipes_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
+}
+
+# Brigades and the signed-in feed (docs/recipe-circles.md §7.1). All need a signed-in
+# user; the Lambda checks brigade roles itself.
+locals {
+  brigade_routes = toset([
+    "GET /me/recipes",
+    "GET /me/recipes/{id}",
+    "PUT /recipes/{id}/sharing",
+    "GET /me/circles",
+    "POST /circles",
+    "GET /circles/{cid}",
+    "PATCH /circles/{cid}",
+    "DELETE /circles/{cid}",
+    "PUT /circles/{cid}/members/{sub}",
+    "DELETE /circles/{cid}/members/{sub}",
+    "DELETE /circles/{cid}/recipes/{rid}",
+  ])
+}
+
+resource "aws_apigatewayv2_route" "brigades" {
+  for_each           = local.brigade_routes
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = each.value
   target             = "integrations/${aws_apigatewayv2_integration.recipes_integration.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito_jwt.id
