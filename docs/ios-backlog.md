@@ -27,6 +27,30 @@ Passwordless sign-in with Face ID / Touch ID that works in the iOS app and on th
 ### Sign in with Apple (set aside)
 Conflicts with the invite-code gate: `pre_sign_up` runs for every new account, and Apple sign-in has no step to enter a code. Revisit only with an invite-flow redesign (e.g. enter the code first, then sign in with Apple).
 
+## Fun and delight
+
+Small touches that lean into the kitchen-talk personality. Details for each: [`fun-ideas-plan.md`](fun-ideas-plan.md).
+
+- **Rotating sayings** under the loading pot, every ~2s with a crossfade.
+- **Steam that steams**: the pot's steam lines wiggle and drift up.
+- **Sprinkles** (confetti) when you finish cooking.
+- **Heart pop**: tiny hearts float up when you favorite a recipe.
+- **Funny "no results"** messages, ported from the web's `talk.noMatch`.
+- **Time-of-day greeting** under the logo ("Good morning, Rob ☕", "What's for dinner?").
+- **Shake for dinner**: shake the phone to get a random recipe.
+
+## Native iPhone features
+
+Bigger, one branch each. Details: [`fun-ideas-plan.md`](fun-ideas-plan.md#part-2-native-iphone-features).
+
+- **Home Screen widget**: "Tonight's pick", a daily random recipe.
+- **Cook mode on the Lock Screen**: a Live Activity with the current step.
+- **Siri and Shortcuts**: "Hey Siri, what's for dinner?"
+- **Spotlight search** for recipes.
+- **Grocery list in Reminders** from a recipe's unchecked ingredients.
+- **Seasonal app icons** to choose from.
+- **Offline recipes**: cached list and photos for kitchens with poor signal.
+
 ## Cross-platform improvements
 
 - **Favorites sync**: favorites live on each device (web `localStorage`, iOS `UserDefaults`), keyed by Cognito sub. Syncing needs API storage, e.g. `GET/PUT /favorites` backed by DynamoDB.
