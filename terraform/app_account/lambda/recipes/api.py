@@ -92,8 +92,26 @@ def get_identity(event):
         'sub': sub,
         'email': email,
         'name': name,
+        'nickname': nickname,
         'groups': list(groups),
     }
+
+
+def _refresh_display_name(circles, rows, nickname):
+    """Copy a changed kitchen nickname onto the caller's memberships, so brigade member
+    lists follow it. New cooks join (post-confirmation trigger) before they pick one.
+    Only a real nickname claim counts, never a fallback; a failure here never fails the request.
+    """
+    if not nickname:
+        return
+    for row in rows:
+        if row.get('displayName') == nickname:
+            continue
+        try:
+            circles.update_item(Key={'pk': row['pk'], 'sk': row['sk']}, UpdateExpression='SET displayName = :n',
+                                ConditionExpression='attribute_exists(sk)', ExpressionAttributeValues={':n': nickname})
+        except Exception as e:  # noqa: BLE001
+            print(f'refresh displayName {row.get("pk")}: {e}')
 
 
 def load_caller(event) -> authz.Caller:
@@ -110,6 +128,7 @@ def load_caller(event) -> authz.Caller:
     rows = repo.query_all(circles, IndexName='gsi1',
                           KeyConditionExpression=Key('gsi1pk').eq(f'USER#{sub}') & Key('gsi1sk').begins_with('CIRCLE#'))
     roles = {r['gsi1sk'][len('CIRCLE#'):]: r.get('role') for r in rows}
+    _refresh_display_name(circles, rows, ident.get('nickname'))
     if roles:
         metas = repo.batch_get_keys(circles, [{'pk': f'CIRCLE#{cid}', 'sk': 'META'} for cid in roles])
         live = {m['pk'][len('CIRCLE#'):] for m in metas if not m.get('deleting')}

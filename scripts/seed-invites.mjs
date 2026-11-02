@@ -7,6 +7,9 @@ const COUNT = Number(process.env.COUNT || 20);
 const PREFIX = process.env.PREFIX || "FNF";
 const CODE_LEN = Number(process.env.CODE_LEN || 8); // random part length
 const TTL_DAYS = process.env.TTL_DAYS ? Number(process.env.TTL_DAYS) : null;
+// Optional: people who sign up with these codes also join this brigade as Sous-chefs
+// (docs/recipe-circles.md §6.9), e.g. the founding one, 3c5342e4efa44ad68937eaed08036dda.
+const CIRCLE_ID = process.env.CIRCLE_ID;
 
 const client = new DynamoDBClient({ region: REGION });
 
@@ -24,7 +27,14 @@ const items = Array.from({ length: COUNT }, () => {
     maxUses: { N: '1' },
     uses: { N: '0' },
     issuedAt: { N: String(now) },
+    // Sign-up codes: only these (and older codes with no kind) can create accounts.
+    kind: { S: 'signup' },
+    allowSignup: { BOOL: true },
   };
+  if (CIRCLE_ID) {
+    item.circleId = { S: CIRCLE_ID };
+    item.circleRole = { S: 'editor' };
+  }
   if (expiresAt) item.expiresAt = { N: String(expiresAt) };
   return { PutRequest: { Item: item } };
 });

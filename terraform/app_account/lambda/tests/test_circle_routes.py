@@ -29,9 +29,9 @@ def member(ddb, cid, sub):
     return ddb.Table('mbm-circles').get_item(Key={'pk': f'CIRCLE#{cid}', 'sk': f'MEMBER#{sub}'}).get('Item')
 
 
-def share(ddb, table, rid, owner, circles, public=True, updated=1):
+def share(ddb, table, rid, owner, circles, public=True, updated=1, **extra):
     """A migrated recipe shared into circles, edges included (I1)."""
-    migrated(table, rid, owner, circles, public, updatedAt=updated)
+    migrated(table, rid, owner, circles, public, updatedAt=updated, **extra)
     for cid in circles:
         ddb.Table('mbm-circles').put_item(Item={'pk': f'CIRCLE#{cid}', 'sk': f'RECIPE#{rid}', 'sharedBySub': owner})
 
