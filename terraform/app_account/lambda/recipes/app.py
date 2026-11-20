@@ -22,34 +22,17 @@ from recipe_input import (EDITABLE_FIELDS, BadRequest, parse_recipe_body, parse_
                           parse_sharing_state, parse_version)
 
 BEDROCK_MODEL = "us.anthropic.claude-sonnet-4-6"
-# For ~10x cost reduction with slightly lower quality, switch to: us.anthropic.claude-haiku-4-5
+# For ~3x lower cost with slightly lower quality, switch to the Haiku 4.5 profile
+# (us.anthropic.claude-haiku-4-5-20251001-v1:0); the Lambda role already allows it.
 
 _bedrock = None
-_bedrock_expiry = 0  # epoch seconds; 0 means never set
+
 
 def get_bedrock():
-    global _bedrock, _bedrock_expiry
-    region = os.environ.get("AWS_REGION", "us-east-1")
-    role_arn = os.environ.get("BEDROCK_ROLE_ARN")
-    if role_arn:
-        # Refresh assumed-role credentials when they're within 5 minutes of expiry
-        if _bedrock is None or time.time() > _bedrock_expiry - 300:
-            sts = boto3.client("sts")
-            assumed = sts.assume_role(
-                RoleArn=role_arn,
-                RoleSessionName="mbm-recipes-bedrock",
-            )
-            creds = assumed["Credentials"]
-            _bedrock_expiry = int(assumed["Credentials"]["Expiration"].timestamp())
-            _bedrock = boto3.client(
-                "bedrock-runtime",
-                region_name=region,
-                aws_access_key_id=creds["AccessKeyId"],
-                aws_secret_access_key=creds["SecretAccessKey"],
-                aws_session_token=creds["SessionToken"],
-            )
-    elif _bedrock is None:
-        _bedrock = boto3.client("bedrock-runtime", region_name=region)
+    """Bedrock client using the Lambda's own role (same account as the app)."""
+    global _bedrock
+    if _bedrock is None:
+        _bedrock = boto3.client("bedrock-runtime", region_name=os.environ.get("AWS_REGION", "us-east-1"))
     return _bedrock
 
 

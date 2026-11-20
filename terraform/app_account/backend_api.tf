@@ -223,9 +223,23 @@ data "aws_iam_policy_document" "lambda_policy" {
     resources = ["${aws_s3_bucket.images.arn}/*"]
   }
 
+  # Bedrock in this account (it used to assume a role in rjl-ai-dev, 923988301699). The
+  # recipes Lambda calls the US cross-region inference profiles, which route to the model in
+  # us-east-1, us-east-2 or us-west-2, so it needs the profile and the model in each region.
+  # Sonnet 4.6 is what app.py uses; Haiku 4.5 is the cheaper option it mentions. Converse
+  # only (no streaming), so InvokeModel is enough.
   statement {
-    actions   = ["sts:AssumeRole"]
-    resources = ["arn:aws:iam::923988301699:role/mbm-bedrock-access"]
+    actions = ["bedrock:InvokeModel"]
+    resources = concat(
+      [
+        "arn:aws:bedrock:us-east-1:${data.aws_caller_identity.current.account_id}:inference-profile/us.anthropic.claude-sonnet-4-6*",
+        "arn:aws:bedrock:us-east-1:${data.aws_caller_identity.current.account_id}:inference-profile/us.anthropic.claude-haiku-4-5*",
+      ],
+      flatten([for r in ["us-east-1", "us-east-2", "us-west-2"] : [
+        "arn:aws:bedrock:${r}::foundation-model/anthropic.claude-sonnet-4-6*",
+        "arn:aws:bedrock:${r}::foundation-model/anthropic.claude-haiku-4-5*",
+      ]])
+    )
   }
 
   statement {
@@ -436,7 +450,6 @@ resource "aws_lambda_function" "recipes_fn" {
       # into the founding brigade. Set to "off" once old builds are gone (§8.1, Phase 4).
       LEGACY_DEFAULT_SHARE = "founding"
       IMAGES_BUCKET        = aws_s3_bucket.images.id
-      BEDROCK_ROLE_ARN     = "arn:aws:iam::923988301699:role/mbm-bedrock-access"
     }
   }
 }

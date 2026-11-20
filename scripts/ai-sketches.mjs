@@ -26,8 +26,9 @@
  *          node scripts/ai-sketches.mjs apply [--dry-run]
  *
  * Env: AWS_REGION (S3/DynamoDB, default us-east-1), BEDROCK_REGION (default us-west-2, where
- * Bedrock hosts the Stability models), MODEL_ID (default stability.stable-image-core-v1:1;
- * stability.sd3-5-large-v1:0 or stability.stable-image-ultra-v1:1 also take the same request).
+ * Bedrock hosts the Stability models), MODEL_ID (default stability.sd3-5-large-v1:0;
+ * stability.stable-image-ultra-v1:1 also takes the same request. stable-image-core-v1:1, the
+ * old default, is retired by AWS on 2027-05-09).
  * List what the account can use: aws bedrock list-foundation-models --region us-west-2 --by-output-modality IMAGE
  */
 import fs from 'node:fs/promises'
@@ -46,7 +47,7 @@ const args = Object.fromEntries(rest.map(a => {
 
 const REGION = process.env.AWS_REGION || 'us-east-1'
 const BEDROCK_REGION = process.env.BEDROCK_REGION || 'us-west-2'
-const MODEL_ID = process.env.MODEL_ID || 'stability.stable-image-core-v1:1'
+const MODEL_ID = process.env.MODEL_ID || 'stability.sd3-5-large-v1:0'
 const PREFIX = 'ai-sketches/'
 const OUT_DIR = path.resolve('tmp_artifacts/ai-sketches')
 const MANIFEST = path.join(OUT_DIR, 'manifest.json')

@@ -1,3 +1,6 @@
+# TODO: no longer used. The recipes Lambda calls Bedrock in the app account (217354297026)
+# with its own role. This stack (role, ai_infra_user_mbm, mbm-bedrock-monthly budget), its
+# workflow and the AI_ACCOUNT_* secrets go once the rjl-ai-dev support case is closed.
 # Cross-account IAM role that the mbm-recipes Lambda (in account 217354297026) assumes
 # to call Bedrock. Only the Lambda's execution role is trusted — no other principal can assume this.
 resource "aws_iam_role" "bedrock_access" {
