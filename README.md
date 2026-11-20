@@ -59,6 +59,11 @@ npm run preview
    1) Provision infra (S3 site bucket, CloudFront, certs/aliases) with Terraform.
    2) Build the SPA and upload to the site bucket.
    3) Invalidate CloudFront to roll out changes globally.
+- Bedrock (recipe import) runs in the app account (217354297026) with the recipes Lambda's own role.
+  - TODO: remove the old rjl-ai-dev (923988301699) setup once its Bedrock support case is closed:
+    `terraform/ai_account` (the `mbm-bedrock-access` role, the `ai_infra_user_mbm` IAM user, the
+    `mbm-bedrock-monthly` budget), `.github/workflows/terraform-ai-account.yml`, and the
+    `AI_ACCOUNT_AWS_ACCESS_KEY_ID` / `AI_ACCOUNT_AWS_SECRET_ACCESS_KEY` repo secrets.
 
 Manual frontend deploy (after infra exists)
 ```bash
