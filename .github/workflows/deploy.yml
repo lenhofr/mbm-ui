@@ -51,6 +51,8 @@ jobs:
       - name: Terraform Apply
         working-directory: terraform/app_account
         id: tfapply
+        env:
+          TF_VAR_budget_alert_email: ${{ secrets.BUDGET_ALERT_EMAIL }}
         run: |
           set -o pipefail
           terraform apply -input=false -auto-approve 2>&1 | tee tfapply.log

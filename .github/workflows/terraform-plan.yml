@@ -61,6 +61,8 @@ jobs:
       - name: Terraform Plan
         id: plan
         working-directory: terraform/app_account
+        env:
+          TF_VAR_budget_alert_email: ${{ secrets.BUDGET_ALERT_EMAIL }}
         run: |
           set -o pipefail
           terraform plan -input=false -no-color -out=tfplan 2>&1 | tee plan_raw.log
