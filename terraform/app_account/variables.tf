@@ -22,3 +22,11 @@ variable "cognito_logout_urls" {
   default     = ["http://localhost:5173/", "https://mealsbymaggie.com/", "https://www.mealsbymaggie.com/"]
 }
 
+
+# Set from the BUDGET_ALERT_EMAIL repo secret in CI (TF_VAR_budget_alert_email). Sensitive
+# so plans posted as PR comments on this public repo don't print it.
+variable "budget_alert_email" {
+  description = "Email address for the Bedrock budget alerts"
+  type        = string
+  sensitive   = true
+}
