@@ -2,6 +2,8 @@
 
 Scripts for testing recipe extraction via AWS Bedrock before wiring it into the app.
 
+> These use their own prompt, not the app's. Production extraction is `terraform/app_account/lambda/recipes/ai_extract.py`, which uses Kimi K3.1 (`us.moonshotai.kimi-k3.1`, no temperature, `reasoning_effort: "low"`). To compare models the way the app calls them, call `ai_extract.extract_from_images` directly. Use app-account (217354297026) credentials; rjl-ai-dev's Bedrock quotas are 0.
+
 ## Setup
 
 ```bash
@@ -51,7 +53,7 @@ python extract_from_image.py card_front.jpg card_back.jpg --model us.anthropic.c
 ```
 
 Default model: `us.anthropic.claude-sonnet-4-6` (~$0.01–0.02/call).  
-Budget option: `us.anthropic.claude-haiku-4-5` (~10× cheaper, slightly lower quality).
+Budget option: `us.anthropic.claude-haiku-4-5` (~3× cheaper, slightly lower quality).
 
 ### Image size handling
 

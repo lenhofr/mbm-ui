@@ -33,6 +33,7 @@ npm run install-hooks       # Set up git pre-commit hooks (runs tf:fmt check)
 Browser/PWA → CloudFront → S3 (static SPA)
                         ↳ /recipe/* → Lambda@Edge (per-recipe og: tags, falls back to index.html)
                         → API Gateway → Lambda functions → DynamoDB + S3 (images)
+                                     → Bedrock, from the recipes Lambda (AI recipe import, Kimi K3.1)
                                      → Cognito (auth)
 ```
 
@@ -41,6 +42,8 @@ Browser/PWA → CloudFront → S3 (static SPA)
 **Storage abstraction** (`src/lib/storage.ts`): Defines a common interface (`listRecipes`, `getRecipe`, `createRecipe`, `updateRecipe`, `deleteRecipe`) with two adapters:
 - `LocalAdapter` — localStorage with in-memory fallback (used in local dev)
 - `RemoteAdapter` — makes authenticated calls to the deployed API
+
+**AI recipe import:** `POST /ai/extract-recipe` (scan, link or pasted text) runs in the recipes Lambda (`lambda/recipes/ai_extract.py`), which calls Bedrock Converse with a forced `save_recipe` tool call. The model is Kimi K3.1 (`BEDROCK_MODEL = "us.moonshotai.kimi-k3.1"` in `app.py`), chosen on 2026-11-23 because it read handwritten cards more accurately than Sonnet 4.6, and because AWS caps Anthropic models in this AWS organization at 10 requests/min (Opus is blocked; quota increases are refused automatically). Per-model settings live in `ai_extract._model_args`: Kimi takes no `temperature` and runs at `reasoning_effort: "low"`, since its default reasoning took 9–31 s against the 30 s Lambda/API Gateway timeout. Rolling back to Sonnet is a one-line change; the Lambda role still allows Sonnet 4.6 and Haiku 4.5. Bedrock runs in the app account (217354297026) under the Lambda's own role. The `bedrock-monthly` budget (`terraform/app_account/budgets.tf`, $20/month, alert email from the `BUDGET_ALERT_EMAIL` secret) watches the spend. `terraform/ai_account` (rjl-ai-dev, 923988301699) is unused and will be removed once its AWS support case is closed; don't change it before then.
 
 **Search:** Fuse.js with debouncing over title, description, tags, ingredients, steps and the chef (`createdByName`). Supports scoped queries: `tag:<term>`, `ing:<term>` and `chef:<name>` (or `by:`) in addition to full-text. iOS ports it in `RecipeSearch.swift`; its tests use expected results generated from the web search (`src/lib/search.fixture.ts`), so change both together.
 
@@ -166,7 +169,7 @@ When porting a web screen, read its `.tsx` + `.css` and keep the Swift view's co
 - **Storage ops are always async** — even `LocalAdapter` returns Promises.
 - **Error messages** use kitchen-themed text (see `App.tsx`).
 - **Pre-commit hook** enforces `terraform fmt` — run `npm run install-hooks` after cloning.
-- **Terraform state** is remote (S3 + DynamoDB locking); see `terraform/README.md` before running `plan`/`apply`.
+- **Terraform state** is remote in S3 (no DynamoDB lock table is configured); see `terraform/app_account/README.md` before running `plan`/`apply`. Merging to `main` applies `terraform/app_account` (`deploy.yml`).
 
 ## Planned Work
 
