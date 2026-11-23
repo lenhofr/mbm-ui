@@ -54,12 +54,12 @@ npm run preview
 
 ## Infrastructure & deploy
 
-- Terraform code lives in `terraform/`. See `terraform/README.md` for backend setup, plan/apply, and safety notes.
+- Terraform code lives in `terraform/app_account/`. See `terraform/app_account/README.md` for backend setup, plan/apply, and safety notes. Merging to `main` runs `terraform apply` (`.github/workflows/deploy.yml`); PRs get a plan comment.
 - High level flow:
    1) Provision infra (S3 site bucket, CloudFront, certs/aliases) with Terraform.
    2) Build the SPA and upload to the site bucket.
    3) Invalidate CloudFront to roll out changes globally.
-- Bedrock (recipe import) runs in the app account (217354297026) with the recipes Lambda's own role.
+- AI recipe import calls Bedrock (Kimi K3.1, `us.moonshotai.kimi-k3.1`) from the recipes Lambda in the app account (217354297026), with the Lambda's own role. A `bedrock-monthly` AWS budget ($20/month) emails alerts. See `docs/architecture.md`.
   - TODO: remove the old rjl-ai-dev (923988301699) setup once its Bedrock support case is closed:
     `terraform/ai_account` (the `mbm-bedrock-access` role, the `ai_infra_user_mbm` IAM user, the
     `mbm-bedrock-monthly` budget), `.github/workflows/terraform-ai-account.yml`, and the
