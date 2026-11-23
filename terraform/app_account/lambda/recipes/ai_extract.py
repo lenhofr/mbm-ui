@@ -181,13 +181,28 @@ def _call_model(bedrock, model_id, content, known_tags, main_tags=None):
         system=[{"text": SYSTEM_PROMPT}],
         messages=[{"role": "user", "content": content}],
         toolConfig={"tools": [TOOL], "toolChoice": {"tool": {"name": "save_recipe"}}},
-        inferenceConfig={"maxTokens": 4096, "temperature": 0},
+        **_model_args(model_id),
     )
+    # Kimi puts a reasoningContent block (and sometimes a text block) before the tool call.
     for block in resp["output"]["message"]["content"]:
         if "toolUse" in block:
             return block["toolUse"].get("input") or {}
-    # Shouldn't happen with a forced tool choice; treat as unreadable rather than crashing.
+    # Kimi sometimes declines with only a text block ("I can't read this"); also the case
+    # if output hits maxTokens before the tool call. Treat as unreadable.
     return {"readable": False}
+
+
+def _model_args(model_id):
+    """Per-model Converse settings.
+
+    Kimi K3.1 rejects temperature. At its default reasoning level card scans took 9-31 s
+    (the Lambda stops at 30 s) and up to ~3.4k output tokens; "low" keeps them at 3-9 s and
+    under 1k tokens, with the same accuracy in testing (2026-11-23, IMG_2094-2097).
+    """
+    if "moonshotai.kimi" in model_id:
+        return {"inferenceConfig": {"maxTokens": 4096},
+                "additionalModelRequestFields": {"reasoning_effort": "low"}}
+    return {"inferenceConfig": {"maxTokens": 4096, "temperature": 0}}
 
 
 def extract_from_images(bedrock, model_id, images, source="scan", known_tags=None, main_tags=None):

@@ -226,18 +226,21 @@ data "aws_iam_policy_document" "lambda_policy" {
   # Bedrock in this account (it used to assume a role in rjl-ai-dev, 923988301699). The
   # recipes Lambda calls the US cross-region inference profiles, which route to the model in
   # us-east-1, us-east-2 or us-west-2, so it needs the profile and the model in each region.
-  # Sonnet 4.6 is what app.py uses; Haiku 4.5 is the cheaper option it mentions. Converse
-  # only (no streaming), so InvokeModel is enough.
+  # Kimi K3.1 is what app.py uses; Sonnet 4.6 (the previous model, kept for rollback) and
+  # Haiku 4.5 stay allowed. Kimi's profile routes to the same three regions (checked with
+  # aws bedrock get-inference-profile). Converse only (no streaming), so InvokeModel is enough.
   statement {
     actions = ["bedrock:InvokeModel"]
     resources = concat(
       [
         "arn:aws:bedrock:us-east-1:${data.aws_caller_identity.current.account_id}:inference-profile/us.anthropic.claude-sonnet-4-6*",
         "arn:aws:bedrock:us-east-1:${data.aws_caller_identity.current.account_id}:inference-profile/us.anthropic.claude-haiku-4-5*",
+        "arn:aws:bedrock:us-east-1:${data.aws_caller_identity.current.account_id}:inference-profile/us.moonshotai.kimi-k3.1",
       ],
       flatten([for r in ["us-east-1", "us-east-2", "us-west-2"] : [
         "arn:aws:bedrock:${r}::foundation-model/anthropic.claude-sonnet-4-6*",
         "arn:aws:bedrock:${r}::foundation-model/anthropic.claude-haiku-4-5*",
+        "arn:aws:bedrock:${r}::foundation-model/moonshotai.kimi-k3.1",
       ]])
     )
   }
