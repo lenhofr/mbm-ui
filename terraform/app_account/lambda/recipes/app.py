@@ -21,9 +21,12 @@ import invite_routes  # noqa: E402
 from recipe_input import (EDITABLE_FIELDS, BadRequest, parse_recipe_body, parse_sharing,  # noqa: E402
                           parse_sharing_state, parse_version)
 
-BEDROCK_MODEL = "us.anthropic.claude-sonnet-4-6"
-# For ~3x lower cost with slightly lower quality, switch to the Haiku 4.5 profile
-# (us.anthropic.claude-haiku-4-5-20251001-v1:0); the Lambda role already allows it.
+BEDROCK_MODEL = "us.moonshotai.kimi-k3.1"
+# Kimi K3.1 read handwritten cards more accurately than Sonnet 4.6 in a 2026-11-23 test
+# (no misread amounts; Sonnet misread several and kept crossed-out lines), and AWS caps
+# Anthropic models in this org at 10 req/min. Per-model settings are in ai_extract._model_args.
+# To roll back, set "us.anthropic.claude-sonnet-4-6" (the Lambda role still allows it, and
+# the Haiku 4.5 profile, us.anthropic.claude-haiku-4-5-20251001-v1:0).
 
 _bedrock = None
 

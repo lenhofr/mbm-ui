@@ -70,6 +70,47 @@ def test_images_forces_tool_and_passes_known_tags():
     assert out['title'] == "Gram's Cornbread"
 
 
+def test_model_args_per_model():
+    bedrock = FakeBedrock(SCAN)
+    ai_extract.extract_from_text(bedrock, 'us.anthropic.claude-sonnet-4-6', 'Cornbread')
+    ai_extract.extract_from_text(bedrock, 'us.moonshotai.kimi-k3.1', 'Cornbread')
+    sonnet, kimi = bedrock.calls
+    assert sonnet['inferenceConfig'] == {'maxTokens': 4096, 'temperature': 0}
+    assert 'additionalModelRequestFields' not in sonnet
+    # Kimi rejects temperature, and needs low reasoning to stay well under the 30 s timeout.
+    assert kimi['inferenceConfig'] == {'maxTokens': 4096}
+    assert kimi['additionalModelRequestFields'] == {'reasoning_effort': 'low'}
+
+
+class ScriptedBedrock:
+    """Answers converse() with a fixed list of content blocks."""
+
+    def __init__(self, blocks):
+        self.blocks = blocks
+
+    def converse(self, **kwargs):
+        return {'output': {'message': {'content': self.blocks}}, 'stopReason': 'tool_use'}
+
+
+def test_kimi_reasoning_and_text_blocks_before_tool_use():
+    # Shape of a real Kimi K3.1 reply: reasoning, sometimes text, then the tool call.
+    bedrock = ScriptedBedrock([
+        {'reasoningContent': {'reasoningText': {'text': 'The card says 2 tbs butter...'}}},
+        {'text': 'Here is the recipe.'},
+        {'toolUse': {'toolUseId': 't1', 'name': 'save_recipe', 'input': SCAN}},
+    ])
+    out = ai_extract.extract_from_text(bedrock, 'us.moonshotai.kimi-k3.1', 'Cornbread')
+    assert out['title'] == "Gram's Cornbread"
+
+
+def test_kimi_text_only_decline_is_unreadable():
+    bedrock = ScriptedBedrock([
+        {'reasoningContent': {'reasoningText': {'text': 'Mostly scribbles.'}}},
+        {'text': "I can't reliably transcribe this one. A clearer photo would help."},
+    ])
+    assert ai_extract.extract_from_text(bedrock, 'us.moonshotai.kimi-k3.1', 'x') == {'readable': False}
+
+
 def test_text_passes_main_tags_first():
     bedrock = FakeBedrock(SCAN)
     ai_extract.extract_from_text(bedrock, 'm', 'Cornbread', known_tags=['bread'], main_tags=['dinner', 'crockpot'])
